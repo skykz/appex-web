@@ -1,0 +1,20 @@
+{
+  "welcome": "Welcome to AppEx",
+  "home": "Home",
+  "settings": "Settings",
+  "auth": {
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "email": "Email",
+    "password": "Password",
+    "welcomeBack": "Welcome back",
+    "signInPrompt": "Sign in to your account to continue"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit"
+  }
+}
