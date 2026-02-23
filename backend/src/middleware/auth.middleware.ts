@@ -1,10 +1,10 @@
-import type { Response, NextFunction } from 'express'
+import type { Request, Response, NextFunction } from 'express'
 import type { AuthenticatedRequest } from '../types/index.js'
 import { supabase } from '../db/supabase.js'
 import { AppError } from '../utils/error-handler.js'
 
 export async function requireAuth(
-  req: AuthenticatedRequest,
+  req: Request,
   _res: Response,
   next: NextFunction
 ) {
@@ -23,8 +23,8 @@ export async function requireAuth(
       throw new AppError(401, 'Invalid or expired token')
     }
 
-    req.userId = data.user.id
-    req.userEmail = data.user.email ?? ''
+    ;(req as AuthenticatedRequest).userId = data.user.id
+    ;(req as AuthenticatedRequest).userEmail = data.user.email ?? ''
     next()
   } catch (err) {
     next(err)

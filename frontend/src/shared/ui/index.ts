@@ -10,6 +10,16 @@ export { Label } from './label'
 export { Separator } from './separator'
 export { Sheet, SheetContent, SheetTitle, SheetDescription } from './sheet'
 export {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogClose,
+} from './dialog'
+export {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,

@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { userApi } from '../api/user-api'
-import type { CreateUserDto } from '../model/types'
+import { useAuthStore } from '../model/auth-store'
+import type { CreateUserDto, LoginDto } from '../model/types'
 
 /**
  * Query keys for user-related queries.
@@ -14,14 +16,25 @@ export const userKeys = {
 
 /**
  * Hook to fetch the current authenticated user.
- *
- * @example
- * const { data: user, isLoading } = useCurrentUser()
  */
 export function useCurrentUser() {
+  const { isAuthenticated, setUser, logout } = useAuthStore()
+
   return useQuery({
     queryKey: userKeys.me(),
-    queryFn: () => userApi.getCurrentUser(),
+    queryFn: async () => {
+      const user = await userApi.getCurrentUser()
+      setUser(user)
+      return user
+    },
+    enabled: isAuthenticated,
+    retry: (failureCount, error) => {
+      if (error instanceof Error && 'status' in error && (error as any).status === 401) {
+        logout()
+        return false
+      }
+      return failureCount < 2
+    },
   })
 }
 
@@ -37,23 +50,39 @@ export function useUser(id: string) {
 }
 
 /**
- * Hook to create a new user.
- * Invalidates the users cache on success.
+ * Hook to log in a user.
+ */
+export function useLogin() {
+  const { setAuth } = useAuthStore()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: (data: LoginDto) => userApi.login(data),
+    onSuccess: (response) => {
+      setAuth(response.user, response.accessToken, response.refreshToken)
+      navigate('/home', { replace: true })
+    },
+  })
+}
+
+/**
+ * Hook to create a new user account.
  */
 export function useCreateUser() {
-  const queryClient = useQueryClient()
+  const { setAuth } = useAuthStore()
+  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: (data: CreateUserDto) => userApi.createUser(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userKeys.all })
+    onSuccess: (response) => {
+      setAuth(response.user, response.accessToken, response.refreshToken)
+      navigate('/home', { replace: true })
     },
   })
 }
 
 /**
  * Hook to update the current user's profile.
- * Invalidates the current user cache on success.
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
@@ -64,4 +93,19 @@ export function useUpdateProfile() {
       queryClient.invalidateQueries({ queryKey: userKeys.me() })
     },
   })
+}
+
+/**
+ * Hook to log out the current user.
+ */
+export function useLogout() {
+  const { logout } = useAuthStore()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+
+  return () => {
+    logout()
+    queryClient.clear()
+    navigate('/auth', { replace: true })
+  }
 }

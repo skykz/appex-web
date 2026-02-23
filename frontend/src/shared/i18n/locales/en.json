@@ -7,8 +7,18 @@
     "signUp": "Sign Up",
     "email": "Email",
     "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Name",
     "welcomeBack": "Welcome back",
-    "signInPrompt": "Sign in to your account to continue"
+    "createAccount": "Create an account",
+    "signInPrompt": "Sign in to your account to continue",
+    "signUpPrompt": "Enter your details to get started",
+    "signingIn": "Signing in...",
+    "creatingAccount": "Creating account...",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "invalidCredentials": "Invalid email or password. Please try again.",
+    "signupFailed": "Signup failed. Please try again."
   },
   "common": {
     "loading": "Loading...",

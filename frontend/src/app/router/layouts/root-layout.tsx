@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@shared/ui'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
+import { SupportChat } from '@/widgets/support-chat'
 
 /**
  * Root layout component with sidebar navigation.
@@ -50,6 +51,9 @@ export function RootLayout() {
         {/* Mobile bottom navigation */}
         <MobileBottomBar />
       </SidebarInset>
+
+      {/* Support chat widget */}
+      <SupportChat />
     </SidebarProvider>
   )
 }

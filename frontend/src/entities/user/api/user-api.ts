@@ -1,36 +1,35 @@
 import { httpClient } from '@shared/api'
-import type { User, CreateUserDto } from '../model/types'
+import type { User, CreateUserDto, LoginDto, AuthResponse } from '../model/types'
 
-/**
- * User entity API methods.
- * Centralized API calls for user-related operations.
- */
 export const userApi = {
-  /**
-   * Fetches the current authenticated user.
-   */
+  async login(data: LoginDto): Promise<AuthResponse> {
+    return httpClient.post<AuthResponse>('/auth/login', data)
+  },
+
+  async createUser(data: CreateUserDto): Promise<AuthResponse> {
+    return httpClient.post<AuthResponse>('/auth/signup', data)
+  },
+
   async getCurrentUser(): Promise<User> {
     return httpClient.get<User>('/users/me')
   },
 
-  /**
-   * Fetches a user by ID.
-   */
   async getUserById(id: string): Promise<User> {
     return httpClient.get<User>(`/users/${id}`)
   },
 
-  /**
-   * Creates a new user.
-   */
-  async createUser(data: CreateUserDto): Promise<User> {
-    return httpClient.post<User>('/users', data)
-  },
-
-  /**
-   * Updates the current user's profile.
-   */
   async updateProfile(data: Partial<Pick<User, 'name'>>): Promise<User> {
     return httpClient.put<User>('/users/me', data)
+  },
+
+  async changePassword(data: {
+    currentPassword: string
+    newPassword: string
+  }): Promise<{ success: boolean }> {
+    return httpClient.patch<{ success: boolean }>('/users/me/password', data)
+  },
+
+  async refreshToken(refreshToken: string): Promise<AuthResponse> {
+    return httpClient.post<AuthResponse>('/auth/refresh', { refreshToken })
   },
 }

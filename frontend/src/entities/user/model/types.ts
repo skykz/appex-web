@@ -6,7 +6,7 @@ export interface User {
   id: string
   email: string
   name: string
-  createdAt: string
+  created_at: string
 }
 
 /**
@@ -16,4 +16,21 @@ export interface CreateUserDto {
   email: string
   name: string
   password: string
+}
+
+/**
+ * Login payload.
+ */
+export interface LoginDto {
+  email: string
+  password: string
+}
+
+/**
+ * Auth response from the server.
+ */
+export interface AuthResponse {
+  accessToken: string
+  refreshToken: string
+  user: User
 }

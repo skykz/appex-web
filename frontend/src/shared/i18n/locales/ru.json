@@ -7,8 +7,18 @@
     "signUp": "Зарегистрироваться",
     "email": "Email",
     "password": "Пароль",
+    "confirmPassword": "Подтвердите пароль",
+    "name": "Имя",
     "welcomeBack": "С возвращением",
-    "signInPrompt": "Войдите в свой аккаунт, чтобы продолжить"
+    "createAccount": "Создать аккаунт",
+    "signInPrompt": "Войдите в свой аккаунт, чтобы продолжить",
+    "signUpPrompt": "Введите данные, чтобы начать",
+    "signingIn": "Вход...",
+    "creatingAccount": "Создание аккаунта...",
+    "noAccount": "Нет аккаунта?",
+    "hasAccount": "Уже есть аккаунт?",
+    "invalidCredentials": "Неверный email или пароль. Попробуйте снова.",
+    "signupFailed": "Ошибка регистрации. Попробуйте снова."
   },
   "common": {
     "loading": "Загрузка...",

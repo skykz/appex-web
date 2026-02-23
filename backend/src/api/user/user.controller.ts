@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import type { AuthenticatedRequest } from '../../types/index.js'
 import { z } from 'zod'
-import { supabaseAdmin } from '../../db/supabase.js'
+import { supabase, supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const createUserSchema = z.object({
@@ -11,7 +11,13 @@ const createUserSchema = z.object({
 })
 
 const updateUserSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+})
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
 })
 
 export async function createUser(
@@ -102,7 +108,7 @@ export async function updateCurrentUser(
 
     const { data, error } = await supabaseAdmin
       .from('users')
-      .update(body)
+      .update({ ...body, updated_at: new Date().toISOString() })
       .eq('id', userId)
       .select()
       .single()
@@ -110,6 +116,37 @@ export async function updateCurrentUser(
     if (error) throw new AppError(500, error.message)
 
     res.json(data)
+  } catch (err) {
+    next(err)
+  }
+}
+
+export async function changePassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userEmail } = req as AuthenticatedRequest
+    const body = changePasswordSchema.parse(req.body)
+
+    // Verify current password by attempting sign-in
+    const { error: verifyError } = await supabase.auth.signInWithPassword({
+      email: userEmail,
+      password: body.currentPassword,
+    })
+
+    if (verifyError) throw new AppError(400, 'Current password is incorrect')
+
+    // Update password via admin API
+    const { userId } = req as AuthenticatedRequest
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+      password: body.newPassword,
+    })
+
+    if (error) throw new AppError(500, error.message)
+
+    res.json({ success: true })
   } catch (err) {
     next(err)
   }

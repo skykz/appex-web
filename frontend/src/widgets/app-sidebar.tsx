@@ -1,5 +1,5 @@
-import * as React from 'react'
-import { Link, NavLink, matchPath, useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { Link, NavLink, matchPath, useLocation, useNavigate } from 'react-router-dom'
 import * as Collapsible from '@radix-ui/react-collapsible'
 import {
   Home,
@@ -12,7 +12,11 @@ import {
   MessageSquare,
   Bot,
   Workflow,
+  BadgeCheck,
+  CreditCard,
+  LogOut,
 } from 'lucide-react'
+import { useAuthStore } from '@entities/user'
 import {
   Sidebar,
   SidebarContent,
@@ -30,6 +34,7 @@ import {
   useSidebar,
 } from '@shared/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared/ui/avatar'
+import { StreakSheet } from '@features/streak'
 
 // -- Configuration & Data --
 
@@ -70,7 +75,7 @@ const resourcesNav = [
     items: [
       {
         title: 'Prompts Library',
-        url: '/resources/prompts/collection',
+        url: '/resources/prompts',
         icon: BookOpen,
         description: 'Browse collection',
       },
@@ -88,6 +93,7 @@ const isRouteActive = (pathname: string, target: string, end = true) => {
 
 export function AppSidebar() {
   const location = useLocation()
+  const [streakOpen, setStreakOpen] = useState(false)
   // Initialize sidebar context for this component tree.
   useSidebar()
   const isAiToolsActive = location.pathname.startsWith('/ai-tools')
@@ -113,18 +119,24 @@ export function AppSidebar() {
                   </span>
                 </div>
                 <div
+                  role="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setStreakOpen(true)
+                  }}
                   className={`
                     inline-flex items-center gap-1.5 rounded-full px-3 py-1
                     text-sm font-semibold text-orange-700
                     bg-linear-to-r from-orange-100 to-amber-100
                     ring-1 ring-orange-200/80 shadow-sm
                     transition-all duration-200
-                    group-hover:shadow-md group-hover:ring-orange-300/80 group-hover:scale-[1.03]
+                    hover:shadow-md hover:ring-orange-300/80 hover:scale-[1.03]
                     active:scale-95
                   `}
                 >
                   <span className="tabular-nums">1</span>
-                  <span className="text-sm transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110">
+                  <span className="text-sm transition-transform duration-200 hover:-rotate-12 hover:scale-110">
                     🔥
                   </span>
                 </div>
@@ -133,6 +145,9 @@ export function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      {/* Streak sheet popup */}
+      <StreakSheet open={streakOpen} onOpenChange={setStreakOpen} />
 
       <SidebarContent className="gap-0">
         {/* Main Platform */}
@@ -228,30 +243,116 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              asChild
-            >
-              <Link to="/settings">
-                <Avatar className="size-8 rounded-lg">
-                  <AvatarImage src="/avatars/user.png" alt="Yera" />
-                  <AvatarFallback className="rounded-lg bg-orange-100 text-orange-600 font-medium">
-                    YE
-                  </AvatarFallback>
-                </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Yera</span>
-                  <span className="truncate text-xs text-muted-foreground">
-                    botawatfat@gmail.com
-                  </span>
-                </div>
-                <ChevronsUpDown className="ml-auto size-4" />
-              </Link>
-            </SidebarMenuButton>
+            <ProfileDropdown />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  )
+}
+
+function ProfileDropdown() {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleSignOut() {
+    setOpen(false)
+    logout()
+    navigate('/auth')
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <SidebarMenuButton
+        size="lg"
+        className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+        onClick={() => setOpen(!open)}
+        data-state={open ? 'open' : 'closed'}
+      >
+        <Avatar className="size-8 rounded-lg">
+          <AvatarImage src="/avatars/user.png" alt="Yera" />
+          <AvatarFallback className="rounded-lg bg-orange-100 text-orange-600 font-medium">
+            YE
+          </AvatarFallback>
+        </Avatar>
+        <div className="grid flex-1 text-left text-sm leading-tight">
+          <span className="truncate font-semibold">Yera</span>
+          <span className="truncate text-xs text-muted-foreground">
+            botawatfat@gmail.com
+          </span>
+        </div>
+        <ChevronsUpDown className="ml-auto size-4" />
+      </SidebarMenuButton>
+
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 mb-2 w-56 rounded-xl border bg-background shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-150">
+          {/* User info header */}
+          <div className="flex items-center gap-3 border-b px-3 py-3">
+            <Avatar className="size-9 rounded-lg">
+              <AvatarImage src="/avatars/user.png" alt="Yera" />
+              <AvatarFallback className="rounded-lg bg-orange-100 text-orange-600 font-medium">
+                YE
+              </AvatarFallback>
+            </Avatar>
+            <div className="grid text-sm leading-tight">
+              <span className="font-semibold">Yera</span>
+              <span className="text-xs text-muted-foreground">
+                botawatfat@gmail.com
+              </span>
+            </div>
+          </div>
+
+          {/* Menu items */}
+          <div className="p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                navigate('/settings')
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <BadgeCheck className="size-4 text-muted-foreground" />
+              <span>Account</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                navigate('/settings')
+              }}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <CreditCard className="size-4 text-muted-foreground" />
+              <span>Billing</span>
+            </button>
+          </div>
+
+          {/* Sign out */}
+          <div className="border-t p-1.5">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <LogOut className="size-4 text-muted-foreground" />
+              <span>Sign out</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

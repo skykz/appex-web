@@ -1,5 +1,7 @@
 import { config } from '@shared/config'
 
+const TOKEN_KEY = 'appex_access_token'
+
 /**
  * Custom error class for API-related errors.
  * Includes HTTP status code and error message from server.
@@ -61,6 +63,21 @@ export const httpClient = {
   },
 
   /**
+   * Performs a PATCH request to the API.
+   */
+  async patch<T>(
+    endpoint: string,
+    body?: unknown,
+    options?: RequestInit
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  },
+
+  /**
    * Performs a DELETE request to the API.
    */
   async delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -73,8 +90,7 @@ export const httpClient = {
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${config.apiUrl}${endpoint}`
 
-    // Get auth token from storage if available
-    const token = this.getAuthToken()
+    const token = localStorage.getItem(TOKEN_KEY)
 
     const headers = new Headers(options.headers)
     headers.set('Content-Type', 'application/json')
@@ -99,22 +115,5 @@ export const httpClient = {
     }
 
     return response.json()
-  },
-
-  /**
-   * Retrieves the authentication token from memory storage.
-   * In a real app, this would use a proper auth store.
-   */
-  getAuthToken(): string | null {
-    // This is a placeholder - in real app, use auth store
-    return null
-  },
-
-  /**
-   * Sets the authentication token in memory storage.
-   */
-  setAuthToken(token: string | null): void {
-    // This is a placeholder - in real app, use auth store
-    console.log('Token set:', token)
   },
 }
