@@ -16,6 +16,7 @@ import {
   Hourglass,
 } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { Button } from '@shared/ui'
 import { useAuthStore, userApi } from '@entities/user'
 import { settingsApi } from './api'
 
@@ -132,14 +133,13 @@ function AccountSection() {
             className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none opacity-60"
           />
         </div>
-        <button
-          type="button"
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+          size="xl"
         >
           {saving ? 'Saving...' : 'Save changes'}
-        </button>
+        </Button>
       </div>
 
       <div className="flex items-center justify-between rounded-xl border p-4">
@@ -149,17 +149,16 @@ function AccountSection() {
             Log-out from your account on this device
           </p>
         </div>
-        <button
-          type="button"
+        <Button
+          variant="outline"
           onClick={() => {
             logout()
             navigate('/auth')
           }}
-          className="inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted active:scale-95"
         >
           Sign out
           <LogOut className="size-4" />
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -244,14 +243,13 @@ function PasswordSection() {
         />
         {error && <p className="text-sm text-red-500">{error}</p>}
         {success && <p className="text-sm text-green-600">Password updated successfully</p>}
-        <button
-          type="button"
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+          size="xl"
         >
           {saving ? 'Saving...' : 'Save password'}
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -372,15 +370,15 @@ function PlanSection() {
           Too busy to focus on your learning right now? Pause your subscription
           and when you come back, you'll be ready to reach your goals.
         </p>
-        <button
-          type="button"
+        <Button
           onClick={handlePause}
           disabled={pausing}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+          size="xl"
+          className="w-full"
         >
           <Hourglass className="size-4" />
           {pausing ? 'Pausing...' : 'Pause subscription'}
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -451,14 +449,13 @@ function ContactSection() {
           />
         </div>
         {sent && <p className="text-sm text-green-600">Message sent successfully!</p>}
-        <button
-          type="button"
+        <Button
           onClick={handleSend}
           disabled={sending}
-          className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] disabled:opacity-50"
+          size="xl"
         >
           {sending ? 'Sending...' : 'Send message'}
-        </button>
+        </Button>
       </div>
     </div>
   )

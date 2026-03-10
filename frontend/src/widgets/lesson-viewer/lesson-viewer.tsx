@@ -5,6 +5,7 @@ import { cn } from '@shared/lib'
 import {
   Avatar,
   AvatarFallback,
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -78,36 +79,37 @@ export function LessonViewer({
             <DialogDescription className="mt-1.5">
               Your progress won't be saved if you leave now
             </DialogDescription>
-            <button
-              type="button"
+            <Button
               onClick={() => setExitDialogOpen(false)}
-              className="mt-5 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+              size="xl"
+              className="mt-5 w-full"
             >
               Continue learning
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => {
                 setExitDialogOpen(false)
                 onClose()
               }}
-              className="mt-2 w-full rounded-xl border px-4 py-3 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98]"
+              size="xl"
+              className="mt-2 w-full"
             >
               Exit now
-            </button>
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Top bar */}
       <div className="sticky top-0 z-10 flex items-center gap-4 border-b bg-background px-4 py-3">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm-icon"
           onClick={() => setExitDialogOpen(true)}
-          className="flex size-8 items-center justify-center rounded-lg transition-colors hover:bg-muted active:scale-95"
         >
           <X className="size-5" />
-        </button>
+        </Button>
 
         {/* Segmented progress bar */}
         <div className="flex flex-1 items-center gap-1">
@@ -135,30 +137,30 @@ export function LessonViewer({
         <div className="mx-auto flex w-full max-w-2xl items-center gap-3">
           {!isFirst ? (
             <>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="xl"
                 onClick={handleBack}
-                className="rounded-xl border px-6 py-3 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98]"
               >
                 Back
-              </button>
+              </Button>
               <div className="flex-1" />
-              <button
-                type="button"
+              <Button
+                size="xl"
                 onClick={handleNext}
-                className="rounded-xl bg-primary px-10 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+                className="px-10"
               >
                 {isLast ? 'Finish' : 'Continue'}
-              </button>
+              </Button>
             </>
           ) : (
-            <button
-              type="button"
+            <Button
+              size="xl"
               onClick={handleNext}
-              className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+              className="w-full"
             >
               Continue
-            </button>
+            </Button>
           )}
         </div>
       </div>

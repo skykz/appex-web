@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { cn } from '@shared/lib'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -44,25 +45,26 @@ export function AIToolsOnboardingDialog() {
         {/* Header */}
         <div className="flex items-center gap-3 border-b px-4 py-3">
           {!isFirst && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm-icon"
               onClick={() => setStep(step - 1)}
-              className="rounded-lg p-1 transition-colors hover:bg-muted active:scale-95"
             >
               <ArrowLeft className="size-4" />
-            </button>
+            </Button>
           )}
           <span className="text-sm font-medium text-muted-foreground">
             Getting started
           </span>
           <div className="flex-1" />
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm-icon"
             onClick={handleClose}
-            className="rounded-lg p-1 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             ✕
-          </button>
+          </Button>
         </div>
 
         {/* Body */}
@@ -93,13 +95,13 @@ export function AIToolsOnboardingDialog() {
           </div>
 
           {/* CTA */}
-          <button
-            type="button"
+          <Button
             onClick={handleNext}
-            className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+            size="xl"
+            className="mt-4 w-full"
           >
             {isFirst ? 'Try AI tools' : isLast ? 'Get started' : 'Continue'}
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

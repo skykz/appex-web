@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -53,13 +54,13 @@ export function SkillsOnboardingDialog() {
           </div>
 
           {/* CTA */}
-          <button
-            type="button"
+          <Button
             onClick={handleClose}
-            className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+            size="xl"
+            className="mt-6 w-full"
           >
             Get started
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

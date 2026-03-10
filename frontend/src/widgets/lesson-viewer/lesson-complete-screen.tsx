@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Star, Monitor } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { Button } from '@shared/ui'
 
 interface LessonCompleteScreenProps {
   lessonLabel: string
@@ -67,13 +68,13 @@ export function LessonCompleteScreen({
       {/* Bottom bar */}
       <div className="sticky bottom-0 border-t bg-background px-4 py-4">
         <div className="mx-auto w-full max-w-2xl">
-          <button
-            type="button"
+          <Button
             onClick={onContinue}
-            className="w-full rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+            size="xl"
+            className="w-full"
           >
             Continue
-          </button>
+          </Button>
         </div>
       </div>
     </div>

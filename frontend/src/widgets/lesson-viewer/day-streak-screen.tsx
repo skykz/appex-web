@@ -1,5 +1,6 @@
 import { Check } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { Button } from '@shared/ui'
 
 const WEEK_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] as const
 
@@ -91,13 +92,13 @@ export function DayStreakScreen({
       {/* Bottom bar */}
       <div className="sticky bottom-0 border-t bg-background px-4 py-4">
         <div className="mx-auto flex w-full max-w-2xl justify-end">
-          <button
-            type="button"
+          <Button
             onClick={onContinue}
-            className="rounded-xl bg-primary px-10 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+            size="xl"
+            className="px-10"
           >
             Continue
-          </button>
+          </Button>
         </div>
       </div>
     </div>
