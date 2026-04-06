@@ -89,6 +89,9 @@ export function SignupForm() {
 
       <div className="space-y-2">
         <Label htmlFor="signup-password">Password</Label>
+        <p className="text-muted-foreground text-xs">
+          At least 8 characters with uppercase, lowercase, and a number.
+        </p>
         <div className="relative">
           <Input
             id="signup-password"

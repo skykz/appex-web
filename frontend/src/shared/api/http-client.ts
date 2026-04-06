@@ -17,6 +17,24 @@ export class ApiError extends Error {
 }
 
 /**
+ * Extracts a human-readable message from JSON API error bodies like `{ "error": "..." }`.
+ */
+function messageFromErrorBody(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return text
+  }
+  try {
+    const j = JSON.parse(trimmed) as Record<string, unknown>
+    if (typeof j.error === 'string') return j.error
+    if (typeof j.message === 'string') return j.message
+  } catch {
+    /* keep raw text */
+  }
+  return text
+}
+
+/**
  * HTTP client wrapper around fetch with common defaults.
  * Handles authentication token injection, error handling, and JSON parsing.
  *
@@ -105,8 +123,8 @@ export const httpClient = {
     })
 
     if (!response.ok) {
-      const message = await response.text().catch(() => 'Request failed')
-      throw new ApiError(response.status, message)
+      const raw = await response.text().catch(() => 'Request failed')
+      throw new ApiError(response.status, messageFromErrorBody(raw))
     }
 
     // Handle empty responses (204 No Content)
