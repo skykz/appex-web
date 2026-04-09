@@ -16,6 +16,15 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      /**
+       * Full `lottie-web` uses eval() for AE expressions → blocked by strict CSP (e.g. Vercel).
+       * Light build drops expressions; fine for UI Lotties (fire.json etc.).
+       * @see https://github.com/airbnb/lottie-web/issues/289#issuecomment-335456582
+       */
+      'lottie-web': path.resolve(
+        __dirname,
+        '../node_modules/lottie-web/build/player/lottie_light.min.js'
+      ),
       '@': path.resolve(__dirname, './src'),
       '@app': path.resolve(__dirname, './src/app'),
       '@pages': path.resolve(__dirname, './src/pages'),
