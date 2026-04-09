@@ -2,6 +2,8 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Appex Lab — AI Product Management & Vibe Coding</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -219,6 +221,11 @@ section{padding:80px 40px;}
 .form-label{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:8px;display:block;}
 .form-input{width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;color:#1a1a1a;outline:none;transition:border-color .2s;margin-bottom:20px;font-family:'Inter',sans-serif;}
 .form-input:focus{border-color:#2563eb;}
+.form-input.is-invalid{border-color:#e53e3e;}
+.form-error-msg{display:none;font-size:12px;color:#e53e3e;line-height:1.35;margin:-6px 0 14px;}
+.form-error-msg.visible{display:block;}
+.radio-group-shell{margin-bottom:4px;}
+.radio-group-shell.is-invalid .radio-item{border-color:#fca5a5 !important;background:#fef2f2 !important;}
 .radio-group{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
 .radio-item{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#555;}
 .radio-item input{width:18px;height:18px;accent-color:#2563eb;cursor:pointer;}
@@ -293,8 +300,8 @@ footer{background:#0f172a;padding:48px 40px;}
     <li><a href="#reviews">Отзывы</a></li>
   </ul>
   <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-    <a href="#" data-appex-link="login" style="font-size:14px;font-weight:600;color:#555;text-decoration:none;">Войти</a>
-    <a href="#" data-appex-link="register" data-appex-next="/home" style="font-size:14px;font-weight:700;color:#2563eb;text-decoration:none;">Платформа</a>
+    <a href="#" style="font-size:14px;font-weight:600;color:#555;text-decoration:none;" onclick="event.preventDefault(); openLeadModal();">Войти</a>
+    <a href="#" style="font-size:14px;font-weight:700;color:#2563eb;text-decoration:none;" onclick="event.preventDefault(); openLeadModal();">Платформа</a>
     <a href="#" class="nav-btn" onclick="openModal('help-modal');return false;">Задать вопрос</a>
   </div>
 </nav>
@@ -325,7 +332,7 @@ footer{background:#0f172a;padding:48px 40px;}
   </div>
 
   <div class="hero-actions">
-    <a href="#" data-appex-link="register" data-appex-next="/home" class="btn-red">Записаться на курс</a>
+    <a href="#" class="btn-red" onclick="event.preventDefault(); openLeadModal();">Записаться на курс</a>
     <a href="#program" class="btn-outline">Программа</a>
   </div>
 
@@ -1478,7 +1485,7 @@ footer{background:#0f172a;padding:48px 40px;}
       Написать в Telegram
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
     </a>
-    <a href="#" onclick="closeModal('help-modal');openModal('contact-modal');return false;" style="display:flex;align-items:center;justify-content:center;width:100%;padding:18px;border-radius:100px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;text-decoration:none;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="#" onclick="closeModal('help-modal');openLeadModal();return false;" style="display:flex;align-items:center;justify-content:center;width:100%;padding:18px;border-radius:100px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;text-decoration:none;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Оставить заявку
     </a>
   </div>
@@ -1486,47 +1493,60 @@ footer{background:#0f172a;padding:48px 40px;}
 
 <!-- MODAL: CONTACT FORM -->
 <div class="modal-overlay" id="contact-modal" onclick="closeModalOutside(event,'contact-modal')">
-  <div class="form-modal">
-    <button class="modal-close" onclick="closeModal('contact-modal')">✕</button>
+  <div class="form-modal" onclick="event.stopPropagation()">
+    <button type="button" class="modal-close" onclick="closeModal('contact-modal')">✕</button>
+    <form id="lead-application-form" novalidate onsubmit="return false;">
     <div class="form-section-title">Оставьте заявку — мы свяжемся в течение 24 часов</div>
 
-    <label class="form-label">Имя и фамилия</label>
-    <input type="text" class="form-input" placeholder="Айгерим Сейткали">
+    <label class="form-label" for="lead-fullname">Имя и фамилия</label>
+    <input type="text" id="lead-fullname" name="fullname" class="form-input" placeholder="Айгерим Сейткали" autocomplete="name">
+    <div class="form-error-msg" id="err-lead-fullname" role="alert"></div>
 
-    <label class="form-label">Номер телефона</label>
+    <label class="form-label" for="lead-phone">Номер телефона</label>
     <div class="phone-row">
       <div class="phone-flag">🇰🇿 +7</div>
-      <input type="tel" class="form-input" placeholder="(000) 000-00-00" style="margin-bottom:0">
+      <input type="tel" id="lead-phone" name="phone" class="form-input" placeholder="(000) 000-00-00" style="margin-bottom:0" autocomplete="tel">
     </div>
+    <div class="form-error-msg" id="err-lead-phone" role="alert"></div>
 
-    <label class="form-label">Должность или статус</label>
-    <input type="text" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер">
+    <label class="form-label" for="lead-role">Должность или статус</label>
+    <input type="text" id="lead-role" name="role" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер" autocomplete="organization-title">
+    <div class="form-error-msg" id="err-lead-role" role="alert"></div>
 
-    <label class="form-label">Компания</label>
-    <input type="text" class="form-input" placeholder="Kaspi, Halyk, свой бизнес...">
+    <label class="form-label" for="lead-company">Компания</label>
+    <input type="text" id="lead-company" name="company" class="form-input" placeholder="Kaspi, Halyk, свой бизнес..." autocomplete="organization">
+    <div class="form-error-msg" id="err-lead-company" role="alert"></div>
 
-    <label class="form-label">Город</label>
-    <input type="text" class="form-input" placeholder="Астана, Алматы, Шымкент...">
+    <label class="form-label" for="lead-city">Город</label>
+    <input type="text" id="lead-city" name="city" class="form-input" placeholder="Астана, Алматы, Шымкент..." autocomplete="address-level2">
+    <div class="form-error-msg" id="err-lead-city" role="alert"></div>
 
     <label class="form-label">Откуда узнали о курсе?</label>
-    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:20px;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
+    <div class="radio-group-shell" id="lead-source-group">
+    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:8px;">
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="telegram" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="friends" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="astana-hub" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="instagram" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="hr" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="other" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
     </div>
+    </div>
+    <div class="form-error-msg" id="err-lead-source" role="alert"></div>
 
     <label class="form-label">Ваш уровень в продакт-менеджменте</label>
-    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
+    <div class="radio-group-shell" id="lead-level-group">
+    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="junior" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="middle" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="senior" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="lead" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
     </div>
+    </div>
+    <div class="form-error-msg" id="err-lead-level" role="alert"></div>
 
-    <button class="btn-submit">Отправить заявку</button>
+    <button type="button" class="btn-submit" onclick="submitLeadForm()">Отправить заявку</button>
+    </form>
   </div>
 </div>
 
@@ -1648,6 +1668,129 @@ document.addEventListener('keydown', function (e) {
     closeModal('contact-modal');
   }
 });
+
+/**
+ * Clears inline validation messages and error styles for the lead application modal.
+ */
+function clearLeadFormErrors() {
+  document.querySelectorAll('#contact-modal .form-error-msg').forEach(function (el) {
+    el.textContent = '';
+    el.classList.remove('visible');
+  });
+  document.querySelectorAll('#contact-modal .form-input.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+  document.querySelectorAll('#contact-modal .radio-group-shell.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+}
+
+/**
+ * Shows a validation message under a field (id of the .form-error-msg element).
+ */
+function setLeadFieldError(errId, message) {
+  var el = document.getElementById(errId);
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('visible', !!message);
+}
+
+/**
+ * Parses phone input into 11 digits starting with 7 (KZ/RU style), or returns null.
+ */
+function normalizeLeadPhone(raw) {
+  var d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 11 && d.charAt(0) === '8') d = '7' + d.slice(1);
+  if (d.length === 10) d = '7' + d;
+  if (d.length === 11 && d.charAt(0) === '7') return d;
+  return null;
+}
+
+/**
+ * Requires at least two words (e.g. имя и фамилия), each at least 2 characters.
+ */
+function isValidLeadFullName(s) {
+  var parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts.every(function (p) { return p.length >= 2; });
+}
+
+/**
+ * Opens the lead form modal with a clean form state.
+ */
+function openLeadModal() {
+  var form = document.getElementById('lead-application-form');
+  if (form) form.reset();
+  clearLeadFormErrors();
+  openModal('contact-modal');
+}
+
+/**
+ * Validates the lead form; on success redirects to the platform signup flow.
+ */
+function submitLeadForm() {
+  clearLeadFormErrors();
+  var form = document.getElementById('lead-application-form');
+  if (!form) return;
+
+  var fullnameEl = document.getElementById('lead-fullname');
+  var phoneEl = document.getElementById('lead-phone');
+  var roleEl = document.getElementById('lead-role');
+  var companyEl = document.getElementById('lead-company');
+  var cityEl = document.getElementById('lead-city');
+  var fullname = fullnameEl ? fullnameEl.value : '';
+  var phoneRaw = phoneEl ? phoneEl.value : '';
+  var role = roleEl ? roleEl.value : '';
+  var company = companyEl ? companyEl.value : '';
+  var city = cityEl ? cityEl.value : '';
+  var source = form.querySelector('input[name="lead-source"]:checked');
+  var level = form.querySelector('input[name="lead-level"]:checked');
+
+  var ok = true;
+
+  if (!isValidLeadFullName(fullname)) {
+    setLeadFieldError('err-lead-fullname', 'Укажите имя и фамилию (минимум два слова).');
+    if (fullnameEl) fullnameEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!normalizeLeadPhone(phoneRaw)) {
+    setLeadFieldError('err-lead-phone', 'Введите корректный номер: 10 цифр после кода страны (+7).');
+    if (phoneEl) phoneEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(role).trim() || String(role).trim().length < 2) {
+    setLeadFieldError('err-lead-role', 'Укажите должность или статус.');
+    if (roleEl) roleEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(company).trim() || String(company).trim().length < 2) {
+    setLeadFieldError('err-lead-company', 'Укажите компанию (можно «фриланс» или «нет»).');
+    if (companyEl) companyEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(city).trim() || String(city).trim().length < 2) {
+    setLeadFieldError('err-lead-city', 'Укажите город.');
+    if (cityEl) cityEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!source) {
+    setLeadFieldError('err-lead-source', 'Выберите один вариант.');
+    var sg = document.getElementById('lead-source-group');
+    if (sg) sg.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!level) {
+    setLeadFieldError('err-lead-level', 'Выберите уровень.');
+    var lg = document.getElementById('lead-level-group');
+    if (lg) lg.classList.add('is-invalid');
+    ok = false;
+  }
+
+  if (!ok) return;
+
+  closeModal('contact-modal');
+  if (window.appexApp && typeof window.appexApp.hrefRegister === 'function') {
+    window.location.href = window.appexApp.hrefRegister('/home');
+    return;
+  }
+  window.location.href = '/auth?tab=signup&next=%2Fhome';
+}
 
 // MSG BTN toggle
 document.querySelectorAll('.msg-btn').forEach(function (btn) {

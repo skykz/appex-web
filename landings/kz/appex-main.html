@@ -2,12 +2,14 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Appex — AI Product Management & Vibe Coding</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
 body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a1a;overflow-x:hidden;}
 
 
@@ -219,6 +221,15 @@ section{padding:80px 40px;}
 .form-label{font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:8px;display:block;}
 .form-input{width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;color:#1a1a1a;outline:none;transition:border-color .2s;margin-bottom:20px;font-family:'Inter',sans-serif;}
 .form-input:focus{border-color:#2563eb;}
+.form-input.is-invalid{border-color:#e53e3e;}
+.form-error-msg{display:none;font-size:12px;color:#e53e3e;line-height:1.35;margin:-6px 0 14px;}
+.form-error-msg.visible{display:block;}
+.radio-group-shell{margin-bottom:4px;}
+.radio-group-shell.is-invalid .radio-item{border-color:#fca5a5 !important;background:#fef2f2 !important;}
+.pricing-error-msg{display:none;font-size:12px;color:#e53e3e;line-height:1.35;margin:-6px 0 12px;}
+.pricing-error-msg.visible{display:block;}
+#pricing-card input.pricing-field.is-invalid{border-color:#e53e3e !important;}
+#pricing-card .pricing-agree-wrap.is-invalid{padding:8px;margin:-4px -4px 12px;border-radius:8px;background:#fef2f2;}
 .radio-group{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
 .radio-item{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#555;}
 .radio-item input{width:18px;height:18px;accent-color:#2563eb;cursor:pointer;}
@@ -249,26 +260,87 @@ footer{background:#0f172a;padding:48px 40px;}
 .footer-bottom{border-top:1px solid rgba(255,255,255,.08);margin-top:40px;padding-top:24px;display:flex;justify-content:space-between;align-items:center;max-width:960px;margin-left:auto;margin-right:auto;}
 .footer-bottom p{font-size:12px;color:rgba(255,255,255,.3);}
 
+/* Keeps login + CTA from overflowing small screens; flex children can wrap */
+.nav-cta{display:flex;align-items:center;gap:16px;flex-shrink:0;}
+
 @media(max-width:768px){
-  nav{padding:14px 20px;}
+  /* --- Top bar --- */
+  nav{padding:12px 16px;flex-wrap:wrap;row-gap:10px;}
+  .nav-logo{min-width:0;}
+  .nav-cta{margin-left:auto;flex-wrap:wrap;justify-content:flex-end;gap:8px 10px;}
+  .nav-cta .nav-btn{padding:10px 14px;font-size:13px;}
   .nav-links{display:none;}
-  section{padding:60px 20px;}
-  .hero{padding:60px 20px 0;}
-  .hero-cards{grid-template-columns:1fr 1fr;}
-  .whom-grid{grid-template-columns:1fr 1fr;}.format-grid{grid-template-columns:1fr;}
-  .skills-grid{grid-template-columns:1fr 1fr;}
-  .steps-grid{grid-template-columns:1fr 1fr;}
+
+  /* --- Sections & hero --- */
+  section{padding:48px 16px;}
+  section[style*="padding:80px 40px"],section[style*="padding:60px 40px"],section[style*="padding:64px 40px"]{padding:48px 16px!important;}
+  .hero{padding:48px 16px 0;}
+  .hero h1{padding:0 2px;}
+  .hero-sub{padding:0 4px;}
+  .hero-ticker-strip{margin:0 -16px 28px!important;padding:14px 0!important;}
+  .hero-social-proof{flex-wrap:wrap;justify-content:center;text-align:center;gap:8px 12px;max-width:100%;}
+  .hero-meta{gap:12px 16px;}
+  .hero-actions{flex-direction:column;align-items:stretch;max-width:420px;margin-left:auto;margin-right:auto;margin-bottom:40px;padding:0 4px;}
+  .hero-actions .btn-red,.hero-actions .btn-outline{width:100%;text-align:center;box-sizing:border-box;}
+  .hero-cards{grid-template-columns:1fr;gap:12px;}
+  .btn-red,.btn-outline{padding:14px 18px;font-size:14px;}
+
+  /* --- Class-based grids (override inline styles on small screens) --- */
+  .whom-cards-grid,.skills-inline-grid,.ai-pillars-grid{grid-template-columns:1fr!important;gap:16px!important;}
+  .cert-two-col{grid-template-columns:1fr!important;gap:28px!important;}
+  .pricing-two-col{grid-template-columns:1fr!important;gap:24px!important;}
+  .resume-top-grid{grid-template-columns:1fr!important;justify-items:center;text-align:center;gap:16px!important;padding-bottom:20px!important;}
+  .resume-top-grid img{margin:0 auto;}
+  .resume-mid-grid{grid-template-columns:1fr!important;gap:24px!important;}
+  .resume-meth-grid,.resume-bot-grid{grid-template-columns:1fr!important;gap:10px!important;}
+  [id^="rslide-"]{padding:24px 16px!important;}
+  .cert-mock-inner{padding:28px 20px!important;}
+  .cert-mock-name{font-size:clamp(26px,10vw,40px)!important;}
+  .cert-mock-footer{flex-direction:column!important;align-items:flex-start!important;gap:12px!important;}
+  .pricing-hero-price{font-size:clamp(36px,12vw,52px)!important;}
+
+  .whom-grid{grid-template-columns:1fr;}
+  .format-grid{grid-template-columns:1fr;}
+  .skills-grid{grid-template-columns:1fr;}
+  .steps-grid{grid-template-columns:1fr;}
   .step-card::after{display:none;}
   .module-header{grid-template-columns:1fr;}
-  .module-label{border-right:none;border-bottom:1px solid #f0f0f0;}
+  .module-label{border-right:none;border-bottom:1px solid #f0f0f0;padding:20px 18px!important;}
+  .lesson{padding:14px 16px;align-items:flex-start;gap:10px;}
+  .lesson-title{word-break:break-word;padding-right:6px;flex:1;min-width:0;}
+
   .mentor-slide{grid-template-columns:1fr;min-height:auto;}
-  .mentor-slide-photo{min-height:280px;}
+  .mentor-slide-photo{min-height:220px;width:100%!important;max-width:100%!important;}
+  .mentor-slide-info{padding:24px 18px!important;}
+
   .reviews-mosaic{grid-template-columns:1fr;}
-  .pricing-simple{padding:40px 24px;}
-  .pricing-simple-actions{flex-direction:column;align-items:center;}
-  footer{padding:40px 20px;}
+  .reviews-section-outer{padding:48px 0!important;}
+  .reviews-section-head{padding:0 16px!important;margin-bottom:36px!important;}
+  #reviews-track{padding-left:12px!important;padding-right:12px!important;}
+  .r-card{min-width:min(300px,calc(100vw - 48px))!important;max-width:min(340px,calc(100vw - 48px))!important;}
+
+  .pricing-simple{padding:36px 18px!important;}
+  .pricing-simple .price-grant{font-size:clamp(22px,7vw,32px);}
+  .pricing-simple-actions{flex-direction:column;align-items:stretch;gap:10px;}
+  .pricing-simple-actions .btn-white,.pricing-simple-actions .btn-wapp,.pricing-simple-actions .btn-tgblue{width:100%;justify-content:center;box-sizing:border-box;}
+
+  #pricing-card{padding:22px!important;}
+  .pricing-phone-row input{min-width:0;}
+
+  .modal,.form-modal{padding:26px 18px!important;}
+  .form-section-title{font-size:18px!important;margin-bottom:22px!important;}
+
+  section img{max-width:100%;height:auto;}
+  .co-logo{min-width:0!important;padding:10px 14px!important;height:auto!important;min-height:52px;}
+
+  footer{padding:32px 16px!important;}
   .footer-inner{grid-template-columns:1fr;}
   .footer-bottom{flex-direction:column;gap:8px;text-align:center;}
+}
+
+@media(max-width:480px){
+  .hero-cards{grid-template-columns:1fr;}
+  .nav-cta{width:100%;justify-content:space-between;}
 }
 </style>
 <script>
@@ -291,9 +363,9 @@ footer{background:#0f172a;padding:48px 40px;}
     <li><a href="#pricing">Тарифы</a></li>
     <li><a href="#reviews">Отзывы</a></li>
   </ul>
-  <div style="display:flex;align-items:center;gap:16px;">
-    <a href="#" data-appex-link="login" style="font-size:14px;font-weight:600;color:#555;text-decoration:none;">Войти</a>
-    <a href="#" data-appex-link="register" data-appex-next="/home" class="nav-btn">Начать обучение</a>
+  <div class="nav-cta" style="display:flex;align-items:center;gap:16px;">
+    <a href="#" style="font-size:14px;font-weight:600;color:#555;text-decoration:none;" onclick="event.preventDefault(); openLeadModal();">Войти</a>
+    <a href="#" class="nav-btn" onclick="event.preventDefault(); openLeadModal();">Начать обучение</a>
   </div>
 </nav>
 
@@ -323,12 +395,12 @@ footer{background:#0f172a;padding:48px 40px;}
   </div>
 
   <div class="hero-actions">
-    <a href="#" data-appex-link="register" data-appex-next="/home" class="btn-red">Записаться со скидкой</a>
+    <a href="#pricing" class="btn-red">Записаться со скидкой</a>
     <a href="#program" class="btn-outline">Программа</a>
   </div>
 
   <!-- TICKER INLINE -->
-  <div style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
+  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
     <div class="ticker-inner">
       <span style="font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;white-space:nowrap;">Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp;</span>
     </div>
@@ -365,7 +437,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <h2 class="section-h">Кому <em>подойдёт</em> обучение</h2>
   <p class="section-desc" style="max-width:720px">Материал подходит как для <strong>новичков без опыта</strong> программирования,<br>так и для <strong>опытных специалистов</strong>, желающих освоить новые технологии</p>
 
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px;margin:0 auto;">
+  <div class="whom-cards-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px;margin:0 auto;">
 
     <!-- CARD 1 -->
     <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.06);">
@@ -425,7 +497,7 @@ footer{background:#0f172a;padding:48px 40px;}
 <section class="section-center">
   <h2 class="section-h">Получите актуальные навыки<br>AI-продакта <em>за 8 недель</em></h2>
   <p class="section-desc">AI-агенты — <strong>будущее разработки продуктов</strong>, и мы поможем вам освоить этот навык <strong>одним из первых</strong></p>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:960px;margin:0 auto;">
+  <div class="skills-inline-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:960px;margin:0 auto;">
 
     <div style="background:#fff;border-radius:16px;padding:32px 28px;border:1px solid #eee;text-align:left;">
       <div style="font-size:28px;margin-bottom:24px;">💎</div>
@@ -467,7 +539,7 @@ footer{background:#0f172a;padding:48px 40px;}
 
     <!-- SLIDE 0: PM -->
     <div id="rslide-0" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:40px;backdrop-filter:blur(10px);">
-      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
+      <div class="resume-top-grid" style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
         <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=120&q=80" style="width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:top;flex-shrink:0;" alt="PM">
         <div>
           <div style="font-size:11px;font-weight:700;color:#f5a623;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Должность</div>
@@ -478,10 +550,10 @@ footer{background:#0f172a;padding:48px 40px;}
           <div style="font-size:22px;font-weight:800;color:#fff;">1 200 000 – 1 500 000 ₸</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
+      <div class="resume-mid-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
         <div>
           <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Методологии:</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
+          <div class="resume-meth-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
             <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Customer Development</div>
             <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Agile / Scrum</div>
             <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Jobs-to-be-Done</div>
@@ -508,7 +580,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:24px;">
         <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Навыки:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
+        <div class="resume-bot-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Проводить CustDev-интервью по JTBD</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Считать unit-экономику продукта</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Запустить AI-продукт через Vibe Coding за 48ч</div>
@@ -521,7 +593,7 @@ footer{background:#0f172a;padding:48px 40px;}
 
     <!-- SLIDE 1: Новичок -->
     <div id="rslide-1" style="display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:40px;backdrop-filter:blur(10px);">
-      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
+      <div class="resume-top-grid" style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
         <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120&q=80" style="width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:top;flex-shrink:0;" alt="Freelancer">
         <div>
           <div style="font-size:11px;font-weight:700;color:#f5a623;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Должность / Услуги</div>
@@ -532,7 +604,7 @@ footer{background:#0f172a;padding:48px 40px;}
           <div style="font-size:22px;font-weight:800;color:#fff;">от $1.000 за проект</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
+      <div class="resume-mid-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
         <div>
           <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Умеете создавать:</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -557,7 +629,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:24px;">
         <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Результаты после курса:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
+        <div class="resume-bot-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>2 задеплоенных проекта в портфолио</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Первые клиенты ещё во время обучения</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Уверенность в работе с AI-инструментами</div>
@@ -568,7 +640,7 @@ footer{background:#0f172a;padding:48px 40px;}
 
     <!-- SLIDE 2: Стартапер -->
     <div id="rslide-2" style="display:none;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:40px;backdrop-filter:blur(10px);">
-      <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
+      <div class="resume-top-grid" style="display:grid;grid-template-columns:auto 1fr 1fr;gap:24px;align-items:center;padding-bottom:28px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:28px;">
         <img src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&q=80" style="width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:top;flex-shrink:0;" alt="Founder">
         <div>
           <div style="font-size:11px;font-weight:700;color:#f5a623;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Роль</div>
@@ -579,7 +651,7 @@ footer{background:#0f172a;padding:48px 40px;}
           <div style="font-size:22px;font-weight:800;color:#fff;">от $10.000+</div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
+      <div class="resume-mid-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-bottom:28px;">
         <div>
           <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Теперь вы умеете:</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
@@ -604,7 +676,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
       <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:24px;">
         <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:16px;">Результат на Demo Day:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
+        <div class="resume-bot-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px;">
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Живой AI-продукт с реальными пользователями</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Финансовая модель + план монетизации</div>
           <div style="font-size:13px;color:rgba(255,255,255,.6);display:flex;gap:6px;"><span style="color:#f5a623;">•</span>Понимание рынка TAM/SAM/SOM</div>
@@ -622,7 +694,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="position:absolute;left:-80px;top:50%;transform:translateY(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(229,62,62,.15),transparent 70%);pointer-events:none;"></div>
   <!-- red glow right -->
   <div style="position:absolute;right:-100px;top:20%;width:350px;height:350px;background:radial-gradient(circle,rgba(229,62,62,.12),transparent 70%);pointer-events:none;"></div>
-  <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:60px;align-items:center;position:relative;z-index:1;">
+  <div class="cert-two-col" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:60px;align-items:center;position:relative;z-index:1;">
 
     <!-- LEFT: что получите -->
     <div>
@@ -661,7 +733,7 @@ footer{background:#0f172a;padding:48px 40px;}
       <!-- orange top stripe -->
       <div style="height:6px;background:#f5a623;width:100%;"></div>
 
-      <div style="padding:40px 48px 36px;">
+      <div class="cert-mock-inner" style="padding:40px 48px 36px;">
         <!-- honeycomb decorations top-right -->
         <div style="position:absolute;right:-10px;top:6px;opacity:.1;">
           <svg width="200" height="220" viewBox="0 0 200 220" fill="none">
@@ -681,11 +753,11 @@ footer{background:#0f172a;padding:48px 40px;}
         </div>
 
         <div style="font-size:12px;color:#aaa;margin-bottom:10px;letter-spacing:.08em;text-transform:uppercase;">This certifies that</div>
-        <div style="font-size:48px;font-weight:900;color:#f5a623;line-height:1.05;margin-bottom:20px;letter-spacing:-.02em;">Name<br>Surname</div>
+        <div class="cert-mock-name" style="font-size:48px;font-weight:900;color:#f5a623;line-height:1.05;margin-bottom:20px;letter-spacing:-.02em;">Name<br>Surname</div>
         <div style="font-size:13px;color:#555;line-height:1.7;margin-bottom:32px;">has successfully completed the 8-week<br>«AI Product Management &amp; Vibe Coding» course by Appex</div>
 
         <!-- footer row -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #eee;padding-top:16px;">
+        <div class="cert-mock-footer" style="display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #eee;padding-top:16px;">
           <span style="font-size:13px;font-weight:800;color:#f5a623;letter-spacing:.05em;">TOP GRADUATE</span>
           <span style="font-size:12px;color:#aaa;">Сентябрь 2026</span>
           <span style="font-size:12px;color:#aaa;">#20260900001</span>
@@ -712,7 +784,7 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
 
     <!-- 3 PILLARS -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <div class="ai-pillars-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
 
       <div style="background:#fff;border:1.5px solid #e8ecf4;border-top:3px solid #2563eb;border-radius:14px;padding:28px;">
         <div style="font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;">Направление 1</div>
@@ -1111,12 +1183,12 @@ footer{background:#0f172a;padding:48px 40px;}
 
   </div>
 </section><!-- PRICING SECTION -->
-<section id="pricing" style="padding:80px 40px;background:#f7f9fc;">
+<section id="pricing" class="pricing-section" style="padding:80px 40px;background:#f7f9fc;">
   <div style="max-width:960px;margin:0 auto;">
     <h2 class="section-h" style="text-align:center;margin-bottom:8px;">Стоимость <em>обучения</em></h2>
     <p style="text-align:center;color:#666;font-size:15px;margin-bottom:48px;">Один успешный запуск продукта окупает стоимость обучения в 10+ раз</p>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
+    <div class="pricing-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
 
       <!-- LEFT: info -->
       <div>
@@ -1124,7 +1196,7 @@ footer{background:#0f172a;padding:48px 40px;}
           ⏱ Скидка действует 3 дня. Осталось <span id="countdown" style="font-weight:800;">47:58:59</span>
         </div>
         <div style="font-size:22px;color:#999;text-decoration:line-through;margin-bottom:4px;">650 000 ₸ <span style="background:#e53e3e;color:#fff;font-size:13px;font-weight:700;padding:2px 8px;border-radius:6px;vertical-align:middle;text-decoration:none;">-31%</span></div>
-        <div style="font-size:52px;font-weight:900;color:#1a1a1a;line-height:1;margin-bottom:12px;">450 000 ₸</div>
+        <div class="pricing-hero-price" style="font-size:52px;font-weight:900;color:#1a1a1a;line-height:1;margin-bottom:12px;">450 000 ₸</div>
         <div style="background:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:14px;color:#555;display:inline-block;margin-bottom:28px;">или 37 500 ₸ / мес. в рассрочку на 12 месяцев</div>
 
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
@@ -1141,7 +1213,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
 
       <!-- RIGHT: form card -->
-      <div style="background:#fff;border:1.5px solid #e8ebf4;border-radius:20px;padding:36px;box-shadow:0 8px 40px rgba(0,0,0,.07);">
+      <div id="pricing-card" style="background:#fff;border:1.5px solid #e8ebf4;border-radius:20px;padding:36px;box-shadow:0 8px 40px rgba(0,0,0,.07);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
           <div style="font-size:20px;font-weight:800;color:#1a1a1a;">Запишитесь со скидкой</div>
           <div style="background:#fcd34d;color:#92400e;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.05em;">ВЫГОДНО</div>
@@ -1169,13 +1241,15 @@ footer{background:#0f172a;padding:48px 40px;}
         </div>
 
         <label style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:6px;">Введите Email</label>
-        <input type="email" id="pricing-email" placeholder="example@gmail.com" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;margin-bottom:16px;font-family:Inter,sans-serif;">
+        <input type="email" id="pricing-email" class="pricing-field" placeholder="example@gmail.com" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;margin-bottom:6px;font-family:Inter,sans-serif;" oninput="clearPricingInputError('email')">
+        <div class="pricing-error-msg" id="err-pricing-email" role="alert"></div>
 
         <label style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:6px;">Номер телефона</label>
-        <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div class="pricing-phone-row" style="display:flex;gap:8px;margin-bottom:6px;min-width:0;">
           <div style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:13px 14px;font-size:13px;font-weight:600;color:#555;display:flex;align-items:center;gap:4px;white-space:nowrap;">🇰🇿 +7</div>
-          <input type="tel" id="pricing-phone" placeholder="(700) 000-00-00" style="flex:1;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;">
+          <input type="tel" id="pricing-phone" class="pricing-field" placeholder="(700) 000-00-00" style="flex:1;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;" oninput="clearPricingInputError('phone')">
         </div>
+        <div class="pricing-error-msg" id="err-pricing-phone" role="alert"></div>
 
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
           <span style="font-size:13px;color:#555;">Использовать промокод</span>
@@ -1183,16 +1257,20 @@ footer{background:#0f172a;padding:48px 40px;}
             <div id="promo-knob" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;"></div>
           </div>
         </div>
-        <div id="promo-field" style="display:none;margin-bottom:16px;">
-          <input type="text" placeholder="Введите промокод" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;">
+        <div id="promo-field" style="display:none;margin-bottom:6px;">
+          <input type="text" id="promo-code-input" class="pricing-field" placeholder="Введите промокод" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;" oninput="clearPricingInputError('promo')">
         </div>
+        <div class="pricing-error-msg" id="err-pricing-promo" role="alert"></div>
 
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#777;margin-bottom:20px;cursor:pointer;flex-wrap:nowrap;">
-          <input type="checkbox" id="agree-check" style="margin:0;accent-color:#2563eb;flex-shrink:0;width:16px;height:16px;">
+        <div class="pricing-agree-wrap" id="pricing-agree-wrap">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#777;margin-bottom:8px;cursor:pointer;flex-wrap:nowrap;">
+          <input type="checkbox" id="agree-check" style="margin:0;accent-color:#2563eb;flex-shrink:0;width:16px;height:16px;" onchange="clearPricingInputError('agree')">
           <span style="white-space:nowrap;">Я соглашаюсь с&nbsp;<a href="#" style="color:#2563eb;">обработкой персональных данных</a>&nbsp;и&nbsp;<a href="#" style="color:#2563eb;">офертой</a></span>
         </label>
+        </div>
+        <div class="pricing-error-msg" id="err-pricing-agree" role="alert"></div>
 
-        <button id="submit-btn" onclick="submitPricing()" style="width:100%;background:#e53e3e;color:#fff;border:none;padding:18px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(229,62,62,.3);transition:background .2s;" onmouseover="this.style.background='#c53030'" onmouseout="this.style.background='#e53e3e'">
+        <button type="button" id="submit-btn" onclick="validatePricingAndOpenLeadModal()" style="width:100%;background:#e53e3e;color:#fff;border:none;padding:18px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(229,62,62,.3);transition:background .2s;" onmouseover="this.style.background='#c53030'" onmouseout="this.style.background='#e53e3e'">
           Записаться на обучение
         </button>
         <div style="text-align:center;margin-top:12px;font-size:13px;color:#777;">🎁 <strong style="color:#1a1a1a;">1000 проверенных идей для стартапа</strong> в подарок</div>
@@ -1217,8 +1295,8 @@ footer{background:#0f172a;padding:48px 40px;}
 </section>
 
 <!-- REVIEWS -->
-<section style="padding:80px 0 80px;background:#f7f9fc;">
-  <div style="text-align:center;margin-bottom:48px;padding:0 40px;">
+<section class="reviews-section-outer" style="padding:80px 0 80px;background:#f7f9fc;">
+  <div class="reviews-section-head" style="text-align:center;margin-bottom:48px;padding:0 40px;">
     <h2 class="section-h">Что говорят <em>студенты</em></h2>
     <p class="section-desc" style="margin-bottom:0">За каждым отзывом стоит <strong>реальный человек</strong>, прошедший обучение</p>
   </div>
@@ -1404,7 +1482,7 @@ footer{background:#0f172a;padding:48px 40px;}
       Написать в Telegram
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
     </a>
-    <a href="#" onclick="closeModal('help-modal');openModal('contact-modal');return false;" style="display:flex;align-items:center;justify-content:center;width:100%;padding:18px;border-radius:100px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;text-decoration:none;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="#" onclick="closeModal('help-modal');openLeadModal();return false;" style="display:flex;align-items:center;justify-content:center;width:100%;padding:18px;border-radius:100px;background:#2563eb;color:#fff;font-size:16px;font-weight:700;text-decoration:none;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Оставить заявку
     </a>
   </div>
@@ -1412,47 +1490,60 @@ footer{background:#0f172a;padding:48px 40px;}
 
 <!-- MODAL: CONTACT FORM -->
 <div class="modal-overlay" id="contact-modal" onclick="closeModalOutside(event,'contact-modal')">
-  <div class="form-modal">
-    <button class="modal-close" onclick="closeModal('contact-modal')">✕</button>
+  <div class="form-modal" onclick="event.stopPropagation()">
+    <button type="button" class="modal-close" onclick="closeModal('contact-modal')">✕</button>
+    <form id="lead-application-form" novalidate onsubmit="return false;">
     <div class="form-section-title">Оставьте заявку — мы свяжемся в течение 24 часов</div>
 
-    <label class="form-label">Имя и фамилия</label>
-    <input type="text" class="form-input" placeholder="Айгерим Сейткали">
+    <label class="form-label" for="lead-fullname">Имя и фамилия</label>
+    <input type="text" id="lead-fullname" name="fullname" class="form-input" placeholder="Айгерим Сейткали" autocomplete="name">
+    <div class="form-error-msg" id="err-lead-fullname" role="alert"></div>
 
-    <label class="form-label">Номер телефона</label>
+    <label class="form-label" for="lead-phone">Номер телефона</label>
     <div class="phone-row">
       <div class="phone-flag">🇰🇿 +7</div>
-      <input type="tel" class="form-input" placeholder="(000) 000-00-00" style="margin-bottom:0">
+      <input type="tel" id="lead-phone" name="phone" class="form-input" placeholder="(000) 000-00-00" style="margin-bottom:0" autocomplete="tel">
     </div>
+    <div class="form-error-msg" id="err-lead-phone" role="alert"></div>
 
-    <label class="form-label">Должность или статус</label>
-    <input type="text" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер">
+    <label class="form-label" for="lead-role">Должность или статус</label>
+    <input type="text" id="lead-role" name="role" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер" autocomplete="organization-title">
+    <div class="form-error-msg" id="err-lead-role" role="alert"></div>
 
-    <label class="form-label">Компания</label>
-    <input type="text" class="form-input" placeholder="Kaspi, Halyk, свой бизнес...">
+    <label class="form-label" for="lead-company">Компания</label>
+    <input type="text" id="lead-company" name="company" class="form-input" placeholder="Kaspi, Halyk, свой бизнес..." autocomplete="organization">
+    <div class="form-error-msg" id="err-lead-company" role="alert"></div>
 
-    <label class="form-label">Город</label>
-    <input type="text" class="form-input" placeholder="Астана, Алматы, Шымкент...">
+    <label class="form-label" for="lead-city">Город</label>
+    <input type="text" id="lead-city" name="city" class="form-input" placeholder="Астана, Алматы, Шымкент..." autocomplete="address-level2">
+    <div class="form-error-msg" id="err-lead-city" role="alert"></div>
 
     <label class="form-label">Откуда узнали о курсе?</label>
-    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:20px;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="source" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
+    <div class="radio-group-shell" id="lead-source-group">
+    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:8px;">
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="telegram" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="friends" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="astana-hub" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="instagram" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="hr" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="other" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
     </div>
+    </div>
+    <div class="form-error-msg" id="err-lead-source" role="alert"></div>
 
     <label class="form-label">Ваш уровень в продакт-менеджменте</label>
-    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="level" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
+    <div class="radio-group-shell" id="lead-level-group">
+    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="junior" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="middle" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="senior" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
+      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="lead" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
     </div>
+    </div>
+    <div class="form-error-msg" id="err-lead-level" role="alert"></div>
 
-    <button class="btn-submit">Отправить заявку</button>
+    <button type="button" class="btn-submit" onclick="submitLeadForm()">Отправить заявку</button>
+    </form>
   </div>
 </div>
 
@@ -1545,6 +1636,273 @@ function closeModalOutside(e, id) {
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('help-modal'); closeModal('contact-modal'); }});
 
+/**
+ * Clears inline validation messages and error styles for the lead application modal.
+ */
+function clearLeadFormErrors() {
+  document.querySelectorAll('#contact-modal .form-error-msg').forEach(function (el) {
+    el.textContent = '';
+    el.classList.remove('visible');
+  });
+  document.querySelectorAll('#contact-modal .form-input.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+  document.querySelectorAll('#contact-modal .radio-group-shell.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+}
+
+/**
+ * Shows a validation message under a field (id of the .form-error-msg element).
+ */
+function setLeadFieldError(errId, message) {
+  var el = document.getElementById(errId);
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('visible', !!message);
+}
+
+/**
+ * Parses phone input into 11 digits starting with 7 (KZ/RU style), or returns null.
+ */
+function normalizeLeadPhone(raw) {
+  var d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 11 && d.charAt(0) === '8') d = '7' + d.slice(1);
+  if (d.length === 10) d = '7' + d;
+  if (d.length === 11 && d.charAt(0) === '7') return d;
+  return null;
+}
+
+/**
+ * Requires at least two words (e.g. имя и фамилия), each at least 2 characters.
+ */
+function isValidLeadFullName(s) {
+  var parts = String(s || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts.every(function (p) { return p.length >= 2; });
+}
+
+/**
+ * Shows or hides a pricing-card validation line under an input.
+ * @param {string} errId Element id (err-pricing-*).
+ * @param {string} [message] Empty string clears.
+ */
+function setPricingBoxError(errId, message) {
+  var el = document.getElementById(errId);
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('visible', !!message);
+}
+
+/**
+ * Clears all pricing-card validation messages and highlights.
+ */
+function clearAllPricingErrors() {
+  ['err-pricing-email', 'err-pricing-phone', 'err-pricing-promo', 'err-pricing-agree'].forEach(function (id) {
+    setPricingBoxError(id, '');
+  });
+  document.querySelectorAll('#pricing-card .pricing-field.is-invalid').forEach(function (el) {
+    el.classList.remove('is-invalid');
+  });
+  var w = document.getElementById('pricing-agree-wrap');
+  if (w) w.classList.remove('is-invalid');
+}
+
+/**
+ * Clears validation for one pricing field after the user edits it.
+ * @param {'email'|'phone'|'promo'|'agree'} which
+ */
+function clearPricingInputError(which) {
+  if (which === 'email') {
+    setPricingBoxError('err-pricing-email', '');
+    var e = document.getElementById('pricing-email');
+    if (e) e.classList.remove('is-invalid');
+  } else if (which === 'phone') {
+    setPricingBoxError('err-pricing-phone', '');
+    var p = document.getElementById('pricing-phone');
+    if (p) p.classList.remove('is-invalid');
+  } else if (which === 'promo') {
+    setPricingBoxError('err-pricing-promo', '');
+    var pr = document.getElementById('promo-code-input');
+    if (pr) pr.classList.remove('is-invalid');
+  } else if (which === 'agree') {
+    setPricingBoxError('err-pricing-agree', '');
+    var wrap = document.getElementById('pricing-agree-wrap');
+    if (wrap) wrap.classList.remove('is-invalid');
+  }
+}
+
+/**
+ * Basic email format check for the pricing block.
+ * @param {string} s
+ * @returns {boolean}
+ */
+function isValidPricingEmail(s) {
+  var t = String(s || '').trim();
+  if (!t) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(t);
+}
+
+/**
+ * Validates pricing card: email, phone, optional promo when toggle on, consent checkbox.
+ * @returns {boolean}
+ */
+function validatePricingCard() {
+  clearAllPricingErrors();
+  var ok = true;
+  var emailEl = document.getElementById('pricing-email');
+  var phoneEl = document.getElementById('pricing-phone');
+  var agree = document.getElementById('agree-check');
+
+  if (!isValidPricingEmail(emailEl && emailEl.value)) {
+    setPricingBoxError('err-pricing-email', 'Введите корректный email.');
+    if (emailEl) emailEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!normalizeLeadPhone(phoneEl && phoneEl.value)) {
+    setPricingBoxError('err-pricing-phone', 'Введите корректный номер: 10 цифр после кода страны (+7).');
+    if (phoneEl) phoneEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (promoOn) {
+    var promoIn = document.getElementById('promo-code-input');
+    var pv = promoIn ? promoIn.value.trim() : '';
+    if (pv.length < 2) {
+      setPricingBoxError('err-pricing-promo', 'Введите промокод или отключите переключатель.');
+      if (promoIn) promoIn.classList.add('is-invalid');
+      ok = false;
+    }
+  }
+  if (!agree || !agree.checked) {
+    setPricingBoxError('err-pricing-agree', 'Нужно согласие с условиями.');
+    var wrap = document.getElementById('pricing-agree-wrap');
+    if (wrap) wrap.classList.add('is-invalid');
+    ok = false;
+  }
+  return ok;
+}
+
+/**
+ * Validates the pricing card, opens the lead modal, prefills phone from the card.
+ */
+function validatePricingAndOpenLeadModal() {
+  if (!validatePricingCard()) return;
+  var pr = document.getElementById('pricing-phone');
+  var phoneVal = pr ? pr.value.trim() : '';
+  openLeadModal();
+  var leadPh = document.getElementById('lead-phone');
+  if (leadPh && phoneVal) leadPh.value = phoneVal;
+}
+
+/**
+ * Opens the lead form modal with a clean form state.
+ */
+function openLeadModal() {
+  var form = document.getElementById('lead-application-form');
+  if (form) form.reset();
+  clearLeadFormErrors();
+  openModal('contact-modal');
+}
+
+/**
+ * Validates the lead form; on success redirects to the platform signup flow.
+ */
+function submitLeadForm() {
+  clearLeadFormErrors();
+  var form = document.getElementById('lead-application-form');
+  if (!form) return;
+
+  var fullnameEl = document.getElementById('lead-fullname');
+  var phoneEl = document.getElementById('lead-phone');
+  var roleEl = document.getElementById('lead-role');
+  var companyEl = document.getElementById('lead-company');
+  var cityEl = document.getElementById('lead-city');
+  var fullname = fullnameEl ? fullnameEl.value : '';
+  var phoneRaw = phoneEl ? phoneEl.value : '';
+  var role = roleEl ? roleEl.value : '';
+  var company = companyEl ? companyEl.value : '';
+  var city = cityEl ? cityEl.value : '';
+  var source = form.querySelector('input[name="lead-source"]:checked');
+  var level = form.querySelector('input[name="lead-level"]:checked');
+
+  var ok = true;
+
+  if (!isValidLeadFullName(fullname)) {
+    setLeadFieldError('err-lead-fullname', 'Укажите имя и фамилию (минимум два слова).');
+    if (fullnameEl) fullnameEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!normalizeLeadPhone(phoneRaw)) {
+    setLeadFieldError('err-lead-phone', 'Введите корректный номер: 10 цифр после кода страны (+7).');
+    if (phoneEl) phoneEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(role).trim() || String(role).trim().length < 2) {
+    setLeadFieldError('err-lead-role', 'Укажите должность или статус.');
+    if (roleEl) roleEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(company).trim() || String(company).trim().length < 2) {
+    setLeadFieldError('err-lead-company', 'Укажите компанию (можно «фриланс» или «нет»).');
+    if (companyEl) companyEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!String(city).trim() || String(city).trim().length < 2) {
+    setLeadFieldError('err-lead-city', 'Укажите город.');
+    if (cityEl) cityEl.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!source) {
+    setLeadFieldError('err-lead-source', 'Выберите один вариант.');
+    var sg = document.getElementById('lead-source-group');
+    if (sg) sg.classList.add('is-invalid');
+    ok = false;
+  }
+  if (!level) {
+    setLeadFieldError('err-lead-level', 'Выберите уровень.');
+    var lg = document.getElementById('lead-level-group');
+    if (lg) lg.classList.add('is-invalid');
+    ok = false;
+  }
+
+  if (!ok) return;
+
+  closeModal('contact-modal');
+  if (window.appexApp && typeof window.appexApp.hrefRegister === 'function') {
+    window.location.href = window.appexApp.hrefRegister('/home');
+    return;
+  }
+  window.location.href = '/auth?tab=signup&next=%2Fhome';
+}
+
+(function wireLeadFormLiveValidation() {
+  var form = document.getElementById('lead-application-form');
+  if (!form) return;
+  form.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (!t || !t.classList || !t.classList.contains('form-input')) return;
+    t.classList.remove('is-invalid');
+    var map = {
+      'lead-fullname': 'err-lead-fullname',
+      'lead-phone': 'err-lead-phone',
+      'lead-role': 'err-lead-role',
+      'lead-company': 'err-lead-company',
+      'lead-city': 'err-lead-city'
+    };
+    if (map[t.id]) setLeadFieldError(map[t.id], '');
+  });
+  form.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (!t || t.type !== 'radio') return;
+    if (t.name === 'lead-source') {
+      setLeadFieldError('err-lead-source', '');
+      var sg = document.getElementById('lead-source-group');
+      if (sg) sg.classList.remove('is-invalid');
+    }
+    if (t.name === 'lead-level') {
+      setLeadFieldError('err-lead-level', '');
+      var lg = document.getElementById('lead-level-group');
+      if (lg) lg.classList.remove('is-invalid');
+    }
+  });
+})();
+
 // MSG BTN toggle
 document.querySelectorAll('.msg-btn').forEach(btn => {
   btn.addEventListener('click', function() {
@@ -1609,20 +1967,12 @@ function togglePromo() {
   if(tog) tog.style.background = promoOn ? '#2563eb' : '#ddd';
   if(knob) knob.style.left = promoOn ? '21px' : '3px';
   if(field) field.style.display = promoOn ? 'block' : 'none';
+  if (!promoOn) clearPricingInputError('promo');
 }
 
-// SUBMIT PRICING FORM
+// Pricing block CTA validates the card first, then opens the lead modal.
 function submitPricing() {
-  const email = document.getElementById('pricing-email');
-  const phone = document.getElementById('pricing-phone');
-  const agree = document.getElementById('agree-check');
-  if (!email.value.trim() || !phone.value.trim()) { alert('Пожалуйста, заполните email и телефон'); return; }
-  if (!agree.checked) { alert('Пожалуйста, согласитесь с условиями'); return; }
-  if (window.appexApp && typeof window.appexApp.hrefRegister === 'function') {
-    window.location.href = window.appexApp.hrefRegister('/home', email.value.trim());
-    return;
-  }
-  openModal('contact-modal');
+  validatePricingAndOpenLeadModal();
 }
 
 // RESUME TABS

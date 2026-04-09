@@ -217,7 +217,7 @@ function renderBlocks(blocks: LessonBlock[]) {
               {b.content}
             </strong>
           )
-        } else {
+        } else if (b.type === 'text') {
           spans.push(<span key={j}>{b.content}</span>)
         }
         j++
