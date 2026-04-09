@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-    <title>AppEx — hosting map (appex.kz + appexme.com)</title>
+    <title>AppEx — hosting map (appex.kz + appex-web-frontend.vercel.app)</title>
     <style>
       body {
         font-family: system-ui, sans-serif;
@@ -45,8 +45,8 @@
     <h1>How landings and the app connect</h1>
     <p>
       <strong>Marketing</strong> lives on <code>appex.kz</code>. The <strong>course platform</strong> (React SPA) lives on
-      <code>appexme.com</code> for the app. The <strong>API</strong> is on your API host (e.g.
-      <code>api.appexme.com</code> or same server with a path).
+      <code>appex-web-frontend.vercel.app</code>. The <strong>API</strong> is on your API host (e.g.
+      <code>api.example.com</code> or same server with a path).
     </p>
     <table>
       <thead>
@@ -72,18 +72,18 @@
           <td><code>landings/shared/platform-links.js</code> (shared by all landings on this domain)</td>
         </tr>
         <tr>
-          <td><code>https://appexme.com/</code> (SPA)</td>
+          <td><code>https://appex-web-frontend.vercel.app/</code> (SPA)</td>
           <td>Build <code>appex-web/frontend</code> with <code>VITE_API_URL</code> pointing to your API. Default base <code>/</code>.</td>
         </tr>
       </tbody>
     </table>
     <p>
-      Each landing sets <code>window.APP_PLATFORM_BASE = 'https://appexme.com'</code> before
+      Each landing sets <code>window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'</code> before
       <code>/shared/platform-links.js</code>. Buttons with <code>data-appex-link</code> then open signup/login on the SPA.
     </p>
     <p>
       Backend <code>CORS_ORIGINS</code> must include <code>https://appex.kz</code>,
-      <code>https://www.appex.kz</code>, <code>https://appexme.com</code>, and local dev origins.
+      <code>https://www.appex.kz</code>, <code>https://appex-web-frontend.vercel.app</code>, and local dev origins.
     </p>
   </body>
 </html>

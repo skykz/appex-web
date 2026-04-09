@@ -260,6 +260,10 @@ footer{background:#0f172a;padding:48px 40px;}
 .footer-bottom{border-top:1px solid rgba(255,255,255,.08);margin-top:40px;padding-top:24px;display:flex;justify-content:space-between;align-items:center;max-width:960px;margin-left:auto;margin-right:auto;}
 .footer-bottom p{font-size:12px;color:rgba(255,255,255,.3);}
 
+/* Pricing: agreement text must wrap on narrow screens (overrides inline nowrap in HTML) */
+.pricing-agree-label{flex-wrap:wrap!important;align-items:flex-start!important;}
+.pricing-agree-label span{white-space:normal!important;line-height:1.45;}
+
 /* Keeps login + CTA from overflowing small screens; flex children can wrap */
 .nav-cta{display:flex;align-items:center;gap:16px;flex-shrink:0;}
 
@@ -288,7 +292,52 @@ footer{background:#0f172a;padding:48px 40px;}
   /* --- Class-based grids (override inline styles on small screens) --- */
   .whom-cards-grid,.skills-inline-grid,.ai-pillars-grid{grid-template-columns:1fr!important;gap:16px!important;}
   .cert-two-col{grid-template-columns:1fr!important;gap:28px!important;}
-  .pricing-two-col{grid-template-columns:1fr!important;gap:24px!important;}
+  .pricing-two-col{
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:20px!important;
+  }
+  .pricing-two-col > .pricing-info-col,
+  .pricing-two-col > #pricing-card{min-width:0;}
+  /* Form first on phones: shorter path to CTA */
+  .pricing-two-col > #pricing-card{order:-1;}
+  .pricing-two-col > .pricing-info-col{order:1;}
+  .pricing-discount-banner{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    align-items:flex-start!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    font-size:13px!important;
+    line-height:1.4!important;
+    padding:12px 14px!important;
+  }
+  .pricing-card-header{
+    flex-wrap:wrap!important;
+    gap:10px!important;
+    row-gap:8px!important;
+  }
+  .pricing-card-header > div:first-child{
+    font-size:clamp(16px,4.2vw,20px)!important;
+    line-height:1.25!important;
+    min-width:0!important;
+  }
+  .pricing-section h2 + p{margin-bottom:28px!important;}
+  .pricing-installment-pill{
+    display:block!important;
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    text-align:center!important;
+  }
+  .pricing-kaspi-row > div:first-of-type{
+    flex-wrap:wrap!important;
+    min-width:0!important;
+  }
+  #pricing-card .pricing-tabs{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+  }
+  #pricing-card .pricing-tabs button{font-size:13px!important;padding:10px 8px!important;line-height:1.25!important;}
+  .pricing-promo-row{flex-wrap:wrap!important;justify-content:space-between!important;}
+  #pricing-card #promo-toggle{flex-shrink:0;}
   .resume-top-grid{grid-template-columns:1fr!important;justify-items:center;text-align:center;gap:16px!important;padding-bottom:20px!important;}
   .resume-top-grid img{margin:0 auto;}
   .resume-mid-grid{grid-template-columns:1fr!important;gap:24px!important;}
@@ -344,8 +393,8 @@ footer{background:#0f172a;padding:48px 40px;}
 }
 </style>
 <script>
-  /* SPA (courses, auth) on appexme.com — landings stay on appex.kz */
-  window.APP_PLATFORM_BASE = 'https://appexme.com'
+  /* SPA (courses, auth) on Vercel — landings stay on appex.kz */
+  window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'
 </script>
 <script src="/shared/platform-links.js" defer></script>
 </head>
@@ -1191,13 +1240,13 @@ footer{background:#0f172a;padding:48px 40px;}
     <div class="pricing-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
 
       <!-- LEFT: info -->
-      <div>
-        <div style="background:#fffbe6;border:1.5px solid #fcd34d;border-radius:12px;padding:14px 18px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#92400e;margin-bottom:24px;">
+      <div class="pricing-info-col">
+        <div class="pricing-discount-banner" style="background:#fffbe6;border:1.5px solid #fcd34d;border-radius:12px;padding:14px 18px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#92400e;margin-bottom:24px;">
           ⏱ Скидка действует 3 дня. Осталось <span id="countdown" style="font-weight:800;">47:58:59</span>
         </div>
         <div style="font-size:22px;color:#999;text-decoration:line-through;margin-bottom:4px;">650 000 ₸ <span style="background:#e53e3e;color:#fff;font-size:13px;font-weight:700;padding:2px 8px;border-radius:6px;vertical-align:middle;text-decoration:none;">-31%</span></div>
         <div class="pricing-hero-price" style="font-size:52px;font-weight:900;color:#1a1a1a;line-height:1;margin-bottom:12px;">450 000 ₸</div>
-        <div style="background:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:14px;color:#555;display:inline-block;margin-bottom:28px;">или 37 500 ₸ / мес. в рассрочку на 12 месяцев</div>
+        <div class="pricing-installment-pill" style="background:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:14px;color:#555;display:inline-block;margin-bottom:28px;">или 37 500 ₸ / мес. в рассрочку на 12 месяцев</div>
 
         <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
           <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>Безлимитный доступ к 8 неделям и 56 часам материала</div>
@@ -1214,13 +1263,13 @@ footer{background:#0f172a;padding:48px 40px;}
 
       <!-- RIGHT: form card -->
       <div id="pricing-card" style="background:#fff;border:1.5px solid #e8ebf4;border-radius:20px;padding:36px;box-shadow:0 8px 40px rgba(0,0,0,.07);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+        <div class="pricing-card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
           <div style="font-size:20px;font-weight:800;color:#1a1a1a;">Запишитесь со скидкой</div>
           <div style="background:#fcd34d;color:#92400e;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.05em;">ВЫГОДНО</div>
         </div>
 
         <!-- Tabs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;background:#f0f0f0;border-radius:10px;padding:4px;margin-bottom:24px;">
+        <div class="pricing-tabs" style="display:grid;grid-template-columns:1fr 1fr;background:#f0f0f0;border-radius:10px;padding:4px;margin-bottom:24px;">
           <button id="tab-full" onclick="switchTab('full')" style="padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:700;cursor:pointer;background:#fff;color:#1a1a1a;box-shadow:0 1px 4px rgba(0,0,0,.1);">Полная оплата</button>
           <button id="tab-install" onclick="switchTab('install')" style="padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:#777;">Рассрочка</button>
         </div>
@@ -1229,7 +1278,7 @@ footer{background:#0f172a;padding:48px 40px;}
         <div id="installment-sub" style="text-align:center;font-size:13px;color:#777;margin-bottom:20px;display:none;">от 37 500 ₸ × 12 мес.</div>
 
         <!-- Kaspi рассрочка badge -->
-        <div id="kaspi-block" style="display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;">
+        <div id="kaspi-block" class="pricing-kaspi-row" style="display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;">
           <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;width:100%;">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#FF6B00"/><text x="14" y="19" text-anchor="middle" font-family="Arial" font-weight="900" font-size="10" fill="white">Kaspi</text></svg>
             <div>
@@ -1251,8 +1300,8 @@ footer{background:#0f172a;padding:48px 40px;}
         </div>
         <div class="pricing-error-msg" id="err-pricing-phone" role="alert"></div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-          <span style="font-size:13px;color:#555;">Использовать промокод</span>
+        <div class="pricing-promo-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px;">
+          <span style="font-size:13px;color:#555;flex:1;min-width:0;">Использовать промокод</span>
           <div id="promo-toggle" onclick="togglePromo()" style="width:40px;height:22px;background:#ddd;border-radius:11px;cursor:pointer;position:relative;transition:background .2s;">
             <div id="promo-knob" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;"></div>
           </div>
@@ -1263,9 +1312,9 @@ footer{background:#0f172a;padding:48px 40px;}
         <div class="pricing-error-msg" id="err-pricing-promo" role="alert"></div>
 
         <div class="pricing-agree-wrap" id="pricing-agree-wrap">
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#777;margin-bottom:8px;cursor:pointer;flex-wrap:nowrap;">
-          <input type="checkbox" id="agree-check" style="margin:0;accent-color:#2563eb;flex-shrink:0;width:16px;height:16px;" onchange="clearPricingInputError('agree')">
-          <span style="white-space:nowrap;">Я соглашаюсь с&nbsp;<a href="#" style="color:#2563eb;">обработкой персональных данных</a>&nbsp;и&nbsp;<a href="#" style="color:#2563eb;">офертой</a></span>
+        <label class="pricing-agree-label" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#777;margin-bottom:8px;cursor:pointer;">
+          <input type="checkbox" id="agree-check" style="margin:0;accent-color:#2563eb;flex-shrink:0;width:16px;height:16px;margin-top:2px;" onchange="clearPricingInputError('agree')">
+          <span>Я соглашаюсь с&nbsp;<a href="#" style="color:#2563eb;">обработкой персональных данных</a>&nbsp;и&nbsp;<a href="#" style="color:#2563eb;">офертой</a></span>
         </label>
         </div>
         <div class="pricing-error-msg" id="err-pricing-agree" role="alert"></div>

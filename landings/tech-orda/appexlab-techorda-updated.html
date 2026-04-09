@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
 body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a1a;overflow-x:hidden;}
 
 
@@ -256,31 +256,93 @@ footer{background:#0f172a;padding:48px 40px;}
 .footer-bottom{border-top:1px solid rgba(255,255,255,.08);margin-top:40px;padding-top:24px;display:flex;justify-content:space-between;align-items:center;max-width:960px;margin-left:auto;margin-right:auto;}
 .footer-bottom p{font-size:12px;color:rgba(255,255,255,.3);}
 
+/* Agreement label pattern (shared with main landing modals) */
+.pricing-agree-label{flex-wrap:wrap!important;align-items:flex-start!important;}
+.pricing-agree-label span{white-space:normal!important;line-height:1.45;}
+
+/* Keeps login + CTAs from overflowing small screens */
+.nav-cta{display:flex;align-items:center;gap:16px;flex-shrink:0;}
+
 @media(max-width:768px){
-  nav{padding:14px 20px;}
+  nav{padding:12px 16px;flex-wrap:wrap;row-gap:10px;}
+  .nav-logo{min-width:0;}
+  .nav-cta{margin-left:auto;flex-wrap:wrap;justify-content:flex-end;gap:8px 10px;}
+  .nav-cta .nav-btn{padding:10px 14px;font-size:13px;}
   .nav-links{display:none;}
-  section{padding:60px 20px;}
-  .hero{padding:60px 20px 0;}
-  .hero-cards{grid-template-columns:1fr 1fr;}
-  .whom-grid{grid-template-columns:1fr 1fr;}.format-grid{grid-template-columns:1fr;}
-  .skills-grid{grid-template-columns:1fr 1fr;}
-  .steps-grid{grid-template-columns:1fr 1fr;}
+
+  section{padding:48px 16px;}
+  section[style*="padding:80px 40px"],section[style*="padding:60px 40px"],section[style*="padding:64px 40px"]{padding:48px 16px!important;}
+  section#pricing{padding:28px 16px!important;}
+
+  .hero{padding:48px 16px 0;}
+  .hero h1{padding:0 2px;}
+  .hero-sub{padding:0 4px;}
+  .hero-ticker-strip{margin:0 -16px 28px!important;padding:14px 0!important;}
+  .hero-social-proof{flex-wrap:wrap;justify-content:center;text-align:center;gap:8px 12px;max-width:100%;}
+  .hero-meta{gap:12px 16px;}
+  .hero-actions{flex-direction:column;align-items:stretch;max-width:420px;margin-left:auto;margin-right:auto;margin-bottom:40px;padding:0 4px;}
+  .hero-actions .btn-red,.hero-actions .btn-outline{width:100%;text-align:center;box-sizing:border-box;}
+  .hero-cards{grid-template-columns:1fr;gap:12px;}
+  .btn-red,.btn-outline{padding:14px 18px;font-size:14px;}
+
+  .whom-cards-grid,.skills-inline-grid,.ai-pillars-grid{grid-template-columns:1fr!important;gap:16px!important;}
+  .cert-two-col{grid-template-columns:1fr!important;gap:28px!important;}
+  .resume-top-grid{grid-template-columns:1fr!important;justify-items:center;text-align:center;gap:16px!important;padding-bottom:20px!important;}
+  .resume-top-grid img{margin:0 auto;}
+  .resume-mid-grid{grid-template-columns:1fr!important;gap:24px!important;}
+  .resume-meth-grid,.resume-bot-grid{grid-template-columns:1fr!important;gap:10px!important;}
+  .techorda-resume-panel{padding:24px 16px!important;}
+  .cert-mock-inner{padding:28px 20px!important;}
+  .cert-mock-name{font-size:clamp(26px,10vw,40px)!important;}
+  .cert-mock-footer{flex-direction:column!important;align-items:flex-start!important;gap:12px!important;}
+
+  .skill-hero-nums{flex-direction:column!important;align-items:center!important;gap:16px!important;}
+  .skill-hero-nums > div > div:first-child{font-size:clamp(32px,12vw,56px)!important;}
+
+  .whom-grid{grid-template-columns:1fr;}
+  .format-grid{grid-template-columns:1fr;}
+  .skills-grid{grid-template-columns:1fr;}
+  .steps-grid{grid-template-columns:1fr;}
   .step-card::after{display:none;}
   .module-header{grid-template-columns:1fr;}
-  .module-label{border-right:none;border-bottom:1px solid #f0f0f0;}
+  .module-label{border-right:none;border-bottom:1px solid #f0f0f0;padding:20px 18px!important;}
+  .lesson{padding:14px 16px;align-items:flex-start;gap:10px;}
+  .lesson-title{word-break:break-word;padding-right:6px;flex:1;min-width:0;}
+
   .mentor-slide{grid-template-columns:1fr;min-height:auto;}
-  .mentor-slide-photo{min-height:280px;width:100%;}
+  .mentor-slide-photo{min-height:220px;width:100%!important;max-width:100%!important;}
+  .mentor-slide-info{padding:24px 18px!important;}
+
   .reviews-mosaic{grid-template-columns:1fr;}
-  .pricing-simple{padding:40px 24px;}
-  .pricing-simple-actions{flex-direction:column;align-items:center;}
-  footer{padding:40px 20px;}
+  .reviews-mosaic .review-item[style*="grid-column"]{grid-column:auto!important;}
+  .reviews-more .btn-tg{width:100%;max-width:400px;justify-content:center;box-sizing:border-box;}
+
+  .pricing-simple{padding:36px 18px!important;}
+  .pricing-simple .price-grant{font-size:clamp(22px,7vw,32px);}
+  .pricing-simple-actions{flex-direction:column;align-items:stretch;gap:10px;}
+  .pricing-simple-actions .btn-white,.pricing-simple-actions .btn-wapp,.pricing-simple-actions .btn-tgblue{width:100%;justify-content:center;box-sizing:border-box;}
+
+  .modal,.form-modal{padding:26px 18px!important;}
+  .form-section-title{font-size:18px!important;margin-bottom:22px!important;}
+  .phone-row{min-width:0;}
+  .phone-row .form-input{min-width:0;}
+
+  section img{max-width:100%;height:auto;}
+  .co-logo{min-width:0!important;padding:10px 14px!important;height:auto!important;min-height:52px;}
+
+  footer{padding:32px 16px!important;}
   .footer-inner{grid-template-columns:1fr;}
   .footer-bottom{flex-direction:column;gap:8px;text-align:center;}
+}
+
+@media(max-width:480px){
+  .hero-cards{grid-template-columns:1fr;}
+  .nav-cta{width:100%;justify-content:space-between;}
 }
 </style>
 <script>
   /* SPA on apex domain (courses/auth). Landings on appex.kz load /shared/platform-links.js */
-  window.APP_PLATFORM_BASE = 'https://appexme.com'
+  window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'
 </script>
 <script src="/shared/platform-links.js" defer></script>
 </head>
@@ -299,7 +361,7 @@ footer{background:#0f172a;padding:48px 40px;}
     <li><a href="#how">Как работает</a></li>
     <li><a href="#reviews">Отзывы</a></li>
   </ul>
-  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+  <div class="nav-cta" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
     <a href="#" style="font-size:14px;font-weight:600;color:#555;text-decoration:none;" onclick="event.preventDefault(); openLeadModal();">Войти</a>
     <a href="#" style="font-size:14px;font-weight:700;color:#2563eb;text-decoration:none;" onclick="event.preventDefault(); openLeadModal();">Платформа</a>
     <a href="#" class="nav-btn" onclick="openModal('help-modal');return false;">Задать вопрос</a>
@@ -337,7 +399,7 @@ footer{background:#0f172a;padding:48px 40px;}
   </div>
 
   <!-- TICKER INLINE -->
-  <div style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
+  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
     <div class="ticker-inner">
       <span style="font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;white-space:nowrap;">Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp;</span>
     </div>
@@ -445,7 +507,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <p class="section-desc">AI-агенты — <strong>будущее разработки продуктов</strong>, и мы поможем вам освоить этот навык <strong>одним из первых</strong></p>
   <div class="skills-grid">
     <div class="skill-card blue" style="display:flex;flex-direction:column;justify-content:center;gap:0;">
-      <div style="display:flex;gap:40px;align-items:flex-end;">
+      <div class="skill-hero-nums" style="display:flex;gap:40px;align-items:flex-end;">
         <div>
           <div style="font-size:72px;font-weight:900;line-height:1;color:#fff;">27</div>
           <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em;margin-top:6px;">недель</div>
@@ -479,10 +541,10 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="max-width:1040px;margin:0 auto;">
     <h2 style="font-size:clamp(26px,4vw,44px);font-weight:800;color:#fff;text-align:center;letter-spacing:-.02em;margin-bottom:48px;">Ваше резюме после прохождения <em style="font-style:normal;color:#e53e3e;">курса</em></h2>
 
-    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:48px;backdrop-filter:blur(10px);">
+    <div class="techorda-resume-panel" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:48px;backdrop-filter:blur(10px);">
 
       <!-- TOP: avatar + position + salary -->
-      <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:28px;align-items:center;padding-bottom:36px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:36px;">
+      <div class="resume-top-grid" style="display:grid;grid-template-columns:80px 1fr 1fr;gap:28px;align-items:center;padding-bottom:36px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:36px;">
         <!-- hexagon avatar -->
         <div style="position:relative;width:80px;height:80px;">
           <svg viewBox="0 0 80 90" style="position:absolute;inset:0;width:100%;height:100%;">
@@ -503,11 +565,11 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
 
       <!-- MIDDLE: methodologies + tools -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:36px;">
+      <div class="resume-mid-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:48px;margin-bottom:36px;">
         <!-- Left: methodologies -->
         <div>
           <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:20px;">Методологии:</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;">
+          <div class="resume-meth-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;">
             <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;align-items:flex-start;"><span style="color:#e53e3e;flex-shrink:0;margin-top:2px;">•</span>Customer Development</div>
             <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;align-items:flex-start;"><span style="color:#e53e3e;flex-shrink:0;margin-top:2px;">•</span>Customer Journey Map</div>
             <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;align-items:flex-start;"><span style="color:#e53e3e;flex-shrink:0;margin-top:2px;">•</span>Jobs-to-be-Done</div>
@@ -545,7 +607,7 @@ footer{background:#0f172a;padding:48px 40px;}
       <!-- BOTTOM: skills -->
       <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:32px;">
         <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:20px;">Навыки:</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 40px;">
+        <div class="resume-bot-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px 40px;">
           <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;"><span style="color:#e53e3e;flex-shrink:0;">•</span>Проводить глубинные интервью по JTBD</div>
           <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;"><span style="color:#e53e3e;flex-shrink:0;">•</span>Проводить UX-research</div>
           <div style="font-size:14px;color:rgba(255,255,255,.65);display:flex;gap:8px;"><span style="color:#e53e3e;flex-shrink:0;">•</span>Посчитать размер рынка TAM/SAM/SOM</div>
@@ -569,7 +631,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="position:absolute;left:-80px;top:50%;transform:translateY(-50%);width:400px;height:400px;background:radial-gradient(circle,rgba(229,62,62,.15),transparent 70%);pointer-events:none;"></div>
   <!-- red glow right -->
   <div style="position:absolute;right:-100px;top:20%;width:350px;height:350px;background:radial-gradient(circle,rgba(229,62,62,.12),transparent 70%);pointer-events:none;"></div>
-  <div style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:60px;align-items:center;position:relative;z-index:1;">
+  <div class="cert-two-col" style="max-width:1200px;margin:0 auto;display:grid;grid-template-columns:380px 1fr;gap:60px;align-items:center;position:relative;z-index:1;">
 
     <!-- LEFT: что получите -->
     <div>
@@ -608,7 +670,7 @@ footer{background:#0f172a;padding:48px 40px;}
       <!-- orange top stripe -->
       <div style="height:6px;background:#f5a623;width:100%;"></div>
 
-      <div style="padding:40px 48px 36px;">
+      <div class="cert-mock-inner" style="padding:40px 48px 36px;">
         <!-- honeycomb decorations top-right -->
         <div style="position:absolute;right:-10px;top:6px;opacity:.1;">
           <svg width="200" height="220" viewBox="0 0 200 220" fill="none">
@@ -628,11 +690,11 @@ footer{background:#0f172a;padding:48px 40px;}
         </div>
 
         <div style="font-size:12px;color:#aaa;margin-bottom:10px;letter-spacing:.08em;text-transform:uppercase;">This certifies that</div>
-        <div style="font-size:48px;font-weight:900;color:#f5a623;line-height:1.05;margin-bottom:20px;letter-spacing:-.02em;">Name<br>Surname</div>
+        <div class="cert-mock-name" style="font-size:48px;font-weight:900;color:#f5a623;line-height:1.05;margin-bottom:20px;letter-spacing:-.02em;">Name<br>Surname</div>
         <div style="font-size:13px;color:#555;line-height:1.7;margin-bottom:32px;">has successfully completed the 8-week<br>«AI Product Management &amp; Vibe Coding» course by Appex</div>
 
         <!-- footer row -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #eee;padding-top:16px;">
+        <div class="cert-mock-footer" style="display:flex;justify-content:space-between;align-items:flex-end;border-top:1px solid #eee;padding-top:16px;">
           <span style="font-size:13px;font-weight:800;color:#f5a623;letter-spacing:.05em;">TOP GRADUATE</span>
           <span style="font-size:12px;color:#aaa;">Сентябрь 2026</span>
           <span style="font-size:12px;color:#aaa;">#20260900001</span>
@@ -661,7 +723,7 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
 
     <!-- 3 PILLARS -->
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <div class="ai-pillars-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
 
       <div style="background:#fff;border:1.5px solid #e8ecf4;border-top:3px solid #2563eb;border-radius:14px;padding:28px;">
         <div style="font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;">Направление 1</div>
