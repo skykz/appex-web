@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AppEx — hosting map (appex.kz + appexme.com)</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 720px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 1.25rem;
+      }
+      code {
+        background: #f4f4f5;
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1rem 0;
+        font-size: 0.9rem;
+      }
+      th,
+      td {
+        border: 1px solid #e4e4e7;
+        padding: 0.5rem 0.65rem;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #fafafa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>How landings and the app connect</h1>
+    <p>
+      <strong>Marketing</strong> lives on <code>appex.kz</code>. The <strong>course platform</strong> (React SPA) lives on
+      <code>appexme.com</code> for the app. The <strong>API</strong> is on your API host (e.g.
+      <code>api.appexme.com</code> or same server with a path).
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Public URL</th>
+          <th>Source in repo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>https://appex.kz/</code> (main landing)</td>
+          <td><code>landings/kz/appex-main.html</code> → deploy as site <code>index.html</code></td>
+        </tr>
+        <tr>
+          <td><code>https://appex.kz/techorda/</code> (Tech Orda)</td>
+          <td>
+            <code>landings/tech-orda/appexlab-techorda-updated.html</code> — on the server save as
+            <code>techorda/index.html</code> (repo <code>index.html</code> is only a dev redirect).
+          </td>
+        </tr>
+        <tr>
+          <td><code>https://appex.kz/shared/platform-links.js</code></td>
+          <td><code>landings/shared/platform-links.js</code> (shared by all landings on this domain)</td>
+        </tr>
+        <tr>
+          <td><code>https://appexme.com/</code> (SPA)</td>
+          <td>Build <code>appex-web/frontend</code> with <code>VITE_API_URL</code> pointing to your API. Default base <code>/</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      Each landing sets <code>window.APP_PLATFORM_BASE = 'https://appexme.com'</code> before
+      <code>/shared/platform-links.js</code>. Buttons with <code>data-appex-link</code> then open signup/login on the SPA.
+    </p>
+    <p>
+      Backend <code>CORS_ORIGINS</code> must include <code>https://appex.kz</code>,
+      <code>https://www.appex.kz</code>, <code>https://appexme.com</code>, and local dev origins.
+    </p>
+  </body>
+</html>
