@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { getSafeInternalPath } from '@shared/lib'
 import { userApi } from '../api/user-api'
 import { useAuthStore } from '../model/auth-store'
 import type { CreateUserDto, LoginDto } from '../model/types'
@@ -55,12 +56,14 @@ export function useUser(id: string) {
 export function useLogin() {
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   return useMutation({
     mutationFn: (data: LoginDto) => userApi.login(data),
     onSuccess: (response) => {
       setAuth(response.user, response.accessToken, response.refreshToken)
-      navigate('/home', { replace: true })
+      const next = getSafeInternalPath(searchParams.get('next'))
+      navigate(next ?? '/home', { replace: true })
     },
   })
 }
@@ -71,12 +74,14 @@ export function useLogin() {
 export function useCreateUser() {
   const { setAuth } = useAuthStore()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   return useMutation({
     mutationFn: (data: CreateUserDto) => userApi.createUser(data),
     onSuccess: (response) => {
       setAuth(response.user, response.accessToken, response.refreshToken)
-      navigate('/home', { replace: true })
+      const next = getSafeInternalPath(searchParams.get('next'))
+      navigate(next ?? '/home', { replace: true })
     },
   })
 }

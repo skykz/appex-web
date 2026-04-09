@@ -5,6 +5,8 @@ const envSchema = z.object({
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  /** Comma-separated browser origins allowed to call the API (e.g. https://appex.kz,https://app.appex.kz). Empty = reflect any origin (dev-friendly). */
+  CORS_ORIGINS: z.string().optional(),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -32,4 +34,8 @@ function assertSupabaseConfigured() {
 
 assertSupabaseConfigured()
 
-export const env = parsed
+const corsOrigins = parsed.CORS_ORIGINS
+  ? parsed.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : null
+
+export const env = { ...parsed, corsOrigins }

@@ -2,8 +2,17 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+/** Vite base URL (e.g. /app/ when the SPA lives at https://appex.kz/app/). Must end with /. */
+function viteBase(): string {
+  const raw = process.env.VITE_BASE_PATH?.trim()
+  if (!raw || raw === '/') return '/'
+  const withLeading = raw.startsWith('/') ? raw : `/${raw}`
+  return withLeading.endsWith('/') ? withLeading : `${withLeading}/`
+}
+
 // https://vite.dev/config/
 export default defineConfig({
+  base: viteBase(),
   plugins: [react()],
   resolve: {
     alias: {

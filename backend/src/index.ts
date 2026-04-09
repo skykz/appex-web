@@ -17,7 +17,11 @@ import billingRoutes from './api/billing/billing.route.js'
 
 const app = express()
 
-app.use(cors())
+app.use(
+  env.corsOrigins?.length
+    ? cors({ origin: env.corsOrigins, credentials: false })
+    : cors()
+)
 app.use(express.json())
 
 // Health check

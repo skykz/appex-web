@@ -20,7 +20,12 @@ const CoursePage = lazy(() => import('@pages/academy/course'))
 const LessonPage = lazy(() => import('@pages/academy/lesson'))
 const SkillLessonPage = lazy(() => import('@pages/skills/lesson'))
 
-export const router = createBrowserRouter([
+/** Matches Vite `base` when the app is hosted under a subpath (e.g. /app). */
+const routerBasename =
+  import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '')
+
+export const router = createBrowserRouter(
+  [
   {
     path: '/',
     element: <ProtectedRoute />,
@@ -115,4 +120,6 @@ export const router = createBrowserRouter([
       </Suspense>
     ),
   },
-])
+  ],
+  routerBasename ? { basename: routerBasename } : undefined
+)

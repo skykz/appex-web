@@ -3,3 +3,4 @@
  * Re-exports commonly used helpers for consistent imports across the app.
  */
 export { cn } from './cn'
+export { getSafeInternalPath } from './safe-next-path'

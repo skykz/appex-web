@@ -1,7 +1,7 @@
-import { useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { Zap } from 'lucide-react'
-import { cn } from '@shared/lib'
+import { cn, getSafeInternalPath } from '@shared/lib'
 import { SigninForm, SignupForm } from '@features/auth'
 import { useAuthStore } from '@entities/user'
 
@@ -10,13 +10,22 @@ type AuthTab = 'signin' | 'signup'
 /**
  * Authentication page with sign-in/sign-up tabs.
  * Redirects to home if already authenticated.
+ * Query: ?tab=signup opens sign-up; ?next=/skills (internal path only) used after success — for landings on appex.kz.
  */
 export default function AuthPage() {
+  const [searchParams] = useSearchParams()
   const [tab, setTab] = useState<AuthTab>('signin')
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'signup') setTab('signup')
+    if (t === 'signin') setTab('signin')
+  }, [searchParams])
+
   if (isAuthenticated) {
-    return <Navigate to="/home" replace />
+    const next = getSafeInternalPath(searchParams.get('next'))
+    return <Navigate to={next ?? '/home'} replace />
   }
 
   return (

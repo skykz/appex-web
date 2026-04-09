@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,6 +29,18 @@ type SignupFormValues = z.infer<typeof signupSchema>
 export function SignupForm() {
   const createUser = useCreateUser()
   const [showPassword, setShowPassword] = useState(false)
+  const [searchParams] = useSearchParams()
+  const emailFromLanding = searchParams.get('email')
+
+  const defaultValues = useMemo(
+    () => ({
+      name: '',
+      email: emailFromLanding && emailFromLanding.includes('@') ? emailFromLanding : '',
+      password: '',
+      confirmPassword: '',
+    }),
+    [emailFromLanding]
+  )
 
   const {
     register,
@@ -35,6 +48,7 @@ export function SignupForm() {
     formState: { errors, isSubmitting },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
+    defaultValues,
   })
 
   const onSubmit = async (data: SignupFormValues) => {
