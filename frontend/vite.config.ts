@@ -14,6 +14,22 @@ function viteBase(): string {
 export default defineConfig({
   base: viteBase(),
   plugins: [react()],
+  build: {
+    /** Rollup warns above 500 kB; SPA is fine — raise slightly after splitting heavy vendors. */
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('lottie')) return 'vendor-lottie'
+          if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n'
+          if (id.includes('@radix-ui')) return 'vendor-radix'
+          if (id.includes('react-router')) return 'vendor-router'
+          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react'
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       /**
