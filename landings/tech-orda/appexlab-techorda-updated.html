@@ -30,11 +30,17 @@ body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a1a;overflow-x:hid
 /* help modal open fix */
 .modal-overlay.open > div { transform: translateY(0) !important; }
 
-/* TICKER */
-.ticker-inner{display:flex;white-space:nowrap;animation:ticker 30s linear infinite;}
-.ticker-text{font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;}
+/* TICKER — two identical halves; translateX(-50%) only works if total width = 2× one half (no extra flex items). Strip uses font-size:0 so whitespace/newlines beside .ticker-inner cannot become wide anonymous flex items. */
+.hero-ticker-strip{display:flex;flex-direction:row;align-items:center;font-size:0;line-height:0;min-height:52px;}
+.hero-ticker-strip .ticker-inner{font-size:15px;line-height:1.35;}
+.ticker-inner{display:flex;flex-wrap:nowrap;align-items:center;gap:0;white-space:nowrap;width:max-content;animation:ticker 30s linear infinite;will-change:transform;}
+.ticker-inner .ticker-text{flex:0 0 auto;display:inline-block;vertical-align:middle;font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding:0;margin:0;}
 .ticker-text strong{color:#fff;}
-@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
+@media (prefers-reduced-motion:reduce){
+  .ticker-inner{animation:none;justify-content:center;flex-wrap:wrap;white-space:normal;padding:0 12px;}
+  .hero-ticker-strip{overflow:visible;font-size:15px;line-height:normal;}
+}
 
 /* NAV */
 nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:16px 40px;background:#fff;border-bottom:1px solid #f0f0f0;}
@@ -177,17 +183,49 @@ section{padding:80px 40px;}
 .step-card::after{content:'';position:absolute;top:36px;right:-9px;width:18px;height:2px;background:#e53e3e;z-index:1;}
 .step-card:last-child::after{display:none;}
 
-/* REVIEWS */
+/* REVIEWS — carousel cards (aligned with main Appex landing) */
 .reviews-section{background:#f7f9fc;}
 .reviews-mosaic{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1040px;margin:0 auto 40px;}
 .review-item{background:#fff;border-radius:14px;padding:24px;font-size:13px;color:#444;line-height:1.7;}
 .review-item.dark{background:#1e2936;color:#d1d5db;}
 .review-name{font-weight:700;color:#1a1a1a;font-size:14px;margin-bottom:2px;}
 .review-item.dark .review-name{color:#fff;}
-.review-handle{color:#2563eb;font-size:12px;margin-bottom:12px;}
+.review-handle{color:#f5a623;font-size:12px;margin-bottom:12px;font-weight:600;}
 .review-item.dark .review-handle{color:#60a5fa;}
 .review-stars{color:#f59e0b;font-size:14px;letter-spacing:1px;margin-top:8px;}
 .reviews-more{display:flex;justify-content:center;}
+/* Mobile: dots under horizontal «Кому подойдёт» / «Отзывы» carousels (scrollbar hidden) */
+.mobile-scroll-dots{display:none;}
+@media(max-width:768px){
+  .mobile-scroll-dots{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px 16px 6px;
+    margin:0 auto;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+  .mobile-scroll-dots .scroll-dot{
+    box-sizing:border-box;
+    width:8px;
+    height:8px;
+    min-width:8px;
+    min-height:8px;
+    padding:0;
+    border:0;
+    border-radius:50%;
+    background:#c7cad1;
+    cursor:pointer;
+    transition:background .2s, transform .15s;
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  .mobile-scroll-dots .scroll-dot.is-active{background:#2563eb;transform:scale(1.2);}
+  .mobile-scroll-dots.mobile-scroll-dots--reviews .scroll-dot.is-active{background:#e53e3e;}
+}
 .btn-tg{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #ddd;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:600;color:#1a1a1a;text-decoration:none;cursor:pointer;transition:all .2s;}
 .btn-tg:hover{border-color:#2563eb;color:#2563eb;}
 
@@ -245,6 +283,30 @@ section{padding:80px 40px;}
 .phone-flag{background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:13px 14px;font-size:13px;font-weight:600;color:#555;display:flex;align-items:center;gap:4px;white-space:nowrap;}
 .btn-submit{width:100%;background:#e53e3e;color:#fff;border:none;padding:16px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;box-shadow:0 4px 20px rgba(229,62,62,.3);margin-top:8px;}
 .btn-submit:hover{background:#c53030;}
+.lead-form-fields.is-hidden{display:none!important;}
+.lead-form-success{display:none;text-align:center;padding:8px 0 4px;}
+.lead-form-success.is-visible{display:block;animation:leadSuccessPanel .45s ease;}
+@keyframes leadSuccessPanel{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.lead-success-check{
+  width:72px;height:72px;margin:0 auto 20px;border-radius:50%;
+  background:linear-gradient(145deg,#22c55e,#16a34a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;color:#fff;font-weight:800;line-height:1;
+  box-shadow:0 8px 28px rgba(22,163,74,.35);
+  animation:leadSuccessPop .55s cubic-bezier(.34,1.56,.64,1) .05s both;
+}
+@keyframes leadSuccessPop{
+  0%{transform:scale(0);opacity:0;}
+  65%{transform:scale(1.06);}
+  100%{transform:scale(1);opacity:1;}
+}
+.lead-success-title{font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:10px;line-height:1.25;letter-spacing:-.02em;}
+.lead-success-text{font-size:15px;color:#666;line-height:1.55;margin-bottom:22px;}
+.btn-success-close{width:100%;background:#1a1a1a;color:#fff;border:none;padding:14px 16px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;}
+.btn-success-close:hover{background:#333;}
 
 /* FOOTER */
 footer{background:#0f172a;padding:48px 40px;}
@@ -297,9 +359,9 @@ footer{background:#0f172a;padding:48px 40px;}
 
   .skills-inline-grid,.ai-pillars-grid{grid-template-columns:1fr!important;gap:16px!important;}
   /* «Кому подойдёт»: горизонтальный snap-карусель без стрелок */
-  #whom .whom-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px!important;scrollbar-width:none;padding:4px 4px 12px;margin-left:-4px;margin-right:-4px;}
-  #whom .whom-grid::-webkit-scrollbar{display:none;height:0;width:0;}
-  #whom .whom-grid > .whom-card{flex:0 0 min(88vw,300px);scroll-snap-align:center;max-width:min(88vw,300px);box-sizing:border-box;}
+  #whom-cards-track.whom-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px!important;scrollbar-width:none;padding:4px 4px 12px;margin-left:-4px;margin-right:-4px;}
+  #whom-cards-track.whom-grid::-webkit-scrollbar{display:none;height:0;width:0;}
+  #whom-cards-track.whom-grid > .whom-card{flex:0 0 min(88vw,300px);scroll-snap-align:center;max-width:min(88vw,300px);box-sizing:border-box;}
   .cert-two-col{grid-template-columns:1fr!important;gap:28px!important;}
   .resume-top-grid{grid-template-columns:1fr!important;justify-items:center;text-align:center;gap:16px!important;padding-bottom:20px!important;}
   .resume-top-grid img{margin:0 auto;}
@@ -344,31 +406,11 @@ footer{background:#0f172a;padding:48px 40px;}
   .mentor-slide-photo{min-height:220px;width:100%!important;max-width:100%!important;}
   .mentor-slide-info{padding:24px 18px!important;}
   #mentors .carousel-controls .carousel-btn,#mentorPrev,#mentorNext{display:none!important;}
-
-  /* «Что говорят студенты» / отзывы: горизонтальный snap-карусель */
-  .reviews-mosaic{
-    display:flex!important;
-    grid-template-columns:unset!important;
-    overflow-x:auto;
-    scroll-snap-type:x mandatory;
-    -webkit-overflow-scrolling:touch;
-    gap:16px!important;
-    margin:0 auto 24px!important;
-    max-width:100%!important;
-    padding:4px 4px 12px;
-    scrollbar-width:none;
-  }
-  .reviews-mosaic::-webkit-scrollbar{display:none;height:0;width:0;}
-  .reviews-mosaic > .review-item{
-    flex:0 0 min(88vw,340px);
-    scroll-snap-align:center;
-    min-width:0;
-  }
-  .reviews-mosaic > .review-item[style*="grid-column"]{
-    flex:0 0 min(92vw,520px);
-    grid-column:unset!important;
-  }
-  .reviews-more .btn-tg{width:100%;max-width:400px;justify-content:center;box-sizing:border-box;}
+  .reviews-carousel-arrow{display:none!important;}
+  .reviews-section-outer{padding:48px 0!important;}
+  .reviews-section-head{padding:0 16px!important;margin-bottom:36px!important;}
+  #reviews-track{padding-left:12px!important;padding-right:12px!important;}
+  .r-card{min-width:min(300px,calc(100vw - 48px))!important;max-width:min(340px,calc(100vw - 48px))!important;}
 
   .pricing-simple{padding:36px 18px!important;}
   .pricing-simple .price-grant{font-size:clamp(22px,7vw,32px);}
@@ -395,11 +437,6 @@ footer{background:#0f172a;padding:48px 40px;}
   .hero-cards{grid-template-columns:1fr;}
 }
 </style>
-<script>
-  /* SPA on apex domain (courses/auth). Landings on appex.kz load /shared/platform-links.js */
-  window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'
-</script>
-<script src="/shared/platform-links.js" defer></script>
 </head>
 <body>
 
@@ -451,12 +488,8 @@ footer{background:#0f172a;padding:48px 40px;}
     <a href="#program" class="btn-outline">Программа</a>
   </div>
 
-  <!-- TICKER INLINE -->
-  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
-    <div class="ticker-inner">
-      <span style="font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;white-space:nowrap;">Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp;</span>
-    </div>
-  </div>
+  <!-- TICKER INLINE — no whitespace between strip > inner > spans (flex anonymous gap). Same byte sequence in both spans for identical width. -->
+  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;"><div class="ticker-inner"><span class="ticker-text">Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ </span><span class="ticker-text" aria-hidden="true">Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ </span></div></div>
 
 
 
@@ -471,7 +504,7 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
     <div class="hero-card">
       <h3>Сертификат</h3>
-      <p>Международный сертификат + проект в портфолио</p>
+      <p>Сертификат об успешном окончании курса + проект в портфолио</p>
     </div>
     <div class="hero-card">
       <h3>Вечный доступ</h3>
@@ -490,7 +523,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <p class="section-desc" style="max-width:720px">Программа для <strong>специалистов с опытом</strong> в IT или менеджменте, желающих освоить AI-инструменты и перейти на следующий уровень</p>
 
 
-  <div class="whom-grid">
+  <div id="whom-cards-track" class="whom-grid">
     <div class="whom-card">
       <div class="whom-img" style="padding:0;overflow:hidden;">
         <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80&fit=crop&crop=top" alt="" style="width:100%;height:100%;object-fit:cover;object-position:top;display:block;">
@@ -552,6 +585,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
     </div>
   </div>
+  <div class="mobile-scroll-dots mobile-scroll-dots--whom" id="whom-scroll-dots" role="group" aria-label="Карточки — прокрутка"></div>
 </section>
 
 <!-- SKILLS -->
@@ -1454,7 +1488,7 @@ footer{background:#0f172a;padding:48px 40px;}
       <div class="what-you-get-grid">
         <div class="what-you-get-item">
           <div style="width:36px;height:36px;border-radius:10px;background:#f0f4ff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">📜</div>
-          <div><div style="font-size:14px;font-weight:600;margin-bottom:4px;">Сертификат</div><div style="font-size:12px;color:#777;line-height:1.5">Международный сертификат Appex Lab об успешном окончании</div></div>
+          <div><div style="font-size:14px;font-weight:600;margin-bottom:4px;">Сертификат</div><div style="font-size:12px;color:#777;line-height:1.5">Сертификат об успешном окончании курса</div></div>
         </div>
         <div class="what-you-get-item">
           <div style="width:36px;height:36px;border-radius:10px;background:#f0fdf4;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🚀</div>
@@ -1530,44 +1564,80 @@ footer{background:#0f172a;padding:48px 40px;}
   </div>
 </section>
 
-<!-- REVIEWS -->
-<section id="reviews" class="reviews-section">
-  <div style="text-align:center;margin-bottom:48px;">
+<!-- REVIEWS — horizontal carousel (same as main Appex landing) -->
+<section id="reviews" class="reviews-section-outer" style="padding:80px 0 80px;background:#f7f9fc;">
+  <div class="reviews-section-head" style="text-align:center;margin-bottom:48px;padding:0 40px;">
     <h2 class="section-h">Что говорят <em>студенты</em></h2>
     <p class="section-desc" style="margin-bottom:0">За каждым отзывом стоит <strong>реальный человек</strong>, прошедший обучение</p>
   </div>
-  <div class="reviews-mosaic">
-    <div class="review-item dark">
-      <div class="review-name">Алибек С.</div>
-      <div class="review-handle">Senior PM</div>
-      <p>Курс перевернул моё понимание продукта. Vibe Coding — это реальная суперсила. Теперь запускаю MVP самостоятельно за несколько дней вместо месяцев.</p>
+
+  <div style="position:relative;overflow:hidden;">
+    <button type="button" class="reviews-carousel-arrow" onclick="scrollReviews(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);z-index:10;width:40px;height:40px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 12px rgba(0,0,0,.15);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:#1a1a1a;transition:all .2s;" onmouseover="this.style.background='#f5a623';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#1a1a1a'">‹</button>
+    <button type="button" class="reviews-carousel-arrow" onclick="scrollReviews(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);z-index:10;width:40px;height:40px;border-radius:50%;background:#fff;border:none;box-shadow:0 2px 12px rgba(0,0,0,.15);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;color:#1a1a1a;transition:all .2s;" onmouseover="this.style.background='#f5a623';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#1a1a1a'">›</button>
+
+    <div style="position:absolute;left:0;top:0;bottom:0;width:60px;background:linear-gradient(to right,#f7f9fc,transparent);z-index:2;pointer-events:none;"></div>
+    <div style="position:absolute;right:0;top:0;bottom:0;width:60px;background:linear-gradient(to left,#f7f9fc,transparent);z-index:2;pointer-events:none;"></div>
+
+    <div id="reviews-track" style="display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:8px 40px 16px;cursor:grab;" onmousedown="startDrag(event)" onmousemove="onDrag(event)" onmouseup="stopDrag()" onmouseleave="stopDrag()">
+
+      <div class="r-card dark" style="min-width:300px;max-width:300px;scroll-snap-align:start;background:#1e2936;border-radius:16px;padding:24px;flex-shrink:0;">
+        <div class="review-name" style="color:#fff;">Алибек С.</div>
+        <div class="review-handle">Senior PM → Head of Product</div>
+        <p style="font-size:13px;color:#d1d5db;line-height:1.7;margin:12px 0;">Курс перевернул моё понимание продукта. Vibe Coding — это реальная суперсила. Теперь запускаю MVP самостоятельно за несколько дней вместо месяцев.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card" style="min-width:300px;max-width:300px;scroll-snap-align:start;background:#fff;border-radius:16px;padding:24px;flex-shrink:0;border:1px solid #eee;">
+        <div class="review-name">Динара М.</div>
+        <div class="review-handle">Маркетолог → AI Product Manager</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:12px 0;">Пришла без технического бэкграунда. За 8 недель создала свой первый AI-продукт и уже получила первых платящих клиентов. Bota объясняет так, что всё становится понятно.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card" style="min-width:300px;max-width:300px;scroll-snap-align:start;background:#fff;border-radius:16px;padding:24px;flex-shrink:0;border:1px solid #eee;">
+        <div class="review-name">Канат Ж.</div>
+        <div class="review-handle">Стартапер · Founder</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:12px 0;">Сэкономил $15.000 на разработке — сделал MVP сам через Lovable и Bolt.new. Инвесторы удивились скорости. Курс окупился в первый же месяц.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card dark" style="min-width:360px;max-width:360px;scroll-snap-align:start;background:#1e2936;border-radius:16px;padding:24px;flex-shrink:0;">
+        <div class="review-name" style="color:#fff;">Назгуль А.</div>
+        <div class="review-handle" style="color:#f5a623;">HR-директор → Продуктовый менеджер</div>
+        <p style="font-size:13px;color:#d1d5db;line-height:1.7;margin:12px 0;">Bota доходчиво преподносит информацию, чувствуется большой бэкграунд преподавателя. Курс упорядочил информацию, дал много нового. Теперь знаю не только что учить, но и как это применить на практике.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card" style="min-width:280px;max-width:280px;scroll-snap-align:start;background:#fff;border-radius:16px;padding:24px;flex-shrink:0;border:1px solid #eee;">
+        <div class="review-name">Азиз М.</div>
+        <div class="review-handle">Tech Lead → PM</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:12px 0;">Перешёл из разработки в продуктовое управление. Всё систематизировано и применимо сразу после занятия.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card" style="min-width:300px;max-width:300px;scroll-snap-align:start;background:#fff;border-radius:16px;padding:24px;flex-shrink:0;border:1px solid #eee;">
+        <div class="review-name">Айгерим Т.</div>
+        <div class="review-handle">Новичок без опыта в IT</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:12px 0;">Я бухгалтер. Думала, что программирование — не для меня. После курса запустила SaaS-инструмент для автоматизации отчётности. Уже 3 клиента платят ежемесячно.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card dark" style="min-width:300px;max-width:300px;scroll-snap-align:start;background:#1e2936;border-radius:16px;padding:24px;flex-shrink:0;">
+        <div class="review-name" style="color:#fff;">Ерлан Б.</div>
+        <div class="review-handle">iOS-разработчик → Founder</div>
+        <p style="font-size:13px;color:#d1d5db;line-height:1.7;margin:12px 0;">Как разработчик думал, что Vibe Coding — это несерьёзно. Ошибался. Скорость прототипирования выросла в 5 раз. Теперь тестирую идеи за выходные, а не месяцами.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
+      <div class="r-card" style="min-width:340px;max-width:340px;scroll-snap-align:start;background:#fff;border-radius:16px;padding:24px;flex-shrink:0;border:1px solid #eee;">
+        <div class="review-name">Мадина К.</div>
+        <div class="review-handle">Project Manager · Kaspi.kz</div>
+        <p style="font-size:13px;color:#555;line-height:1.7;margin:12px 0;">Работаю в крупной компании, но хотела научиться создавать свои продукты. За 8 недель построила внутренний инструмент для своего отдела — руководство одобрило и внедрило.</p>
+        <div class="review-stars">★★★★★</div>
+      </div>
+
     </div>
-    <div class="review-item">
-      <div class="review-name">Динара М.</div>
-      <div class="review-handle">AI Product Manager</div>
-      <p>Думала, что Vibe Coding — это для разработчиков. Оказалось, именно продакты с этим навыком становятся незаменимыми. Теперь запускаю MVP сама за 3 дня.</p>
-      <div class="review-stars">★★★★★</div>
-    </div>
-    <div class="review-item">
-      <div class="review-name">Канат Ж.</div>
-      <div class="review-handle">PM → Head of Product</div>
-      <p>Отличный баланс теории и практики. Программа структурированная, менторы отвечают на все вопросы. Вырос до Head of Product за время курса.</p>
-      <div class="review-stars">★★★★★</div>
-    </div>
-    <div class="review-item dark" style="grid-column:span 2">
-      <div class="review-name">Назгуль А.</div>
-      <div class="review-handle" style="color:#60a5fa">Product Manager</div>
-      <p>Bota доходчиво преподносит информацию, чувствуется большой бэкграунд преподавателя. Курс упорядочил информацию, дал много нового. Теперь знаю не только что учить, но и как это применить на практике. Рекомендую всем, кто хочет вырасти в продукте.</p>
-    </div>
-    <div class="review-item">
-      <div class="review-name">Азиз М.</div>
-      <div class="review-handle">Tech Lead → PM</div>
-      <p>Перешёл из разработки в продуктовое управление. Всё систематизировано и применимо сразу после занятия.</p>
-      <div class="review-stars">★★★★★</div>
-    </div>
-  </div>
-  <div class="reviews-more">
-    <a href="#" class="btn-tg">✈ Прочесть больше отзывов</a>
+    <div class="mobile-scroll-dots mobile-scroll-dots--reviews" id="reviews-scroll-dots" role="group" aria-label="Отзывы — прокрутка"></div>
   </div>
 </section>
 
@@ -1578,8 +1648,8 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="max-width:700px;margin:0 auto;text-align:center;">
     <h2 style="font-size:24px;font-weight:800;color:#fff;margin-bottom:20px;">Остались вопросы?</h2>
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-      <a href="https://wa.me/77771087777" target="_blank" style="display:flex;align-items:center;gap:8px;background:#25d366;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">💬 WhatsApp</a>
-      <a href="https://t.me/appexlab" target="_blank" style="display:flex;align-items:center;gap:8px;background:#2563eb;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">✈ Telegram</a>
+      <a href="https://wa.me/77071133010" data-appex-contact="whatsapp" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;background:#25d366;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">💬 WhatsApp</a>
+      <a href="https://t.me/awssum" data-appex-contact="telegram" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:8px;background:#2563eb;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:15px;font-weight:700;">✈ Telegram</a>
     </div>
   </div>
 </section>
@@ -1589,11 +1659,11 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="background:#fff;border-radius:24px;padding:40px 36px 36px;max-width:400px;width:100%;position:relative;transform:translateY(20px);transition:transform .25s;">
     <button onclick="closeModal('help-modal')" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#f5f5f5;cursor:pointer;font-size:16px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
     <div style="font-size:24px;font-weight:800;color:#0d1333;margin-bottom:28px;line-height:1.2;">Как мы можем помочь?</div>
-    <a href="https://wa.me/77771087777" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#25d366,#1aad56);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="https://wa.me/77071133010" data-appex-contact="whatsapp" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#25d366,#1aad56);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Написать в Whatsapp
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
     </a>
-    <a href="https://t.me/appexlab" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#40b3e0,#2196c9);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="https://t.me/awssum" data-appex-contact="telegram" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#40b3e0,#2196c9);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Написать в Telegram
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
     </a>
@@ -1608,6 +1678,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <div class="form-modal" onclick="event.stopPropagation()">
     <button type="button" class="modal-close" onclick="closeModal('contact-modal')">✕</button>
     <form id="lead-application-form" novalidate onsubmit="return false;">
+    <div id="lead-form-fields" class="lead-form-fields">
     <div class="form-section-title">Оставьте заявку — мы свяжемся в течение 24 часов</div>
 
     <label class="form-label" for="lead-fullname">Имя и фамилия</label>
@@ -1621,43 +1692,19 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
     <div class="form-error-msg" id="err-lead-phone" role="alert"></div>
 
-    <label class="form-label" for="lead-role">Должность или статус</label>
-    <input type="text" id="lead-role" name="role" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер" autocomplete="organization-title">
-    <div class="form-error-msg" id="err-lead-role" role="alert"></div>
-
-    <label class="form-label" for="lead-company">Компания</label>
-    <input type="text" id="lead-company" name="company" class="form-input" placeholder="Kaspi, Halyk, свой бизнес..." autocomplete="organization">
-    <div class="form-error-msg" id="err-lead-company" role="alert"></div>
-
     <label class="form-label" for="lead-city">Город</label>
     <input type="text" id="lead-city" name="city" class="form-input" placeholder="Астана, Алматы, Шымкент..." autocomplete="address-level2">
     <div class="form-error-msg" id="err-lead-city" role="alert"></div>
 
-    <label class="form-label">Откуда узнали о курсе?</label>
-    <div class="radio-group-shell" id="lead-source-group">
-    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:8px;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="telegram" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="friends" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="astana-hub" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="instagram" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="hr" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="other" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
-    </div>
-    </div>
-    <div class="form-error-msg" id="err-lead-source" role="alert"></div>
-
-    <label class="form-label">Ваш уровень в продакт-менеджменте</label>
-    <div class="radio-group-shell" id="lead-level-group">
-    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="junior" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="middle" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="senior" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="lead" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
-    </div>
-    </div>
-    <div class="form-error-msg" id="err-lead-level" role="alert"></div>
-
     <button type="button" class="btn-submit" onclick="submitLeadForm()">Отправить заявку</button>
+    </div>
+
+    <div id="lead-form-success" class="lead-form-success" role="status" aria-live="polite" aria-hidden="true">
+      <div class="lead-success-check" aria-hidden="true">✓</div>
+      <div id="lead-success-title" class="lead-success-title" tabindex="-1">Заявка принята</div>
+      <p class="lead-success-text">Спасибо! Мы свяжемся с вами в ближайшее время — обычно в течение рабочего дня.</p>
+      <button type="button" class="btn-success-close" onclick="closeLeadModalAfterSuccess()">Понятно</button>
+    </div>
     </form>
   </div>
 </div>
@@ -1679,10 +1726,10 @@ footer{background:#0f172a;padding:48px 40px;}
 
             <!-- RIGHT -->
       <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
-        <a href="tel:+77071133010" style="font-size:16px;font-weight:700;color:#fff;text-decoration:none;">+7 707 113 30 10</a>
+        <a href="tel:+77071133010" data-appex-contact="tel" style="font-size:16px;font-weight:700;color:#fff;text-decoration:none;">+7 707 113 30 10</a>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <a href="https://t.me/appexlab" target="_blank" style="font-size:13px;color:#888;text-decoration:none;padding:7px 18px;border:1px solid #2a2a2a;border-radius:8px;">Telegram</a>
-          <a href="https://wa.me/77071133010" target="_blank" style="font-size:13px;color:#888;text-decoration:none;padding:7px 18px;border:1px solid #2a2a2a;border-radius:8px;">WhatsApp</a>
+          <a href="https://t.me/awssum" data-appex-contact="telegram" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:#888;text-decoration:none;padding:7px 18px;border:1px solid #2a2a2a;border-radius:8px;">Telegram</a>
+          <a href="https://wa.me/77071133010" data-appex-contact="whatsapp" target="_blank" rel="noopener noreferrer" style="font-size:13px;color:#888;text-decoration:none;padding:7px 18px;border:1px solid #2a2a2a;border-radius:8px;">WhatsApp</a>
           <a href="#" style="font-size:13px;color:#888;text-decoration:none;padding:7px 18px;border:1px solid #2a2a2a;border-radius:8px;">Instagram</a>
         </div>
       </div>
@@ -1782,6 +1829,206 @@ window.addEventListener('load', function () {
   }, { passive: true });
 })();
 
+/**
+ * Scrolls the horizontal reviews carousel by roughly one card.
+ */
+/**
+ * Wires circular buttons under a horizontal scroll track and highlights the dot nearest the viewport center (mobile ≤768px).
+ */
+function wireHorizontalScrollDots(trackId, dotsRootId) {
+  var track = document.getElementById(trackId);
+  var dotsRoot = document.getElementById(dotsRootId);
+  if (!track || !dotsRoot) return;
+
+  var mq = window.matchMedia('(max-width:768px)');
+  var dots = [];
+  var scrollAttached = false;
+  var rafId = 0;
+
+  /**
+   * Marks the dot whose card is closest to the horizontal center of the track.
+   */
+  function paintActiveDot() {
+    if (!mq.matches || dots.length === 0) return;
+    var mid = track.scrollLeft + track.clientWidth * 0.5;
+    var best = 0;
+    var bestD = Infinity;
+    for (var i = 0; i < track.children.length; i++) {
+      var el = track.children[i];
+      var c = el.offsetLeft + el.offsetWidth * 0.5;
+      var d = Math.abs(c - mid);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    for (var j = 0; j < dots.length; j++) {
+      dots[j].classList.toggle('is-active', j === best);
+    }
+  }
+
+  /**
+   * Schedules one paint per frame while the user scrolls the track.
+   */
+  function onScroll() {
+    if (!mq.matches) return;
+    if (rafId) return;
+    rafId = requestAnimationFrame(function () {
+      rafId = 0;
+      paintActiveDot();
+    });
+  }
+
+  /**
+   * Rebuilds dot buttons when viewport crosses mobile/desktop or card count changes.
+   */
+  function syncDots() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    dotsRoot.innerHTML = '';
+    dots = [];
+    if (scrollAttached) {
+      track.removeEventListener('scroll', onScroll);
+      scrollAttached = false;
+    }
+    if (!mq.matches) return;
+    var n = track.children.length;
+    for (var i = 0; i < n; i++) {
+      (function (idx) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'scroll-dot';
+        b.setAttribute('aria-label', 'Слайд ' + (idx + 1));
+        b.addEventListener('click', function () {
+          var el = track.children[idx];
+          if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        });
+        dotsRoot.appendChild(b);
+        dots.push(b);
+      })(i);
+    }
+    track.addEventListener('scroll', onScroll, { passive: true });
+    scrollAttached = true;
+    paintActiveDot();
+  }
+
+  if (mq.addEventListener) mq.addEventListener('change', syncDots);
+  else if (mq.addListener) mq.addListener(syncDots);
+  window.addEventListener('resize', syncDots);
+  syncDots();
+}
+
+function scrollReviews(dir) {
+  var track = document.getElementById('reviews-track');
+  if (!track) return;
+  track.scrollBy({ left: dir * 320, behavior: 'smooth' });
+}
+
+var reviewsDragActive = false;
+var reviewsStartX = 0;
+var reviewsScrollLeft = 0;
+
+/**
+ * Begins drag-to-scroll on the reviews track (desktop).
+ */
+function startDrag(e) {
+  var track = document.getElementById('reviews-track');
+  if (!track) return;
+  reviewsDragActive = true;
+  reviewsStartX = e.pageX - track.offsetLeft;
+  reviewsScrollLeft = track.scrollLeft;
+  track.style.cursor = 'grabbing';
+  track.style.userSelect = 'none';
+}
+
+/**
+ * Applies drag delta to the reviews track scroll position.
+ */
+function onDrag(e) {
+  if (!reviewsDragActive) return;
+  e.preventDefault();
+  var track = document.getElementById('reviews-track');
+  if (!track) return;
+  var x = e.pageX - track.offsetLeft;
+  var walk = (x - reviewsStartX) * 1.5;
+  track.scrollLeft = reviewsScrollLeft - walk;
+}
+
+/**
+ * Ends drag-to-scroll and restores cursor on the reviews track.
+ */
+function stopDrag() {
+  reviewsDragActive = false;
+  var track = document.getElementById('reviews-track');
+  if (track) {
+    track.style.cursor = 'grab';
+    track.style.userSelect = '';
+  }
+}
+
+(function hideReviewsScrollbar() {
+  var s = document.createElement('style');
+  s.textContent = '#reviews-track::-webkit-scrollbar{display:none;}';
+  document.head.appendChild(s);
+})();
+
+wireHorizontalScrollDots('whom-cards-track', 'whom-scroll-dots');
+wireHorizontalScrollDots('reviews-track', 'reviews-scroll-dots');
+
+/**
+ * WhatsApp (digits, no +) and Telegram @username — same contact on both landings.
+ */
+var APPEX_CONTACT = {
+  whatsappPhone: '77071133010',
+  telegramUsername: 'awssum'
+};
+
+/**
+ * URL веб-приложения Google Apps Script для таблицы заявок Tech Orda. Скрипт: landings/shared/google-sheet-leads-webapp.gs — вставить во вторую Таблицу и развернуть отдельно от Appex.
+ */
+var TECHORDA_LANDING_LEADS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxdI7ir_DLGOvDtlyB-7SWVLkS58a_C0BsnPyg5gqdcHRW0bsTVe1P0A7BL1yXRsJl_wQ/exec';
+
+/**
+ * Отправляет заявку в указанную Google Таблицу через Apps Script (не блокирует показ «успех» при сбое сети).
+ */
+/**
+ * Отправляет заявку в Apps Script веб-приложение без JSON body (иначе браузер шлёт OPTIONS preflight и Google не отдаёт CORS).
+ */
+function sendLeadApplicationToGoogleSheet(webAppUrl, payload) {
+  if (!webAppUrl || typeof fetch !== 'function') return;
+  var body = new URLSearchParams();
+  body.set('data', JSON.stringify(payload));
+  fetch(webAppUrl, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: body.toString()
+  })
+    .then(function (res) {
+      return res.text();
+    })
+    .catch(function (err) {
+      if (typeof console !== 'undefined' && console.warn) console.warn('Google Sheet lead send failed', err);
+    });
+}
+
+/**
+ * Sets href on [data-appex-contact] links from APPEX_CONTACT.
+ */
+function initAppexContactLinks() {
+  document.querySelectorAll('[data-appex-contact="whatsapp"]').forEach(function (a) {
+    a.href = 'https://wa.me/' + APPEX_CONTACT.whatsappPhone;
+  });
+  document.querySelectorAll('[data-appex-contact="telegram"]').forEach(function (a) {
+    a.href = 'https://t.me/' + APPEX_CONTACT.telegramUsername;
+  });
+  document.querySelectorAll('[data-appex-contact="tel"]').forEach(function (a) {
+    a.href = 'tel:+' + APPEX_CONTACT.whatsappPhone;
+  });
+}
+
 // MODALS
 function openModal(id) {
   document.getElementById(id).classList.add('open');
@@ -1850,11 +2097,47 @@ function openLeadModal() {
   var form = document.getElementById('lead-application-form');
   if (form) form.reset();
   clearLeadFormErrors();
+  resetLeadSuccessView();
   openModal('contact-modal');
 }
 
 /**
- * Validates the lead form; on success redirects to the platform signup flow.
+ * Hides the success panel and shows the form fields again.
+ */
+function resetLeadSuccessView() {
+  var fields = document.getElementById('lead-form-fields');
+  var success = document.getElementById('lead-form-success');
+  if (fields) fields.classList.remove('is-hidden');
+  if (success) {
+    success.classList.remove('is-visible');
+    success.setAttribute('aria-hidden', 'true');
+  }
+}
+
+/**
+ * Shows animated success state after a valid submit.
+ */
+function showLeadSuccess() {
+  var fields = document.getElementById('lead-form-fields');
+  var success = document.getElementById('lead-form-success');
+  if (fields) fields.classList.add('is-hidden');
+  if (success) {
+    success.classList.add('is-visible');
+    success.setAttribute('aria-hidden', 'false');
+    var title = document.getElementById('lead-success-title');
+    if (title) setTimeout(function () { title.focus(); }, 80);
+  }
+}
+
+/**
+ * Closes the lead modal after success and resets the view for next open.
+ */
+function closeLeadModalAfterSuccess() {
+  closeModal('contact-modal');
+}
+
+/**
+ * Validates full name, phone, and city; on success shows thank-you screen.
  */
 function submitLeadForm() {
   clearLeadFormErrors();
@@ -1863,16 +2146,10 @@ function submitLeadForm() {
 
   var fullnameEl = document.getElementById('lead-fullname');
   var phoneEl = document.getElementById('lead-phone');
-  var roleEl = document.getElementById('lead-role');
-  var companyEl = document.getElementById('lead-company');
   var cityEl = document.getElementById('lead-city');
   var fullname = fullnameEl ? fullnameEl.value : '';
   var phoneRaw = phoneEl ? phoneEl.value : '';
-  var role = roleEl ? roleEl.value : '';
-  var company = companyEl ? companyEl.value : '';
   var city = cityEl ? cityEl.value : '';
-  var source = form.querySelector('input[name="lead-source"]:checked');
-  var level = form.querySelector('input[name="lead-level"]:checked');
 
   var ok = true;
 
@@ -1886,43 +2163,41 @@ function submitLeadForm() {
     if (phoneEl) phoneEl.classList.add('is-invalid');
     ok = false;
   }
-  if (!String(role).trim() || String(role).trim().length < 2) {
-    setLeadFieldError('err-lead-role', 'Укажите должность или статус.');
-    if (roleEl) roleEl.classList.add('is-invalid');
-    ok = false;
-  }
-  if (!String(company).trim() || String(company).trim().length < 2) {
-    setLeadFieldError('err-lead-company', 'Укажите компанию (можно «фриланс» или «нет»).');
-    if (companyEl) companyEl.classList.add('is-invalid');
-    ok = false;
-  }
   if (!String(city).trim() || String(city).trim().length < 2) {
     setLeadFieldError('err-lead-city', 'Укажите город.');
     if (cityEl) cityEl.classList.add('is-invalid');
     ok = false;
   }
-  if (!source) {
-    setLeadFieldError('err-lead-source', 'Выберите один вариант.');
-    var sg = document.getElementById('lead-source-group');
-    if (sg) sg.classList.add('is-invalid');
-    ok = false;
-  }
-  if (!level) {
-    setLeadFieldError('err-lead-level', 'Выберите уровень.');
-    var lg = document.getElementById('lead-level-group');
-    if (lg) lg.classList.add('is-invalid');
-    ok = false;
-  }
 
   if (!ok) return;
 
-  closeModal('contact-modal');
-  if (window.appexApp && typeof window.appexApp.hrefRegister === 'function') {
-    window.location.href = window.appexApp.hrefRegister('/home');
-    return;
-  }
-  window.location.href = '/auth?tab=signup&next=%2Fhome';
+  sendLeadApplicationToGoogleSheet(TECHORDA_LANDING_LEADS_WEBAPP_URL="https://script.google.com/macros/s/AKfycbwEv2xUoetoO3ibYRrBtEGJrmUAXTbpBt6Sn5TRLNlezzsh_nVAxiLEjFCvYrN_MqNhqg/exec", {
+    submittedAt: new Date().toISOString(),
+    fullname: String(fullname).trim(),
+    phone: normalizeLeadPhone(phoneRaw),
+    city: String(city).trim(),
+    source: 'appex-techorda-landing'
+  });
+  showLeadSuccess();
 }
+
+(function wireLeadFormLiveValidation() {
+  var form = document.getElementById('lead-application-form');
+  if (!form) return;
+  form.addEventListener('input', function (ev) {
+    var t = ev.target;
+    if (!t || !t.classList || !t.classList.contains('form-input')) return;
+    t.classList.remove('is-invalid');
+    var map = {
+      'lead-fullname': 'err-lead-fullname',
+      'lead-phone': 'err-lead-phone',
+      'lead-city': 'err-lead-city'
+    };
+    if (map[t.id]) setLeadFieldError(map[t.id], '');
+  });
+})();
+
+initAppexContactLinks();
 
 // MSG BTN toggle
 document.querySelectorAll('.msg-btn').forEach(function (btn) {

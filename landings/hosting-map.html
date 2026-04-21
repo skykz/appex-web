@@ -42,11 +42,10 @@
     </style>
   </head>
   <body>
-    <h1>How landings and the app connect</h1>
+    <h1>Where landings live</h1>
     <p>
-      <strong>Marketing</strong> lives on <code>appex.kz</code>. The <strong>course platform</strong> (React SPA) lives on
-      <code>appex-web-frontend.vercel.app</code>. The <strong>API</strong> is on your API host (e.g.
-      <code>api.example.com</code> or same server with a path).
+      <strong>Marketing landings</strong> are static HTML on <code>appex.kz</code> (or another host). The
+      <strong>course platform</strong> (React SPA) is deployed separately; landings do not load shared scripts from the SPA.
     </p>
     <table>
       <thead>
@@ -68,19 +67,11 @@
           </td>
         </tr>
         <tr>
-          <td><code>https://appex.kz/shared/platform-links.js</code></td>
-          <td><code>landings/shared/platform-links.js</code> (shared by all landings on this domain)</td>
-        </tr>
-        <tr>
-          <td><code>https://appex-web-frontend.vercel.app/</code> (SPA)</td>
+          <td><code>https://appex-web-frontend.vercel.app/</code> (SPA, separate deploy)</td>
           <td>Build <code>appex-web/frontend</code> with <code>VITE_API_URL</code> pointing to your API. Default base <code>/</code>.</td>
         </tr>
       </tbody>
     </table>
-    <p>
-      Each landing sets <code>window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'</code> before
-      <code>/shared/platform-links.js</code>. Buttons with <code>data-appex-link</code> then open signup/login on the SPA.
-    </p>
     <p>
       Backend <code>CORS_ORIGINS</code> must include <code>https://appex.kz</code>,
       <code>https://www.appex.kz</code>, <code>https://appex-web-frontend.vercel.app</code>, and local dev origins.

@@ -30,11 +30,17 @@ body{font-family:'Inter',sans-serif;background:#fff;color:#1a1a1a;overflow-x:hid
 /* help modal open fix */
 .modal-overlay.open > div { transform: translateY(0) !important; }
 
-/* TICKER */
-.ticker-inner{display:flex;white-space:nowrap;animation:ticker 30s linear infinite;}
-.ticker-text{font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;}
+/* TICKER — two identical halves; translateX(-50%) only works if total width = 2× one half (no extra flex items). Strip uses font-size:0 so whitespace/newlines beside .ticker-inner cannot become wide anonymous flex items. */
+.hero-ticker-strip{display:flex;flex-direction:row;align-items:center;font-size:0;line-height:0;min-height:52px;}
+.hero-ticker-strip .ticker-inner{font-size:15px;line-height:1.35;}
+.ticker-inner{display:flex;flex-wrap:nowrap;align-items:center;gap:0;white-space:nowrap;width:max-content;animation:ticker 30s linear infinite;will-change:transform;}
+.ticker-inner .ticker-text{flex:0 0 auto;display:inline-block;vertical-align:middle;font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding:0;margin:0;}
 .ticker-text strong{color:#fff;}
-@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes ticker{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(-50%,0,0)}}
+@media (prefers-reduced-motion:reduce){
+  .ticker-inner{animation:none;justify-content:center;flex-wrap:wrap;white-space:normal;padding:0 12px;}
+  .hero-ticker-strip{overflow:visible;font-size:15px;line-height:normal;}
+}
 
 /* NAV */
 nav{position:sticky;top:0;z-index:200;display:flex;align-items:center;justify-content:space-between;padding:16px 40px;background:#fff;border-bottom:1px solid #f0f0f0;}
@@ -184,6 +190,38 @@ section{padding:80px 40px;}
 .review-item.dark .review-handle{color:#60a5fa;}
 .review-stars{color:#f59e0b;font-size:14px;letter-spacing:1px;margin-top:8px;}
 .reviews-more{display:flex;justify-content:center;}
+/* Mobile: dots under horizontal «Кому подойдёт» / «Отзывы» carousels (scrollbar hidden) */
+.mobile-scroll-dots{display:none;}
+@media(max-width:768px){
+  .mobile-scroll-dots{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:10px;
+    padding:10px 16px 6px;
+    margin:0 auto;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+  .mobile-scroll-dots .scroll-dot{
+    box-sizing:border-box;
+    width:8px;
+    height:8px;
+    min-width:8px;
+    min-height:8px;
+    padding:0;
+    border:0;
+    border-radius:50%;
+    background:#c7cad1;
+    cursor:pointer;
+    transition:background .2s, transform .15s;
+    appearance:none;
+    -webkit-appearance:none;
+  }
+  .mobile-scroll-dots .scroll-dot.is-active{background:#2563eb;transform:scale(1.2);}
+  .mobile-scroll-dots.mobile-scroll-dots--reviews .scroll-dot.is-active{background:#e53e3e;}
+}
 .btn-tg{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #ddd;padding:14px 28px;border-radius:10px;font-size:14px;font-weight:600;color:#1a1a1a;text-decoration:none;cursor:pointer;transition:all .2s;}
 .btn-tg:hover{border-color:#2563eb;color:#2563eb;}
 
@@ -231,10 +269,6 @@ section{padding:80px 40px;}
 .form-error-msg.visible{display:block;}
 .radio-group-shell{margin-bottom:4px;}
 .radio-group-shell.is-invalid .radio-item{border-color:#fca5a5 !important;background:#fef2f2 !important;}
-.pricing-error-msg{display:none;font-size:12px;color:#e53e3e;line-height:1.35;margin:-6px 0 12px;}
-.pricing-error-msg.visible{display:block;}
-#pricing-card input.pricing-field.is-invalid{border-color:#e53e3e !important;}
-#pricing-card .pricing-agree-wrap.is-invalid{padding:8px;margin:-4px -4px 12px;border-radius:8px;background:#fef2f2;}
 .radio-group{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
 .radio-item{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;color:#555;}
 .radio-item input{width:18px;height:18px;accent-color:#2563eb;cursor:pointer;}
@@ -245,6 +279,30 @@ section{padding:80px 40px;}
 .phone-flag{background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:13px 14px;font-size:13px;font-weight:600;color:#555;display:flex;align-items:center;gap:4px;white-space:nowrap;}
 .btn-submit{width:100%;background:#e53e3e;color:#fff;border:none;padding:16px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;box-shadow:0 4px 20px rgba(229,62,62,.3);margin-top:8px;}
 .btn-submit:hover{background:#c53030;}
+.lead-form-fields.is-hidden{display:none!important;}
+.lead-form-success{display:none;text-align:center;padding:8px 0 4px;}
+.lead-form-success.is-visible{display:block;animation:leadSuccessPanel .45s ease;}
+@keyframes leadSuccessPanel{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.lead-success-check{
+  width:72px;height:72px;margin:0 auto 20px;border-radius:50%;
+  background:linear-gradient(145deg,#22c55e,#16a34a);
+  display:flex;align-items:center;justify-content:center;
+  font-size:38px;color:#fff;font-weight:800;line-height:1;
+  box-shadow:0 8px 28px rgba(22,163,74,.35);
+  animation:leadSuccessPop .55s cubic-bezier(.34,1.56,.64,1) .05s both;
+}
+@keyframes leadSuccessPop{
+  0%{transform:scale(0);opacity:0;}
+  65%{transform:scale(1.06);}
+  100%{transform:scale(1);opacity:1;}
+}
+.lead-success-title{font-size:20px;font-weight:800;color:#1a1a1a;margin-bottom:10px;line-height:1.25;letter-spacing:-.02em;}
+.lead-success-text{font-size:15px;color:#666;line-height:1.55;margin-bottom:22px;}
+.btn-success-close{width:100%;background:#1a1a1a;color:#fff;border:none;padding:14px 16px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:background .2s;}
+.btn-success-close:hover{background:#333;}
 
 /* FOOTER */
 footer{background:#0f172a;padding:48px 40px;}
@@ -265,12 +323,67 @@ footer{background:#0f172a;padding:48px 40px;}
 .footer-bottom{border-top:1px solid rgba(255,255,255,.08);margin-top:40px;padding-top:24px;display:flex;justify-content:space-between;align-items:center;max-width:960px;margin-left:auto;margin-right:auto;}
 .footer-bottom p{font-size:12px;color:rgba(255,255,255,.3);}
 
-/* Pricing: agreement text must wrap on narrow screens (overrides inline nowrap in HTML) */
-.pricing-agree-label{flex-wrap:wrap!important;align-items:flex-start!important;}
-.pricing-agree-label span{white-space:normal!important;line-height:1.45;}
-
 /* Keeps login + CTA from overflowing small screens; flex children can wrap */
 .nav-cta{display:flex;align-items:center;gap:16px;flex-shrink:0;}
+
+/* PRICING — unified card: «что входит» | оформление (цена и CTA без дублирования) */
+.pricing-layout{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,0.95fr);
+  align-items:stretch;
+  background:#fff;
+  border:1.5px solid #e8ebf4;
+  border-radius:20px;
+  overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,.07);
+}
+.pricing-includes-col{
+  padding:32px 28px 32px 32px;
+  border-right:1px solid #e8ebf4;
+  background:#fafbfc;
+}
+.pricing-includes-title{
+  font-size:17px;
+  font-weight:800;
+  color:#1a1a1a;
+  margin-bottom:6px;
+  letter-spacing:-.02em;
+}
+.pricing-includes-sub{
+  font-size:13px;
+  color:#777;
+  margin-bottom:22px;
+  line-height:1.45;
+}
+.pricing-includes-list{
+  gap:12px!important;
+}
+.pricing-includes-list li{
+  font-size:14px;
+  color:#1a1a1a;
+  line-height:1.45;
+}
+.pricing-checkout-col{
+  padding:32px 28px 28px;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.pricing-submit-btn{
+  width:100%;
+  box-sizing:border-box;
+  background:#e53e3e;
+  color:#fff;
+  border:none;
+  padding:16px 22px;
+  border-radius:10px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+  box-shadow:0 4px 20px rgba(229,62,62,.3);
+  transition:background .2s;
+}
+.pricing-submit-btn:hover{background:#c53030;}
 
 @media(max-width:768px){
   /* --- Top bar: logo слева, CTA справа в одну строку --- */
@@ -297,19 +410,23 @@ footer{background:#0f172a;padding:48px 40px;}
   /* --- Class-based grids (override inline styles on small screens) --- */
   .skills-inline-grid,.ai-pillars-grid{grid-template-columns:1fr!important;gap:16px!important;}
   /* «Кому подойдёт»: горизонтальный snap-карусель без стрелок */
-  .whom-cards-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px!important;scrollbar-width:none;padding:4px 4px 12px;margin-left:-4px;margin-right:-4px;}
-  .whom-cards-grid::-webkit-scrollbar{display:none;height:0;width:0;}
-  .whom-cards-grid > div{flex:0 0 min(88vw,360px);scroll-snap-align:center;max-width:min(88vw,360px);box-sizing:border-box;}
+  #whom-cards-track.whom-cards-grid{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:16px!important;scrollbar-width:none;padding:4px 4px 12px;margin-left:-4px;margin-right:-4px;}
+  #whom-cards-track.whom-cards-grid::-webkit-scrollbar{display:none;height:0;width:0;}
+  #whom-cards-track.whom-cards-grid > div{flex:0 0 min(88vw,360px);scroll-snap-align:center;max-width:min(88vw,360px);box-sizing:border-box;}
   .cert-two-col{grid-template-columns:1fr!important;gap:28px!important;}
-  .pricing-two-col{
+  .pricing-layout{
     grid-template-columns:minmax(0,1fr)!important;
-    gap:20px!important;
   }
-  .pricing-two-col > .pricing-info-col,
-  .pricing-two-col > #pricing-card{min-width:0;}
-  /* Form first on phones: shorter path to CTA */
-  .pricing-two-col > #pricing-card{order:-1;}
-  .pricing-two-col > .pricing-info-col{order:1;}
+  .pricing-includes-col,
+  .pricing-checkout-col{min-width:0;}
+  .pricing-includes-col{
+    border-right:none;
+    border-bottom:1px solid #e8ebf4;
+    order:2;
+    padding:24px 20px 26px!important;
+  }
+  /* Checkout first on phones: shorter path to CTA */
+  #pricing-card.pricing-checkout-col{order:-1;}
   .pricing-discount-banner{
     display:flex!important;
     flex-wrap:wrap!important;
@@ -320,16 +437,6 @@ footer{background:#0f172a;padding:48px 40px;}
     line-height:1.4!important;
     padding:12px 14px!important;
   }
-  .pricing-card-header{
-    flex-wrap:wrap!important;
-    gap:10px!important;
-    row-gap:8px!important;
-  }
-  .pricing-card-header > div:first-child{
-    font-size:clamp(16px,4.2vw,20px)!important;
-    line-height:1.25!important;
-    min-width:0!important;
-  }
   .pricing-section h2 + p{margin-bottom:28px!important;}
   .pricing-installment-pill{
     display:block!important;
@@ -337,16 +444,6 @@ footer{background:#0f172a;padding:48px 40px;}
     box-sizing:border-box!important;
     text-align:center!important;
   }
-  .pricing-kaspi-row > div:first-of-type{
-    flex-wrap:wrap!important;
-    min-width:0!important;
-  }
-  #pricing-card .pricing-tabs{
-    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
-  }
-  #pricing-card .pricing-tabs button{font-size:13px!important;padding:10px 8px!important;line-height:1.25!important;}
-  .pricing-promo-row{flex-wrap:wrap!important;justify-content:space-between!important;}
-  #pricing-card #promo-toggle{flex-shrink:0;}
   .resume-top-grid{grid-template-columns:1fr!important;justify-items:center;text-align:center;gap:16px!important;padding-bottom:20px!important;}
   .resume-top-grid img{margin:0 auto;}
   .resume-mid-grid{grid-template-columns:1fr!important;gap:24px!important;}
@@ -401,7 +498,6 @@ footer{background:#0f172a;padding:48px 40px;}
   .pricing-simple-actions .btn-white,.pricing-simple-actions .btn-wapp,.pricing-simple-actions .btn-tgblue{width:100%;justify-content:center;box-sizing:border-box;}
 
   #pricing-card{padding:22px!important;}
-  .pricing-phone-row input{min-width:0;}
 
   .modal,.form-modal{padding:26px 18px!important;}
   .form-section-title{font-size:18px!important;margin-bottom:22px!important;}
@@ -423,11 +519,6 @@ footer{background:#0f172a;padding:48px 40px;}
   .hero-cards{grid-template-columns:1fr;}
 }
 </style>
-<script>
-  /* SPA (courses, auth) on Vercel — landings stay on appex.kz */
-  window.APP_PLATFORM_BASE = 'https://appex-web-frontend.vercel.app'
-</script>
-<script src="/shared/platform-links.js" defer></script>
 </head>
 <body>
 
@@ -443,8 +534,8 @@ footer{background:#0f172a;padding:48px 40px;}
     <li><a href="#pricing">Тарифы</a></li>
     <li><a href="#reviews">Отзывы</a></li>
   </ul>
-  <div class="nav-cta" style="display:flex;align-items:center;gap:16px;">
-    <a href="#" class="nav-btn" onclick="event.preventDefault(); openLeadModal();">Начать обучение</a>
+  <div class="nav-cta" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+    <a href="#" class="nav-btn" onclick="openModal('help-modal');return false;">Задать вопрос</a>
   </div>
 </nav>
 
@@ -478,12 +569,8 @@ footer{background:#0f172a;padding:48px 40px;}
     <a href="#program" class="btn-outline">Программа</a>
   </div>
 
-  <!-- TICKER INLINE -->
-  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;">
-    <div class="ticker-inner">
-      <span style="font-size:15px;color:rgba(255,255,255,.7);letter-spacing:.02em;padding-right:60px;white-space:nowrap;">Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp; Ближайший поток: <strong style="color:#fff;">Сентябрь 2026</strong> &nbsp;&nbsp; ✦ &nbsp;&nbsp;</span>
-    </div>
-  </div>
+  <!-- TICKER INLINE — no whitespace between strip > inner > spans (flex anonymous gap). Same byte sequence in both spans for identical width. -->
+  <div class="hero-ticker-strip" style="margin:0 -40px 40px;overflow:hidden;padding:18px 0;background:#111;border-top:1px solid #222;border-bottom:1px solid #222;"><div class="ticker-inner"><span class="ticker-text">Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ </span><span class="ticker-text" aria-hidden="true">Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ Ближайший поток: <strong>Сентябрь 2026</strong> ✦ </span></div></div>
 
 
 
@@ -498,7 +585,7 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
     <div class="hero-card">
       <h3>Сертификат</h3>
-      <p>Международный сертификат + проект в портфолио</p>
+      <p>Сертификат об успешном окончании курса + проект в портфолио</p>
     </div>
     <div class="hero-card">
       <h3>Вечный доступ</h3>
@@ -516,7 +603,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <h2 class="section-h">Кому <em>подойдёт</em> обучение</h2>
   <p class="section-desc" style="max-width:720px">Материал подходит как для <strong>новичков без опыта</strong> программирования,<br>так и для <strong>опытных специалистов</strong>, желающих освоить новые технологии</p>
 
-  <div class="whom-cards-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px;margin:0 auto;">
+  <div id="whom-cards-track" class="whom-cards-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:1100px;margin:0 auto;">
 
     <!-- CARD 1 -->
     <div style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.06);">
@@ -570,6 +657,7 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
 
   </div>
+  <div class="mobile-scroll-dots mobile-scroll-dots--whom" id="whom-scroll-dots" role="group" aria-label="Карточки — прокрутка"></div>
 </section>
 
 <!-- SKILLS -->
@@ -1264,94 +1352,34 @@ footer{background:#0f172a;padding:48px 40px;}
     <h2 class="section-h" style="text-align:center;margin-bottom:8px;">Стоимость <em>обучения</em></h2>
     <p style="text-align:center;color:#666;font-size:15px;margin-bottom:48px;">Один успешный запуск продукта окупает стоимость обучения в 10+ раз</p>
 
-    <div class="pricing-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start;">
+    <div class="pricing-discount-banner" style="background:#fffbe6;border:1.5px solid #fcd34d;border-radius:12px;padding:14px 18px;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#92400e;margin-bottom:20px;width:100%;box-sizing:border-box;">
+      ⏱ Скидка действует 3 дня. Осталось <span id="countdown" style="font-weight:800;">47:58:59</span>
+    </div>
 
-      <!-- LEFT: info -->
-      <div class="pricing-info-col">
-        <div class="pricing-discount-banner" style="background:#fffbe6;border:1.5px solid #fcd34d;border-radius:12px;padding:14px 18px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#92400e;margin-bottom:24px;">
-          ⏱ Скидка действует 3 дня. Осталось <span id="countdown" style="font-weight:800;">47:58:59</span>
+    <div class="pricing-layout">
+      <div class="pricing-includes-col">
+        <h3 class="pricing-includes-title">Что входит в программу</h3>
+        <p class="pricing-includes-sub">Всё необходимое, чтобы вывести AI-продукт от идеи до запуска</p>
+        <ul class="check-list pricing-includes-list">
+          <li>Безлимитный доступ к 8 неделям и 56 часам материала</li>
+          <li>2 проекта в портфолио</li>
+          <li>Возможность разработать свой проект под руководством куратора</li>
+          <li>Инвайт в приватное сообщество AI-продактов</li>
+          <li>Сертификат об успешном окончании курса</li>
+        </ul>
+      </div>
+
+      <div id="pricing-card" class="pricing-checkout-col">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+          <span style="background:#fcd34d;color:#92400e;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.05em;">ВЫГОДНО</span>
+          <span style="font-size:17px;font-weight:800;color:#1a1a1a;">Запишитесь со скидкой</span>
         </div>
         <div style="font-size:22px;color:#999;text-decoration:line-through;margin-bottom:4px;">650 000 ₸ <span style="background:#e53e3e;color:#fff;font-size:13px;font-weight:700;padding:2px 8px;border-radius:6px;vertical-align:middle;text-decoration:none;">-31%</span></div>
         <div class="pricing-hero-price" style="font-size:52px;font-weight:900;color:#1a1a1a;line-height:1;margin-bottom:12px;">450 000 ₸</div>
-        <div class="pricing-installment-pill" style="background:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:14px;color:#555;display:inline-block;margin-bottom:28px;">или 37 500 ₸ / мес. в рассрочку на 12 месяцев</div>
-
-        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
-          <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>Безлимитный доступ к 8 неделям и 56 часам материала</div>
-          <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>2 проекта в портфолио</div>
-          <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>Возможность разработать свой проект под руководством куратора</div>
-          <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>Инвайт в приватное сообщество AI-продактов</div>
-          <div style="display:flex;gap:10px;align-items:flex-start;font-size:14px;color:#1a1a1a;"><span style="color:#2563eb;font-weight:700;flex-shrink:0;">✓</span>Международный сертификат Appex</div>
-        </div>
-
-        <div style="background:#f7f9fc;border-radius:10px;padding:16px;font-size:13px;color:#777;line-height:1.6;border:1px solid #eee;">
-          🎁 <strong style="color:#1a1a1a;">1000 проверенных идей для стартапа</strong> — в подарок при записи
-        </div>
+        <div class="pricing-installment-pill" style="background:#f0f0f0;border-radius:8px;padding:10px 16px;font-size:14px;color:#555;display:inline-block;margin-bottom:24px;">или 37 500 ₸ / мес. в рассрочку на 12 месяцев</div>
+        <button type="button" id="submit-btn" onclick="openLeadModal()" class="pricing-submit-btn">Записаться на обучение</button>
+        <div style="text-align:center;margin-top:18px;padding-top:16px;border-top:1px solid #eee;font-size:13px;color:#777;line-height:1.5;">🎁 <strong style="color:#1a1a1a;">1000 проверенных идей для стартапа</strong> — в подарок при записи</div>
       </div>
-
-      <!-- RIGHT: form card -->
-      <div id="pricing-card" style="background:#fff;border:1.5px solid #e8ebf4;border-radius:20px;padding:36px;box-shadow:0 8px 40px rgba(0,0,0,.07);">
-        <div class="pricing-card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
-          <div style="font-size:20px;font-weight:800;color:#1a1a1a;">Запишитесь со скидкой</div>
-          <div style="background:#fcd34d;color:#92400e;font-size:11px;font-weight:800;padding:4px 12px;border-radius:20px;letter-spacing:.05em;">ВЫГОДНО</div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="pricing-tabs" style="display:grid;grid-template-columns:1fr 1fr;background:#f0f0f0;border-radius:10px;padding:4px;margin-bottom:24px;">
-          <button id="tab-full" onclick="switchTab('full')" style="padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:700;cursor:pointer;background:#fff;color:#1a1a1a;box-shadow:0 1px 4px rgba(0,0,0,.1);">Полная оплата</button>
-          <button id="tab-install" onclick="switchTab('install')" style="padding:10px;border-radius:8px;border:none;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:#777;">Рассрочка</button>
-        </div>
-
-        <div id="price-display" style="text-align:center;font-size:28px;font-weight:900;color:#1a1a1a;margin-bottom:4px;">450 000 ₸</div>
-        <div id="installment-sub" style="text-align:center;font-size:13px;color:#777;margin-bottom:20px;display:none;">от 37 500 ₸ × 12 мес.</div>
-
-        <!-- Kaspi рассрочка badge -->
-        <div id="kaspi-block" class="pricing-kaspi-row" style="display:none;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;">
-          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;width:100%;">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><rect width="28" height="28" rx="6" fill="#FF6B00"/><text x="14" y="19" text-anchor="middle" font-family="Arial" font-weight="900" font-size="10" fill="white">Kaspi</text></svg>
-            <div>
-              <div style="font-size:12px;font-weight:700;color:#15803d;">Доступно в рассрочку</div>
-              <div style="font-size:11px;color:#555;">0 · 0 · 12 через Kaspi Pay</div>
-            </div>
-            <div style="margin-left:auto;background:#1a1a1a;color:#fff;font-size:11px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:.05em;">0·0·12</div>
-          </div>
-        </div>
-
-        <label style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:6px;">Введите Email</label>
-        <input type="email" id="pricing-email" class="pricing-field" placeholder="example@gmail.com" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;margin-bottom:6px;font-family:Inter,sans-serif;" oninput="clearPricingInputError('email')">
-        <div class="pricing-error-msg" id="err-pricing-email" role="alert"></div>
-
-        <label style="font-size:13px;font-weight:600;color:#1a1a1a;display:block;margin-bottom:6px;">Номер телефона</label>
-        <div class="pricing-phone-row" style="display:flex;gap:8px;margin-bottom:6px;min-width:0;">
-          <div style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:13px 14px;font-size:13px;font-weight:600;color:#555;display:flex;align-items:center;gap:4px;white-space:nowrap;">🇰🇿 +7</div>
-          <input type="tel" id="pricing-phone" class="pricing-field" placeholder="(700) 000-00-00" style="flex:1;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;" oninput="clearPricingInputError('phone')">
-        </div>
-        <div class="pricing-error-msg" id="err-pricing-phone" role="alert"></div>
-
-        <div class="pricing-promo-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:8px;">
-          <span style="font-size:13px;color:#555;flex:1;min-width:0;">Использовать промокод</span>
-          <div id="promo-toggle" onclick="togglePromo()" style="width:40px;height:22px;background:#ddd;border-radius:11px;cursor:pointer;position:relative;transition:background .2s;">
-            <div id="promo-knob" style="position:absolute;top:3px;left:3px;width:16px;height:16px;background:#fff;border-radius:50%;transition:left .2s;"></div>
-          </div>
-        </div>
-        <div id="promo-field" style="display:none;margin-bottom:6px;">
-          <input type="text" id="promo-code-input" class="pricing-field" placeholder="Введите промокод" style="width:100%;padding:13px 16px;background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;font-size:14px;outline:none;font-family:Inter,sans-serif;" oninput="clearPricingInputError('promo')">
-        </div>
-        <div class="pricing-error-msg" id="err-pricing-promo" role="alert"></div>
-
-        <div class="pricing-agree-wrap" id="pricing-agree-wrap">
-        <label class="pricing-agree-label" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#777;margin-bottom:8px;cursor:pointer;">
-          <input type="checkbox" id="agree-check" style="margin:0;accent-color:#2563eb;flex-shrink:0;width:16px;height:16px;margin-top:2px;" onchange="clearPricingInputError('agree')">
-          <span>Я соглашаюсь с&nbsp;<a href="#" style="color:#2563eb;">обработкой персональных данных</a>&nbsp;и&nbsp;<a href="#" style="color:#2563eb;">офертой</a></span>
-        </label>
-        </div>
-        <div class="pricing-error-msg" id="err-pricing-agree" role="alert"></div>
-
-        <button type="button" id="submit-btn" onclick="validatePricingAndOpenLeadModal()" style="width:100%;background:#e53e3e;color:#fff;border:none;padding:18px;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(229,62,62,.3);transition:background .2s;" onmouseover="this.style.background='#c53030'" onmouseout="this.style.background='#e53e3e'">
-          Записаться на обучение
-        </button>
-        <div style="text-align:center;margin-top:12px;font-size:13px;color:#777;">🎁 <strong style="color:#1a1a1a;">1000 проверенных идей для стартапа</strong> в подарок</div>
-      </div>
-
     </div>
   </div>
 </section>
@@ -1371,7 +1399,7 @@ footer{background:#0f172a;padding:48px 40px;}
 </section>
 
 <!-- REVIEWS -->
-<section class="reviews-section-outer" style="padding:80px 0 80px;background:#f7f9fc;">
+<section id="reviews" class="reviews-section-outer" style="padding:80px 0 80px;background:#f7f9fc;">
   <div class="reviews-section-head" style="text-align:center;margin-bottom:48px;padding:0 40px;">
     <h2 class="section-h">Что говорят <em>студенты</em></h2>
     <p class="section-desc" style="margin-bottom:0">За каждым отзывом стоит <strong>реальный человек</strong>, прошедший обучение</p>
@@ -1447,6 +1475,7 @@ footer{background:#0f172a;padding:48px 40px;}
       </div>
 
     </div>
+    <div class="mobile-scroll-dots mobile-scroll-dots--reviews" id="reviews-scroll-dots" role="group" aria-label="Отзывы — прокрутка"></div>
   </div>
 </section>
 
@@ -1550,11 +1579,11 @@ footer{background:#0f172a;padding:48px 40px;}
   <div style="background:#fff;border-radius:24px;padding:40px 36px 36px;max-width:400px;width:100%;position:relative;transform:translateY(20px);transition:transform .25s;">
     <button onclick="closeModal('help-modal')" style="position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;border:none;background:#f5f5f5;cursor:pointer;font-size:16px;color:#555;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
     <div style="font-size:24px;font-weight:800;color:#0d1333;margin-bottom:28px;line-height:1.2;">Как мы можем помочь?</div>
-    <a href="https://wa.me/77071133010" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#25d366,#1aad56);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="https://wa.me/77071133010" data-appex-contact="whatsapp" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#25d366,#1aad56);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Написать в Whatsapp
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
     </a>
-    <a href="https://t.me/appex" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#40b3e0,#2196c9);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+    <a href="https://t.me/awssum" data-appex-contact="telegram" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:18px;border-radius:100px;background:linear-gradient(135deg,#40b3e0,#2196c9);color:#fff;font-size:16px;font-weight:700;text-decoration:none;margin-bottom:14px;transition:opacity .2s;" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
       Написать в Telegram
       <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
     </a>
@@ -1569,6 +1598,7 @@ footer{background:#0f172a;padding:48px 40px;}
   <div class="form-modal" onclick="event.stopPropagation()">
     <button type="button" class="modal-close" onclick="closeModal('contact-modal')">✕</button>
     <form id="lead-application-form" novalidate onsubmit="return false;">
+    <div id="lead-form-fields" class="lead-form-fields">
     <div class="form-section-title">Оставьте заявку — мы свяжемся в течение 24 часов</div>
 
     <label class="form-label" for="lead-fullname">Имя и фамилия</label>
@@ -1582,43 +1612,19 @@ footer{background:#0f172a;padding:48px 40px;}
     </div>
     <div class="form-error-msg" id="err-lead-phone" role="alert"></div>
 
-    <label class="form-label" for="lead-role">Должность или статус</label>
-    <input type="text" id="lead-role" name="role" class="form-input" placeholder="Product Manager / Tech Lead / Стартапер" autocomplete="organization-title">
-    <div class="form-error-msg" id="err-lead-role" role="alert"></div>
-
-    <label class="form-label" for="lead-company">Компания</label>
-    <input type="text" id="lead-company" name="company" class="form-input" placeholder="Kaspi, Halyk, свой бизнес..." autocomplete="organization">
-    <div class="form-error-msg" id="err-lead-company" role="alert"></div>
-
     <label class="form-label" for="lead-city">Город</label>
     <input type="text" id="lead-city" name="city" class="form-input" placeholder="Астана, Алматы, Шымкент..." autocomplete="address-level2">
     <div class="form-error-msg" id="err-lead-city" role="alert"></div>
 
-    <label class="form-label">Откуда узнали о курсе?</label>
-    <div class="radio-group-shell" id="lead-source-group">
-    <div class="radio-group" style="display:flex;flex-wrap:wrap;flex-direction:row;gap:8px;margin-bottom:8px;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="telegram" style="margin-right:6px;accent-color:#2563eb;"> Telegram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="friends" style="margin-right:6px;accent-color:#2563eb;"> Знакомые</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="astana-hub" style="margin-right:6px;accent-color:#2563eb;"> Astana Hub</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="instagram" style="margin-right:6px;accent-color:#2563eb;"> Instagram</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="hr" style="margin-right:6px;accent-color:#2563eb;"> HR / работодатель</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-source" value="other" style="margin-right:6px;accent-color:#2563eb;"> Другое</label>
-    </div>
-    </div>
-    <div class="form-error-msg" id="err-lead-source" role="alert"></div>
-
-    <label class="form-label">Ваш уровень в продакт-менеджменте</label>
-    <div class="radio-group-shell" id="lead-level-group">
-    <div class="radio-group" style="display:flex;flex-direction:row;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="junior" style="margin-right:6px;accent-color:#2563eb;"> Новичок</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="middle" style="margin-right:6px;accent-color:#2563eb;"> Middle</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="senior" style="margin-right:6px;accent-color:#2563eb;"> Senior</label>
-      <label class="radio-item" style="background:#f7f9fc;border:1.5px solid #eee;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px;"><input type="radio" name="lead-level" value="lead" style="margin-right:6px;accent-color:#2563eb;"> Lead / CPO</label>
-    </div>
-    </div>
-    <div class="form-error-msg" id="err-lead-level" role="alert"></div>
-
     <button type="button" class="btn-submit" onclick="submitLeadForm()">Отправить заявку</button>
+    </div>
+
+    <div id="lead-form-success" class="lead-form-success" role="status" aria-live="polite" aria-hidden="true">
+      <div class="lead-success-check" aria-hidden="true">✓</div>
+      <div id="lead-success-title" class="lead-success-title" tabindex="-1">Заявка принята</div>
+      <p class="lead-success-text">Спасибо! Мы свяжемся с вами в ближайшее время — обычно в течение рабочего дня.</p>
+      <button type="button" class="btn-success-close" onclick="closeLeadModalAfterSuccess()">Понятно</button>
+    </div>
     </form>
   </div>
 </div>
@@ -1641,10 +1647,10 @@ footer{background:#0f172a;padding:48px 40px;}
 
       <!-- RIGHT -->
       <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
-        <a href="tel:+77071133010" style="font-size:14px;color:#888;text-decoration:none;font-weight:500;">+7 707 113 30 10</a>
+        <a href="tel:+77071133010" data-appex-contact="tel" style="font-size:14px;color:#888;text-decoration:none;font-weight:500;">+7 707 113 30 10</a>
         <div style="display:flex;gap:6px;margin-top:12px;">
-          <a href="https://t.me/appex" target="_blank" style="font-size:12px;color:#555;text-decoration:none;padding:6px 14px;border:1px solid #222;border-radius:6px;">Telegram</a>
-          <a href="https://wa.me/77071133010" target="_blank" style="font-size:12px;color:#555;text-decoration:none;padding:6px 14px;border:1px solid #222;border-radius:6px;">WhatsApp</a>
+          <a href="https://t.me/awssum" data-appex-contact="telegram" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#555;text-decoration:none;padding:6px 14px;border:1px solid #222;border-radius:6px;">Telegram</a>
+          <a href="https://wa.me/77071133010" data-appex-contact="whatsapp" target="_blank" rel="noopener noreferrer" style="font-size:12px;color:#555;text-decoration:none;padding:6px 14px;border:1px solid #222;border-radius:6px;">WhatsApp</a>
           <a href="#" style="font-size:12px;color:#555;text-decoration:none;padding:6px 14px;border:1px solid #222;border-radius:6px;">Instagram</a>
         </div>
       </div>
@@ -1718,6 +1724,59 @@ window.addEventListener('load', updateMentorCarousel);
   }, { passive: true });
 })();
 
+/**
+ * WhatsApp number (digits, no +) and Telegram @username for the same contact person.
+ * Change both here so help modal, footer, and wa.me / t.me stay in sync.
+ */
+var APPEX_CONTACT = {
+  whatsappPhone: '77071133010',
+  telegramUsername: 'awssum'
+};
+
+/**
+ * URL веб-приложения Google Apps Script для таблицы заявок Appex (kz). Скрипт: landings/shared/google-sheet-leads-webapp.gs — вставить в Таблицу Appex и развернуть отдельно от Tech Orda.
+ */
+var APPEX_LANDING_LEADS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbz8pTha7zV-WRs_sH9sCDRdYSNnd4wCGZpfajSwP3HppAKN-zOial2iUNOm-WvSB1t_ew/exec';
+
+/**
+ * Отправляет заявку в указанную Google Таблицу через Apps Script (не блокирует показ «успех» при сбое сети).
+ */
+/**
+ * Отправляет заявку в Apps Script веб-приложение без JSON body (иначе браузер шлёт OPTIONS preflight и Google не отдаёт CORS).
+ */
+function sendLeadApplicationToGoogleSheet(webAppUrl, payload) {
+  if (!webAppUrl || typeof fetch !== 'function') return;
+  var body = new URLSearchParams();
+  body.set('data', JSON.stringify(payload));
+  fetch(webAppUrl, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+    body: body.toString()
+  })
+    .then(function (res) {
+      return res.text();
+    })
+    .catch(function (err) {
+      if (typeof console !== 'undefined' && console.warn) console.warn('Google Sheet lead send failed', err);
+    });
+}
+
+/**
+ * Sets href on elements with data-appex-contact from APPEX_CONTACT (single source of truth).
+ */
+function initAppexContactLinks() {
+  document.querySelectorAll('[data-appex-contact="whatsapp"]').forEach(function (a) {
+    a.href = 'https://wa.me/' + APPEX_CONTACT.whatsappPhone;
+  });
+  document.querySelectorAll('[data-appex-contact="telegram"]').forEach(function (a) {
+    a.href = 'https://t.me/' + APPEX_CONTACT.telegramUsername;
+  });
+  document.querySelectorAll('[data-appex-contact="tel"]').forEach(function (a) {
+    a.href = 'tel:+' + APPEX_CONTACT.whatsappPhone;
+  });
+}
+
 // MODALS
 function openModal(id) {
   document.getElementById(id).classList.add('open');
@@ -1775,129 +1834,57 @@ function isValidLeadFullName(s) {
 }
 
 /**
- * Shows or hides a pricing-card validation line under an input.
- * @param {string} errId Element id (err-pricing-*).
- * @param {string} [message] Empty string clears.
- */
-function setPricingBoxError(errId, message) {
-  var el = document.getElementById(errId);
-  if (!el) return;
-  el.textContent = message || '';
-  el.classList.toggle('visible', !!message);
-}
-
-/**
- * Clears all pricing-card validation messages and highlights.
- */
-function clearAllPricingErrors() {
-  ['err-pricing-email', 'err-pricing-phone', 'err-pricing-promo', 'err-pricing-agree'].forEach(function (id) {
-    setPricingBoxError(id, '');
-  });
-  document.querySelectorAll('#pricing-card .pricing-field.is-invalid').forEach(function (el) {
-    el.classList.remove('is-invalid');
-  });
-  var w = document.getElementById('pricing-agree-wrap');
-  if (w) w.classList.remove('is-invalid');
-}
-
-/**
- * Clears validation for one pricing field after the user edits it.
- * @param {'email'|'phone'|'promo'|'agree'} which
- */
-function clearPricingInputError(which) {
-  if (which === 'email') {
-    setPricingBoxError('err-pricing-email', '');
-    var e = document.getElementById('pricing-email');
-    if (e) e.classList.remove('is-invalid');
-  } else if (which === 'phone') {
-    setPricingBoxError('err-pricing-phone', '');
-    var p = document.getElementById('pricing-phone');
-    if (p) p.classList.remove('is-invalid');
-  } else if (which === 'promo') {
-    setPricingBoxError('err-pricing-promo', '');
-    var pr = document.getElementById('promo-code-input');
-    if (pr) pr.classList.remove('is-invalid');
-  } else if (which === 'agree') {
-    setPricingBoxError('err-pricing-agree', '');
-    var wrap = document.getElementById('pricing-agree-wrap');
-    if (wrap) wrap.classList.remove('is-invalid');
-  }
-}
-
-/**
- * Basic email format check for the pricing block.
- * @param {string} s
- * @returns {boolean}
- */
-function isValidPricingEmail(s) {
-  var t = String(s || '').trim();
-  if (!t) return false;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(t);
-}
-
-/**
- * Validates pricing card: email, phone, optional promo when toggle on, consent checkbox.
- * @returns {boolean}
- */
-function validatePricingCard() {
-  clearAllPricingErrors();
-  var ok = true;
-  var emailEl = document.getElementById('pricing-email');
-  var phoneEl = document.getElementById('pricing-phone');
-  var agree = document.getElementById('agree-check');
-
-  if (!isValidPricingEmail(emailEl && emailEl.value)) {
-    setPricingBoxError('err-pricing-email', 'Введите корректный email.');
-    if (emailEl) emailEl.classList.add('is-invalid');
-    ok = false;
-  }
-  if (!normalizeLeadPhone(phoneEl && phoneEl.value)) {
-    setPricingBoxError('err-pricing-phone', 'Введите корректный номер: 10 цифр после кода страны (+7).');
-    if (phoneEl) phoneEl.classList.add('is-invalid');
-    ok = false;
-  }
-  if (promoOn) {
-    var promoIn = document.getElementById('promo-code-input');
-    var pv = promoIn ? promoIn.value.trim() : '';
-    if (pv.length < 2) {
-      setPricingBoxError('err-pricing-promo', 'Введите промокод или отключите переключатель.');
-      if (promoIn) promoIn.classList.add('is-invalid');
-      ok = false;
-    }
-  }
-  if (!agree || !agree.checked) {
-    setPricingBoxError('err-pricing-agree', 'Нужно согласие с условиями.');
-    var wrap = document.getElementById('pricing-agree-wrap');
-    if (wrap) wrap.classList.add('is-invalid');
-    ok = false;
-  }
-  return ok;
-}
-
-/**
- * Validates the pricing card, opens the lead modal, prefills phone from the card.
- */
-function validatePricingAndOpenLeadModal() {
-  if (!validatePricingCard()) return;
-  var pr = document.getElementById('pricing-phone');
-  var phoneVal = pr ? pr.value.trim() : '';
-  openLeadModal();
-  var leadPh = document.getElementById('lead-phone');
-  if (leadPh && phoneVal) leadPh.value = phoneVal;
-}
-
-/**
  * Opens the lead form modal with a clean form state.
  */
 function openLeadModal() {
   var form = document.getElementById('lead-application-form');
   if (form) form.reset();
   clearLeadFormErrors();
+  resetLeadSuccessView();
   openModal('contact-modal');
 }
 
 /**
- * Validates the lead form; on success redirects to the platform signup flow.
+ * Hides the success panel and shows the form fields again (e.g. after closing the modal).
+ */
+function resetLeadSuccessView() {
+  var fields = document.getElementById('lead-form-fields');
+  var success = document.getElementById('lead-form-success');
+  if (fields) {
+    fields.classList.remove('is-hidden');
+  }
+  if (success) {
+    success.classList.remove('is-visible');
+    success.setAttribute('aria-hidden', 'true');
+  }
+}
+
+/**
+ * Shows animated success state after a valid submit (we will contact you soon).
+ */
+function showLeadSuccess() {
+  var fields = document.getElementById('lead-form-fields');
+  var success = document.getElementById('lead-form-success');
+  if (fields) fields.classList.add('is-hidden');
+  if (success) {
+    success.classList.add('is-visible');
+    success.setAttribute('aria-hidden', 'false');
+    var title = document.getElementById('lead-success-title');
+    if (title) {
+      setTimeout(function () { title.focus(); }, 80);
+    }
+  }
+}
+
+/**
+ * Closes the lead modal after success and resets the form view for next open.
+ */
+function closeLeadModalAfterSuccess() {
+  closeModal('contact-modal');
+}
+
+/**
+ * Validates full name, phone, and city; on success shows thank-you screen with animation.
  */
 function submitLeadForm() {
   clearLeadFormErrors();
@@ -1906,16 +1893,10 @@ function submitLeadForm() {
 
   var fullnameEl = document.getElementById('lead-fullname');
   var phoneEl = document.getElementById('lead-phone');
-  var roleEl = document.getElementById('lead-role');
-  var companyEl = document.getElementById('lead-company');
   var cityEl = document.getElementById('lead-city');
   var fullname = fullnameEl ? fullnameEl.value : '';
   var phoneRaw = phoneEl ? phoneEl.value : '';
-  var role = roleEl ? roleEl.value : '';
-  var company = companyEl ? companyEl.value : '';
   var city = cityEl ? cityEl.value : '';
-  var source = form.querySelector('input[name="lead-source"]:checked');
-  var level = form.querySelector('input[name="lead-level"]:checked');
 
   var ok = true;
 
@@ -1929,42 +1910,22 @@ function submitLeadForm() {
     if (phoneEl) phoneEl.classList.add('is-invalid');
     ok = false;
   }
-  if (!String(role).trim() || String(role).trim().length < 2) {
-    setLeadFieldError('err-lead-role', 'Укажите должность или статус.');
-    if (roleEl) roleEl.classList.add('is-invalid');
-    ok = false;
-  }
-  if (!String(company).trim() || String(company).trim().length < 2) {
-    setLeadFieldError('err-lead-company', 'Укажите компанию (можно «фриланс» или «нет»).');
-    if (companyEl) companyEl.classList.add('is-invalid');
-    ok = false;
-  }
   if (!String(city).trim() || String(city).trim().length < 2) {
     setLeadFieldError('err-lead-city', 'Укажите город.');
     if (cityEl) cityEl.classList.add('is-invalid');
     ok = false;
   }
-  if (!source) {
-    setLeadFieldError('err-lead-source', 'Выберите один вариант.');
-    var sg = document.getElementById('lead-source-group');
-    if (sg) sg.classList.add('is-invalid');
-    ok = false;
-  }
-  if (!level) {
-    setLeadFieldError('err-lead-level', 'Выберите уровень.');
-    var lg = document.getElementById('lead-level-group');
-    if (lg) lg.classList.add('is-invalid');
-    ok = false;
-  }
 
   if (!ok) return;
 
-  closeModal('contact-modal');
-  if (window.appexApp && typeof window.appexApp.hrefRegister === 'function') {
-    window.location.href = window.appexApp.hrefRegister('/home');
-    return;
-  }
-  window.location.href = '/auth?tab=signup&next=%2Fhome';
+  sendLeadApplicationToGoogleSheet(APPEX_LANDING_LEADS_WEBAPP_URL="https://script.google.com/macros/s/AKfycbxSOF3a3YZApIAQ8SV9DA2Dpjv0X5WNXHfiJUO48A1GR6tSKrhfeMwHawnMN7jOUhsd4w/exec", {
+    submittedAt: new Date().toISOString(),
+    fullname: String(fullname).trim(),
+    phone: normalizeLeadPhone(phoneRaw),
+    city: String(city).trim(),
+    source: 'appex-kz-main'
+  });
+  showLeadSuccess();
 }
 
 (function wireLeadFormLiveValidation() {
@@ -1977,27 +1938,13 @@ function submitLeadForm() {
     var map = {
       'lead-fullname': 'err-lead-fullname',
       'lead-phone': 'err-lead-phone',
-      'lead-role': 'err-lead-role',
-      'lead-company': 'err-lead-company',
       'lead-city': 'err-lead-city'
     };
     if (map[t.id]) setLeadFieldError(map[t.id], '');
   });
-  form.addEventListener('change', function (ev) {
-    var t = ev.target;
-    if (!t || t.type !== 'radio') return;
-    if (t.name === 'lead-source') {
-      setLeadFieldError('err-lead-source', '');
-      var sg = document.getElementById('lead-source-group');
-      if (sg) sg.classList.remove('is-invalid');
-    }
-    if (t.name === 'lead-level') {
-      setLeadFieldError('err-lead-level', '');
-      var lg = document.getElementById('lead-level-group');
-      if (lg) lg.classList.remove('is-invalid');
-    }
-  });
 })();
+
+initAppexContactLinks();
 
 // MSG BTN toggle
 document.querySelectorAll('.msg-btn').forEach(btn => {
@@ -2027,50 +1974,6 @@ function toggleFaqRow(row) {
   }
 }
 
-// PRICING TABS
-function switchTab(tab) {
-  const fullBtn = document.getElementById('tab-full');
-  const installBtn = document.getElementById('tab-install');
-  const display = document.getElementById('price-display');
-  const subLine = document.getElementById('installment-sub');
-  const kaspiBlock = document.getElementById('kaspi-block');
-  const submitBtn = document.getElementById('submit-btn');
-
-  if (tab === 'full') {
-    fullBtn.style.background = '#fff'; fullBtn.style.color = '#1a1a1a'; fullBtn.style.fontWeight = '700'; fullBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.1)';
-    installBtn.style.background = 'transparent'; installBtn.style.color = '#777'; installBtn.style.fontWeight = '600'; installBtn.style.boxShadow = 'none';
-    if(display) display.textContent = '450 000 ₸';
-    if(subLine) subLine.style.display = 'none';
-    if(kaspiBlock) kaspiBlock.style.display = 'none';
-    if(submitBtn) submitBtn.textContent = 'Записаться на обучение';
-  } else {
-    installBtn.style.background = '#fff'; installBtn.style.color = '#1a1a1a'; installBtn.style.fontWeight = '700'; installBtn.style.boxShadow = '0 1px 4px rgba(0,0,0,.1)';
-    fullBtn.style.background = 'transparent'; fullBtn.style.color = '#777'; fullBtn.style.fontWeight = '600'; fullBtn.style.boxShadow = 'none';
-    if(display) display.textContent = '37 500 ₸/мес';
-    if(subLine) subLine.style.display = 'block';
-    if(kaspiBlock) kaspiBlock.style.display = 'flex';
-    if(submitBtn) submitBtn.textContent = 'Оформить рассрочку';
-  }
-}
-
-// PROMO TOGGLE
-let promoOn = false;
-function togglePromo() {
-  promoOn = !promoOn;
-  const tog = document.getElementById('promo-toggle');
-  const knob = document.getElementById('promo-knob');
-  const field = document.getElementById('promo-field');
-  if(tog) tog.style.background = promoOn ? '#2563eb' : '#ddd';
-  if(knob) knob.style.left = promoOn ? '21px' : '3px';
-  if(field) field.style.display = promoOn ? 'block' : 'none';
-  if (!promoOn) clearPricingInputError('promo');
-}
-
-// Pricing block CTA validates the card first, then opens the lead modal.
-function submitPricing() {
-  validatePricingAndOpenLeadModal();
-}
-
 // RESUME TABS
 function showResume(idx) {
   [0,1,2].forEach(i => {
@@ -2089,6 +1992,94 @@ function showResume(idx) {
       tab.style.borderColor = 'rgba(255,255,255,.2)';
     }
   });
+}
+
+/**
+ * Wires circular buttons under a horizontal scroll track and highlights the dot nearest the viewport center (mobile ≤768px).
+ */
+function wireHorizontalScrollDots(trackId, dotsRootId) {
+  var track = document.getElementById(trackId);
+  var dotsRoot = document.getElementById(dotsRootId);
+  if (!track || !dotsRoot) return;
+
+  var mq = window.matchMedia('(max-width:768px)');
+  var dots = [];
+  var scrollAttached = false;
+  var rafId = 0;
+
+  /**
+   * Marks the dot whose card is closest to the horizontal center of the track.
+   */
+  function paintActiveDot() {
+    if (!mq.matches || dots.length === 0) return;
+    var mid = track.scrollLeft + track.clientWidth * 0.5;
+    var best = 0;
+    var bestD = Infinity;
+    for (var i = 0; i < track.children.length; i++) {
+      var el = track.children[i];
+      var c = el.offsetLeft + el.offsetWidth * 0.5;
+      var d = Math.abs(c - mid);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    for (var j = 0; j < dots.length; j++) {
+      dots[j].classList.toggle('is-active', j === best);
+    }
+  }
+
+  /**
+   * Schedules one paint per frame while the user scrolls the track.
+   */
+  function onScroll() {
+    if (!mq.matches) return;
+    if (rafId) return;
+    rafId = requestAnimationFrame(function () {
+      rafId = 0;
+      paintActiveDot();
+    });
+  }
+
+  /**
+   * Rebuilds dot buttons when viewport crosses mobile/desktop or card count changes.
+   */
+  function syncDots() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    dotsRoot.innerHTML = '';
+    dots = [];
+    if (scrollAttached) {
+      track.removeEventListener('scroll', onScroll);
+      scrollAttached = false;
+    }
+    if (!mq.matches) return;
+    var n = track.children.length;
+    for (var i = 0; i < n; i++) {
+      (function (idx) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'scroll-dot';
+        b.setAttribute('aria-label', 'Слайд ' + (idx + 1));
+        b.addEventListener('click', function () {
+          var el = track.children[idx];
+          if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        });
+        dotsRoot.appendChild(b);
+        dots.push(b);
+      })(i);
+    }
+    track.addEventListener('scroll', onScroll, { passive: true });
+    scrollAttached = true;
+    paintActiveDot();
+  }
+
+  if (mq.addEventListener) mq.addEventListener('change', syncDots);
+  else if (mq.addListener) mq.addListener(syncDots);
+  window.addEventListener('resize', syncDots);
+  syncDots();
 }
 
 // REVIEWS ARROW SCROLL
@@ -2125,6 +2116,8 @@ function stopDrag() {
 const revStyle = document.createElement('style');
 revStyle.textContent = '#reviews-track::-webkit-scrollbar{display:none;}';
 document.head.appendChild(revStyle);
+wireHorizontalScrollDots('whom-cards-track', 'whom-scroll-dots');
+wireHorizontalScrollDots('reviews-track', 'reviews-scroll-dots');
 (function startCountdown() {
   const el = document.getElementById('countdown');
   if (!el) return;
