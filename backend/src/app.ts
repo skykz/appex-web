@@ -13,6 +13,7 @@ import subscriptionRoutes from './api/subscription/subscription.route.js'
 import creditRoutes from './api/credit/credit.route.js'
 import contactRoutes from './api/contact/contact.route.js'
 import billingRoutes from './api/billing/billing.route.js'
+import adminRoutes from './api/admin/admin.route.js'
 
 /**
  * Express application (shared by local `index.ts` and Vercel serverless `api/index.ts`).
@@ -43,6 +44,7 @@ app.use('/api/subscription', subscriptionRoutes)
 app.use('/api/credits', creditRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/billing', billingRoutes)
+app.use('/api/admin', adminRoutes)
 
 // Error handler (must be last)
 app.use(errorHandler)
