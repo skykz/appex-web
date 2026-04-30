@@ -47,11 +47,10 @@ All three services start concurrently. Open **http://localhost:5174** and sign i
 
 ## Environment
 
-The admin uses the same API as the user app. Set `VITE_API_URL` in `admin/.env` if the backend is not on `http://localhost:3000/api`:
+The admin uses the same API as the user app.
 
-```
-VITE_API_URL=http://localhost:3000/api
-```
+- **Local:** copy `.env.example` to `.env` or set `VITE_API_URL` in `admin/.env` if the backend is not on `http://localhost:3000/api`.
+- **Vercel / production:** you **must** set `VITE_API_URL` in the project’s **Environment Variables** (Production and Preview) to your deployed API base, e.g. `https://your-backend.vercel.app/api`, then **redeploy**. If it is missing, production builds fail on purpose so the bundle never embeds `localhost`. Also add your admin site origin to the backend `CORS_ORIGINS`.
 
 ## Features
 
