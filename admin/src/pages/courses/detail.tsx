@@ -7,6 +7,8 @@ import { coursesApi, type Lesson, type Module } from '@features/courses/api'
 import { ModuleForm } from '@features/courses/module-form'
 import { LessonEditor } from '@features/courses/lesson-editor'
 import { Button } from '@shared/ui/button'
+import { Card, CardContent } from '@shared/ui/card'
+import { Skeleton } from '@shared/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +18,9 @@ import {
 } from '@shared/ui/dialog'
 import { ApiError } from '@shared/api/http-client'
 
+/**
+ * Course builder: lists modules and lessons, and hosts dialogs for module and lesson editors.
+ */
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>()
   const courseId = Number(id)
@@ -56,207 +61,248 @@ export function CourseDetailPage() {
   })
 
   if (!Number.isFinite(courseId)) {
-    return <div className="p-8 text-sm text-destructive">Invalid course id.</div>
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Invalid course id.
+      </div>
+    )
   }
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading…</div>
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-40" />
+        <Skeleton className="h-40 w-full max-w-3xl rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    )
   }
   if (isError || !data) {
     return (
-      <div className="p-8 text-sm text-destructive">
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
         Failed to load course: {(error as Error)?.message}
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 p-8">
-      <Button variant="ghost" size="sm" asChild>
+    <div className="space-y-8">
+      <Button variant="ghost" size="sm" className="-ml-2 gap-2 text-muted-foreground hover:text-foreground" asChild>
         <Link to="/courses">
           <ArrowLeft className="h-4 w-4" />
           All courses
         </Link>
       </Button>
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="text-4xl">{data.emoji}</span>
-            <div>
-              <h1 className="text-2xl font-bold">{data.title}</h1>
-              <p className="text-sm text-muted-foreground">{data.description}</p>
+      <Card className="overflow-hidden border-border/70 bg-gradient-to-br from-card via-card to-muted/30 shadow-md">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex min-w-0 flex-1 gap-4 sm:gap-5">
+              <div
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-muted text-4xl shadow-inner sm:h-20 sm:w-20"
+                aria-hidden
+              >
+                {data.emoji}
+              </div>
+              <div className="min-w-0 space-y-2">
+                <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.title}</h1>
+                <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{data.description}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground/90">
+                    {data.category}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground/90">
+                    {data.duration}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs tabular-nums text-muted-foreground">
+                    Order {data.order}
+                  </span>
+                </div>
+              </div>
             </div>
+            <Button onClick={() => setCreatingModule(true)} className="shrink-0 shadow-sm">
+              <Plus className="h-4 w-4" />
+              Add module
+            </Button>
           </div>
-          <div className="mt-3 flex gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full bg-muted px-2 py-0.5">{data.category}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5">{data.duration}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5">order {data.order}</span>
-          </div>
-        </div>
-        <Button onClick={() => setCreatingModule(true)}>
-          <Plus className="h-4 w-4" />
-          Add module
-        </Button>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {data.modules.length === 0 && (
-          <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-12 text-center text-sm text-muted-foreground">
             No modules yet. Add one to start building lessons.
           </div>
         )}
         {data.modules.map((m) => {
           const isOpen = expanded[m.id] ?? true
           return (
-            <div key={m.id} className="rounded-lg border bg-card">
-              <div className="flex items-center gap-2 p-4">
+            <Card
+              key={m.id}
+              className="overflow-hidden border-border/70 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <div className="flex flex-col gap-3 border-b border-border/50 bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <button
                   type="button"
-                  className="flex flex-1 items-center gap-2 text-left"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left transition-colors hover:bg-muted/40 sm:px-1 sm:py-0.5"
                   onClick={() => setExpanded((s) => ({ ...s, [m.id]: !isOpen }))}
                 >
                   {isOpen ? (
-                    <ChevronDown className="h-4 w-4" />
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                   ) : (
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="font-medium">{m.title}</span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="truncate font-semibold">{m.title}</span>
+                  <span className="shrink-0 rounded-full bg-background/80 px-2 py-0.5 text-xs text-muted-foreground ring-1 ring-border/60">
                     {m.lessons.length} lessons
                   </span>
                 </button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setLessonEditor({ moduleId: m.id })}
-                >
-                  <Plus className="h-4 w-4" />
-                  Lesson
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => setEditingModule(m)}
-                  title="Edit module"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => {
-                    if (
-                      !confirm(
-                        `Delete module "${m.title}" and all its lessons? This cannot be undone.`
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-border/80 bg-background shadow-none"
+                    onClick={() => setLessonEditor({ moduleId: m.id })}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Lesson
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9"
+                    onClick={() => setEditingModule(m)}
+                    title="Edit module"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9"
+                    onClick={() => {
+                      if (
+                        !confirm(
+                          `Delete module "${m.title}" and all its lessons? This cannot be undone.`
+                        )
                       )
-                    )
-                      return
-                    removeModule.mutate(m.id)
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                        return
+                      removeModule.mutate(m.id)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
 
               {isOpen && (
-                <div className="border-t">
+                <div>
                   {m.lessons.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-muted-foreground">
+                    <div className="p-8 text-center text-sm text-muted-foreground">
                       No lessons yet.
                     </div>
                   ) : (
-                    <ul className="divide-y">
+                    <ul className="divide-y divide-border/60">
                       {m.lessons.map((l) => (
-                        <li key={l.id} className="flex items-center gap-3 px-6 py-3">
-                          <span className="text-xl">{l.emoji}</span>
-                          <div className="flex-1">
-                            <div className="text-sm font-medium">
+                        <li
+                          key={l.id}
+                          className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center sm:gap-3 sm:px-6"
+                        >
+                          <span
+                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl shadow-inner"
+                            aria-hidden
+                          >
+                            {l.emoji}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium leading-snug">
                               {l.label} — {l.title}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {l.content.length} step{l.content.length !== 1 && 's'} · order{' '}
-                              {l.order}
+                            <div className="mt-0.5 text-xs text-muted-foreground">
+                              {l.content.length} step{l.content.length !== 1 && 's'} · order {l.order}
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() =>
-                              setLessonEditor({ moduleId: m.id, lesson: l })
-                            }
-                          >
-                            <Pencil className="h-4 w-4" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              if (!confirm(`Delete lesson "${l.title}"?`)) return
-                              removeLesson.mutate(l.id)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <div className="flex shrink-0 items-center gap-1 sm:ml-auto">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-border/80"
+                              onClick={() => setLessonEditor({ moduleId: m.id, lesson: l })}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                if (!confirm(`Delete lesson "${l.title}"?`)) return
+                                removeLesson.mutate(l.id)
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               )}
-            </div>
+            </Card>
           )
         })}
       </div>
 
-      <Dialog
-        open={creatingModule}
-        onOpenChange={(o) => !o && setCreatingModule(false)}
-      >
-        <DialogContent>
-          <DialogHeader>
+      <Dialog open={creatingModule} onOpenChange={(o) => !o && setCreatingModule(false)}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+          <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>New module</DialogTitle>
+            <DialogDescription>Add a section that will contain ordered lessons.</DialogDescription>
           </DialogHeader>
-          <ModuleForm courseId={courseId} onDone={() => setCreatingModule(false)} />
+          <div className="px-6 py-5">
+            <ModuleForm courseId={courseId} onDone={() => setCreatingModule(false)} />
+          </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={Boolean(editingModule)}
-        onOpenChange={(o) => !o && setEditingModule(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
+      <Dialog open={Boolean(editingModule)} onOpenChange={(o) => !o && setEditingModule(null)}>
+        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+          <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>Edit module</DialogTitle>
+            <DialogDescription>Rename the module or change its order.</DialogDescription>
           </DialogHeader>
-          {editingModule && (
-            <ModuleForm
-              courseId={courseId}
-              initial={editingModule}
-              onDone={() => setEditingModule(null)}
-            />
-          )}
+          <div className="px-6 py-5">
+            {editingModule ? (
+              <ModuleForm
+                courseId={courseId}
+                initial={editingModule}
+                onDone={() => setEditingModule(null)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(lessonEditor)} onOpenChange={(o) => !o && setLessonEditor(null)}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>
-              {lessonEditor?.lesson ? 'Edit lesson' : 'New lesson'}
-            </DialogTitle>
+        <DialogContent className="max-w-3xl gap-0 overflow-hidden border-border/80 p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
+            <DialogTitle>{lessonEditor?.lesson ? 'Edit lesson' : 'New lesson'}</DialogTitle>
             <DialogDescription>
               Lessons are made of steps; each step has blocks rendered in the user app.
             </DialogDescription>
           </DialogHeader>
-          {lessonEditor && (
-            <LessonEditor
-              moduleId={lessonEditor.moduleId}
-              initial={lessonEditor.lesson}
-              onDone={() => setLessonEditor(null)}
-            />
-          )}
+          <div className="max-h-[min(70vh,560px)] overflow-y-auto px-6 py-5">
+            {lessonEditor ? (
+              <LessonEditor
+                moduleId={lessonEditor.moduleId}
+                initial={lessonEditor.lesson}
+                onDone={() => setLessonEditor(null)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

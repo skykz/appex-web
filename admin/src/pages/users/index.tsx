@@ -3,6 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { Search } from 'lucide-react'
 import { httpClient } from '@shared/api/http-client'
 import { Input } from '@shared/ui/input'
+import { Card, CardContent } from '@shared/ui/card'
+import { PageHeader } from '@shared/ui/page-header'
+import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
 
 interface AdminUserRow {
@@ -15,6 +18,9 @@ interface AdminUserRow {
   streak_current: number
 }
 
+/**
+ * Searchable directory of all registered users with credits and streak columns.
+ */
 export function UsersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin', 'users'],
@@ -49,7 +55,7 @@ export function UsersPage() {
         <span
           className={
             u.role === 'admin'
-              ? 'rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary'
+              ? 'inline-flex rounded-full border border-primary/20 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary'
               : 'text-xs text-muted-foreground'
           }
         >
@@ -57,34 +63,50 @@ export function UsersPage() {
         </span>
       ),
     },
-    { key: 'credits', header: 'Credits', render: (u) => u.credits },
-    { key: 'streak', header: 'Streak', render: (u) => u.streak_current },
+    {
+      key: 'credits',
+      header: 'Credits',
+      render: (u) => <span className="tabular-nums font-medium">{u.credits}</span>,
+    },
+    {
+      key: 'streak',
+      header: 'Streak',
+      render: (u) => <span className="tabular-nums text-muted-foreground">{u.streak_current}</span>,
+    },
     {
       key: 'joined',
       header: 'Joined',
-      render: (u) => new Date(u.created_at).toLocaleDateString(),
+      render: (u) => (
+        <span className="text-muted-foreground">
+          {new Date(u.created_at).toLocaleDateString()}
+        </span>
+      ),
     },
   ]
 
   return (
-    <div className="space-y-6 p-8">
-      <div>
-        <h1 className="text-2xl font-bold">Users</h1>
-        <p className="text-sm text-muted-foreground">All registered users.</p>
-      </div>
+    <div className="space-y-8">
+      <PageHeader badge="People" title="Users" description="All registered users and their engagement signals." />
 
-      <div className="relative w-80">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-9"
-          placeholder="Search by name or email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      <Card className="border-border/70 shadow-sm">
+        <CardContent className="p-4">
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-10 border-border/80 pl-9 shadow-sm"
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground">Loading…</div>
+        <div className="space-y-3 rounded-xl border border-border/80 bg-card p-6 shadow-sm">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
       ) : (
         <DataTable rows={rows} columns={columns} getRowKey={(u) => u.id} />
       )}
