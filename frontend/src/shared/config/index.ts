@@ -1,13 +1,30 @@
 /**
+ * Express mounts the API under `/api`. If `VITE_API_URL` is the deployment host only, append `/api`.
+ */
+function normalizeApiBase(trimmed: string): string {
+  const base = trimmed.replace(/\/+$/, '')
+  if (base.endsWith('/api')) return base
+  try {
+    const withScheme = /^https?:\/\//i.test(base) ? base : `https://${base}`
+    const u = new URL(withScheme)
+    const path = (u.pathname || '/').replace(/\/$/, '') || '/'
+    if (path === '/') return `${u.origin}/api`
+  } catch {
+    /* keep base if URL is invalid */
+  }
+  return base
+}
+
+/**
  * Resolves the browser-facing API base URL (no trailing slash).
  * Production builds must set `VITE_API_URL` on the host (e.g. Vercel); otherwise the bundle would keep calling localhost.
  */
 function resolveApiUrl(): string {
   const raw = import.meta.env.VITE_API_URL?.trim()
-  if (raw) return raw.replace(/\/$/, '')
+  if (raw) return normalizeApiBase(raw)
   if (import.meta.env.DEV) return 'http://localhost:3000/api'
   throw new Error(
-    'VITE_API_URL is missing. In Vercel → Frontend project → Environment Variables, set VITE_API_URL to your backend origin + /api (e.g. https://your-api.vercel.app/api), then redeploy.'
+    'VITE_API_URL is missing. In Vercel → Frontend project → Environment Variables, set VITE_API_URL to your backend URL (origin or …/api), then redeploy.'
   )
 }
 

@@ -20,9 +20,20 @@ import adminRoutes from './api/admin/admin.route.js'
  */
 const app = express()
 
+/**
+ * When `CORS_ORIGINS` is set, only those exact origins get `Access-Control-Allow-Origin`
+ * (required for browser preflight on admin + user SPAs on Vercel). If the admin origin is missing,
+ * login from https://appex-web-admin.vercel.app fails with “No Access-Control-Allow-Origin”.
+ */
 app.use(
   env.corsOrigins?.length
-    ? cors({ origin: env.corsOrigins, credentials: false })
+    ? cors({
+        origin: env.corsOrigins,
+        credentials: false,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        optionsSuccessStatus: 204,
+      })
     : cors()
 )
 app.use(express.json())

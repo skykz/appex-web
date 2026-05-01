@@ -7,6 +7,8 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   /** Comma-separated browser origins allowed to call the API (e.g. https://appex.kz,https://app.appex.kz). Empty = reflect any origin (dev-friendly). */
   CORS_ORIGINS: z.string().optional(),
+  /** Optional extra comma-separated origins merged into CORS (e.g. admin SPA only: https://appex-web-admin.vercel.app). */
+  CORS_ORIGINS_EXTRA: z.string().optional(),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -34,8 +36,22 @@ function assertSupabaseConfigured() {
 
 assertSupabaseConfigured()
 
-const corsOrigins = parsed.CORS_ORIGINS
-  ? parsed.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
-  : null
+/** Parses comma-separated origin lists and merges primary + extra without duplicates. */
+function parseOriginList(raw: string | undefined): string[] {
+  if (!raw?.trim()) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+const corsOriginsMerged = [
+  ...new Set([...parseOriginList(parsed.CORS_ORIGINS), ...parseOriginList(parsed.CORS_ORIGINS_EXTRA)]),
+]
+const corsOrigins = corsOriginsMerged.length ? corsOriginsMerged : null
+
+if (process.env.VERCEL && corsOrigins?.length) {
+  console.info('[cors] allowed origins:', corsOrigins.join(' | '))
+}
 
 export const env = { ...parsed, corsOrigins }
