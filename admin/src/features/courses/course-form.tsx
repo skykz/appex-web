@@ -1,4 +1,4 @@
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -51,7 +51,7 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(courseFormSchema),
+    resolver: zodResolver(courseFormSchema) as Resolver<FormData>,
     defaultValues: {
       title: initial?.title ?? '',
       description: initial?.description ?? '',

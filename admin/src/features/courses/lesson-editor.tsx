@@ -5,6 +5,7 @@ import {
   Controller,
   useWatch,
   type FieldErrors,
+  type Resolver,
   type UseFormReturn,
 } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -76,7 +77,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const form = useForm<LessonEditorFormValues>({
-    resolver: zodResolver(lessonEditorFormSchema),
+    resolver: zodResolver(lessonEditorFormSchema) as Resolver<LessonEditorFormValues>,
     mode: 'onSubmit',
     defaultValues: {
       label: initial?.label ?? 'Lesson 1',
