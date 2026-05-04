@@ -1,4 +1,5 @@
 -- Personal prompt library: each user owns rows; category acts as a simple catalog/folder label.
+--everything
 
 create table public.user_prompts (
   id          uuid primary key default gen_random_uuid(),
