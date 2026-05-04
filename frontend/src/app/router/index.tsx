@@ -1,10 +1,13 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
+import { AuthShell } from '@features/auth'
 import { RootLayout } from './layouts/root-layout'
 import { ProtectedRoute } from './guards/protected-route'
 
 const HomePage = lazy(() => import('@pages/home'))
 const AuthPage = lazy(() => import('@pages/auth'))
+const ForgotPasswordPage = lazy(() => import('@pages/auth/forgot-password'))
+const ResetPasswordPage = lazy(() => import('@pages/auth/reset-password'))
 const SettingsPage = lazy(() => import('@pages/settings'))
 const SkillsPage = lazy(() => import('@pages/skills'))
 const SkillDetailPage = lazy(() => import('@pages/skills/detail'))
@@ -23,6 +26,12 @@ const SkillLessonPage = lazy(() => import('@pages/skills/lesson'))
 /** Matches Vite `base` when the app is hosted under a subpath (e.g. /app). */
 const routerBasename =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '')
+
+const authRouteFallback = (
+  <div className="flex h-dvh items-center justify-center">
+    <div className="text-muted-foreground animate-pulse">Loading...</div>
+  </div>
+)
 
 export const router = createBrowserRouter(
   [
@@ -93,7 +102,6 @@ export const router = createBrowserRouter(
           },
         ],
       },
-      // Full-screen lesson routes (no sidebar)
       {
         path: 'skills/:skillId/lessons/:lessonId',
         element: (
@@ -115,10 +123,36 @@ export const router = createBrowserRouter(
   {
     path: '/auth',
     element: (
-      <Suspense fallback={<div className="flex h-dvh items-center justify-center"><div className="text-muted-foreground animate-pulse">Loading...</div></div>}>
-        <AuthPage />
+      <Suspense fallback={authRouteFallback}>
+        <AuthShell />
       </Suspense>
     ),
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={authRouteFallback}>
+            <AuthPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'forgot-password',
+        element: (
+          <Suspense fallback={authRouteFallback}>
+            <ForgotPasswordPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'reset-password',
+        element: (
+          <Suspense fallback={authRouteFallback}>
+            <ResetPasswordPage />
+          </Suspense>
+        ),
+      },
+    ],
   },
   ],
   routerBasename ? { basename: routerBasename } : undefined

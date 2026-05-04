@@ -1,6 +1,42 @@
 import { config } from '@shared/config'
+import { notifySessionExpired } from '@shared/session/session-expired'
 
 const TOKEN_KEY = 'appex_admin_access_token'
+
+/** GET-only: transient upstream / rate-limit responses worth a short backoff retry. */
+function shouldRetryIdempotentGet(status: number): boolean {
+  return status === 429 || status === 502 || status === 503 || status === 504
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Performs `fetch` with optional limited retries for idempotent GETs (network blips / 503 bursts).
+ * Does not retry 401 — global session handling runs after the final response.
+ */
+async function fetchWithGetRetry(url: string, init: RequestInit, enableGetRetry: boolean): Promise<Response> {
+  const max = enableGetRetry ? 3 : 1
+  const backoffMs = [300, 800]
+  let lastErr: unknown
+  for (let attempt = 0; attempt < max; attempt++) {
+    try {
+      const res = await fetch(url, init)
+      if (res.status === 401 || !enableGetRetry || attempt === max - 1) return res
+      if (shouldRetryIdempotentGet(res.status)) {
+        await delay(backoffMs[attempt] ?? 800)
+        continue
+      }
+      return res
+    } catch (e) {
+      lastErr = e
+      if (!enableGetRetry || attempt === max - 1) throw e
+      await delay(backoffMs[attempt] ?? 800)
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Request failed after retries')
+}
 
 export class ApiError extends Error {
   constructor(
@@ -16,10 +52,14 @@ export class ApiError extends Error {
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
   auth?: boolean
+  /** When true (default for GET), retries a few times on transient failures. */
+  retryableGet?: boolean
 }
 
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { body, auth = true, headers, ...rest } = options
+  const { body, auth = true, headers, retryableGet, ...rest } = options
+  const method = (rest.method ?? 'GET').toString().toUpperCase()
+  const enableGetRetry = method === 'GET' && retryableGet !== false
   const h = new Headers(headers)
   h.set('Content-Type', 'application/json')
 
@@ -28,11 +68,16 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     if (token) h.set('Authorization', `Bearer ${token}`)
   }
 
-  const res = await fetch(config.apiUrl + endpoint, {
-    ...rest,
-    headers: h,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
+  const res = await fetchWithGetRetry(
+    config.apiUrl + endpoint,
+    {
+      ...rest,
+      method,
+      headers: h,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    },
+    enableGetRetry
+  )
 
   if (res.status === 204) return undefined as T
 
@@ -40,6 +85,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const data = text ? (safeJson(text) as unknown) : undefined
 
   if (!res.ok) {
+    // Session invalid: clear + redirect + toast is registered from AdminLayout (see session-expired).
+    if (res.status === 401 && auth) {
+      notifySessionExpired()
+    }
     const message =
       (data && typeof data === 'object' && 'error' in data
         ? String((data as { error: unknown }).error)

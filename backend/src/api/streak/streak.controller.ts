@@ -41,6 +41,16 @@ export async function checkIn(
     const { userId } = req as AuthenticatedRequest
     const today = todayUTC()
 
+    const { data: existingToday } = await supabaseAdmin
+      .from('streak_days')
+      .select('date')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle()
+
+    /** True when this request is the first streak activity for the user on this calendar day (UTC). */
+    const firstCheckInToday = !existingToday
+
     // Insert today's date (upsert to avoid duplicates)
     await supabaseAdmin
       .from('streak_days')
@@ -59,7 +69,10 @@ export async function checkIn(
       .eq('user_id', userId)
       .single()
 
-    res.json(data ?? { current, best, milestone: 28 })
+    res.json({
+      ...(data ?? { user_id: userId, current, best, milestone: 28, last_active_date: null }),
+      firstCheckInToday,
+    })
   } catch (err) {
     next(err)
   }

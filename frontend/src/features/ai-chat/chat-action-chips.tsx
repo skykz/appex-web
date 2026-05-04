@@ -7,7 +7,7 @@ import {
   PenLine,
 } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { actionChips } from './mock-data'
+import { actionChips } from './constants'
 
 const iconMap: Record<string, React.ElementType> = {
   'help-circle': HelpCircle,

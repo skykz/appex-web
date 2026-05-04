@@ -1,32 +1,23 @@
 import { httpClient } from '@shared/api'
-import type { Skill, SkillCategory } from './mock-data'
+import type {
+  SkillDetail,
+  SkillListItem,
+  SkillCategoryFilter,
+} from './types'
 
-interface SkillWithProgress extends Skill {
-  progress: number
-  status: 'not_started' | 'in_progress' | 'completed'
-}
-
-interface SkillDetail extends SkillWithProgress {
-  modules: {
-    id: number
-    title: string
-    lessonCount: number
-    lessons: {
-      id: number
-      label: string
-      title: string
-      emoji: string
-      locked: boolean
-    }[]
-  }[]
-}
-
+/**
+ * Fetches skills for the catalog grid, optionally filtered by category slug.
+ */
 export const skillsApi = {
-  async list(category?: SkillCategory): Promise<SkillWithProgress[]> {
-    const params = category && category !== 'all' ? `?category=${category}` : ''
+  async list(category?: SkillCategoryFilter): Promise<SkillListItem[]> {
+    const params =
+      category && category !== 'all' ? `?category=${encodeURIComponent(category)}` : ''
     return httpClient.get(`/skills${params}`)
   },
 
+  /**
+   * Loads one skill with modules, lessons, lock state, and user progress.
+   */
   async getDetail(id: number): Promise<SkillDetail> {
     return httpClient.get(`/skills/${id}`)
   },

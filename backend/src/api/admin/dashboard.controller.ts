@@ -107,10 +107,11 @@ export async function getDashboardStats(
       .limit(5)
     if (recentErr) throw new AppError(500, recentErr.message)
 
-    const recentLessonsCompleted = (recentCompletions ?? []).map((r: any) => ({
-      user_email: r.users?.email ?? '—',
-      lesson_title: r.lessons?.title ?? '(deleted lesson)',
-      completed_at: r.completed_at,
+    const recentLessonsCompleted = (recentCompletions ?? []).map((r: Record<string, unknown>) => ({
+      user_id: String(r.user_id ?? ''),
+      user_email: (r.users as { email?: string } | null)?.email ?? '—',
+      lesson_title: (r.lessons as { title?: string } | null)?.title ?? '(deleted lesson)',
+      completed_at: r.completed_at as string,
     }))
 
     // Signups per day over the last 14 days

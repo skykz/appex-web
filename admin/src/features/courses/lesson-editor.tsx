@@ -1,8 +1,21 @@
 import { useState } from 'react'
-import { useForm, useFieldArray, Controller, type UseFormReturn } from 'react-hook-form'
+import {
+  useForm,
+  useFieldArray,
+  Controller,
+  useWatch,
+  type FieldErrors,
+  type UseFormReturn,
+} from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Plus, Trash2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react'
+import { Loader2, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Eye } from 'lucide-react'
+import {
+  lessonEditorFormSchema,
+  normalizeLessonContentSteps,
+  type LessonEditorFormValues,
+} from '@appex/lesson-schema'
 import {
   coursesApi,
   type Lesson,
@@ -15,13 +28,41 @@ import { Textarea } from '@shared/ui/textarea'
 import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
 import { ApiError } from '@shared/api/http-client'
+import { MediaBadgeField } from '@shared/ui/media-badge-field'
+import { ImageSrcField } from '@shared/ui/image-src-field'
+import { LessonPreviewDialog } from './lesson-preview-dialog'
 
-interface FormValues {
-  label: string
-  title: string
-  emoji: string
-  order: number
-  steps: Array<{ blocks: LessonBlock[] }>
+/**
+ * Builds form steps from API lesson content using shared normalization (`@appex/lesson-schema`).
+ */
+function normalizeLessonStepsFromApi(
+  content: Lesson['content'] | undefined
+): LessonEditorFormValues['steps'] {
+  const steps = normalizeLessonContentSteps(content ?? [])
+  if (steps.length === 0) return [{ blocks: [{ type: 'heading', content: '' }] }]
+  return steps
+}
+
+/**
+ * Returns the first nested react-hook-form / Zod error message for a toast or summary line.
+ */
+function firstValidationMessage(errors: FieldErrors): string | undefined {
+  for (const v of Object.values(errors)) {
+    if (!v) continue
+    if (
+      typeof v === 'object' &&
+      v !== null &&
+      'message' in v &&
+      typeof (v as { message?: string }).message === 'string'
+    ) {
+      return (v as { message: string }).message
+    }
+    if (typeof v === 'object' && v !== null) {
+      const nested = firstValidationMessage(v as FieldErrors)
+      if (nested) return nested
+    }
+  }
+  return undefined
 }
 
 interface Props {
@@ -32,17 +73,17 @@ interface Props {
 
 export function LessonEditor({ moduleId, initial, onDone }: Props) {
   const qc = useQueryClient()
+  const [previewOpen, setPreviewOpen] = useState(false)
 
-  const form = useForm<FormValues>({
+  const form = useForm<LessonEditorFormValues>({
+    resolver: zodResolver(lessonEditorFormSchema),
+    mode: 'onSubmit',
     defaultValues: {
       label: initial?.label ?? 'Lesson 1',
       title: initial?.title ?? '',
       emoji: initial?.emoji ?? '📘',
       order: initial?.order ?? 0,
-      steps:
-        initial?.content && initial.content.length > 0
-          ? initial.content
-          : [{ blocks: [{ type: 'heading', content: '' }] }],
+      steps: normalizeLessonStepsFromApi(initial?.content),
     },
   })
 
@@ -53,13 +94,18 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
     move: moveStep,
   } = useFieldArray({ control: form.control, name: 'steps' })
 
+  const watchedLabel = useWatch({ control: form.control, name: 'label' })
+  const watchedTitle = useWatch({ control: form.control, name: 'title' })
+  const watchedEmoji = useWatch({ control: form.control, name: 'emoji' })
+  const watchedSteps = useWatch({ control: form.control, name: 'steps' })
+
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => {
+    mutationFn: (values: LessonEditorFormValues) => {
       const payload = {
         label: values.label,
         title: values.title,
         emoji: values.emoji,
-        order: Number(values.order) || 0,
+        order: values.order,
         content: values.steps as LessonStep[],
       }
       return initial
@@ -77,41 +123,60 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
     },
   })
 
-  function onSubmit(values: FormValues) {
-    // Strip empty steps
-    const cleaned = {
-      ...values,
-      steps: values.steps.filter((s) => s.blocks.length > 0),
-    }
-    if (cleaned.steps.length === 0) {
-      toast.error('Add at least one step with content.')
-      return
-    }
-    mutation.mutate(cleaned)
+  function onSubmit(values: LessonEditorFormValues) {
+    mutation.mutate(values)
+  }
+
+  function onInvalid(errors: FieldErrors<LessonEditorFormValues>) {
+    const msg = firstValidationMessage(errors)
+    toast.error(msg ?? 'Fix validation errors before saving.')
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-[8rem_1fr_5rem_5rem] gap-3">
+    <>
+    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+      <input type="hidden" {...form.register('order')} />
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,8rem)_1fr]">
         <div className="space-y-1.5">
           <Label>Label</Label>
           <Input placeholder="Lesson 1" {...form.register('label')} />
+          {form.formState.errors.label?.message ? (
+            <p className="text-xs text-destructive">{form.formState.errors.label.message}</p>
+          ) : null}
         </div>
         <div className="space-y-1.5">
           <Label>Title</Label>
           <Input placeholder="Introduction" {...form.register('title')} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Emoji</Label>
-          <Input {...form.register('emoji')} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Order</Label>
-          <Input type="number" min={0} {...form.register('order')} />
+          {form.formState.errors.title?.message ? (
+            <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+          ) : null}
         </div>
       </div>
+      <Controller
+        name="emoji"
+        control={form.control}
+        render={({ field }) => (
+          <MediaBadgeField
+            label="Lesson badge"
+            value={field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={form.formState.errors.emoji?.message}
+            helperText="Emoji, image URL, path, or upload — shown next to the lesson in the catalog."
+          />
+        )}
+      />
+      <p className="text-xs text-muted-foreground">
+        Lesson order within the module is set on the course page (move up / down).
+      </p>
 
       <div className="space-y-3">
+        {form.formState.errors.steps &&
+        typeof form.formState.errors.steps.message === 'string' ? (
+          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {form.formState.errors.steps.message}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between">
           <Label>Steps ({stepFields.length})</Label>
           <Button
@@ -173,15 +238,30 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
         ))}
       </div>
 
-      <div className="flex justify-end gap-2 border-t pt-4">
-        <Button type="button" variant="outline" onClick={onDone}>
-          Cancel
+      <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <Button type="button" variant="outline" className="gap-2" onClick={() => setPreviewOpen(true)}>
+          <Eye className="h-4 w-4" aria-hidden />
+          Preview
         </Button>
-        <Button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save lesson'}
-        </Button>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onDone}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save lesson'}
+          </Button>
+        </div>
       </div>
     </form>
+    <LessonPreviewDialog
+      open={previewOpen}
+      onOpenChange={setPreviewOpen}
+      label={typeof watchedLabel === 'string' ? watchedLabel : ''}
+      title={typeof watchedTitle === 'string' ? watchedTitle : ''}
+      emoji={typeof watchedEmoji === 'string' ? watchedEmoji : '📘'}
+      steps={watchedSteps ?? form.getValues('steps')}
+    />
+    </>
   )
 }
 
@@ -189,7 +269,7 @@ function StepBlocksEditor({
   form,
   stepIdx,
 }: {
-  form: UseFormReturn<FormValues>
+  form: UseFormReturn<LessonEditorFormValues>
   stepIdx: number
 }) {
   const {
@@ -233,6 +313,11 @@ function StepBlocksEditor({
           <option value="bold-text">Bold text</option>
           <option value="list">List</option>
           <option value="image">Image</option>
+          <option value="video">Video</option>
+          <option value="file">File / link</option>
+          <option value="quiz">Quiz</option>
+          <option value="submission">Student submission</option>
+          <option value="callout">Callout</option>
           <option value="user-message">User message</option>
           <option value="mentor-message">Mentor message</option>
         </Select>
@@ -252,7 +337,7 @@ function BlockRow({
   onRemove,
   onMove,
 }: {
-  form: UseFormReturn<FormValues>
+  form: UseFormReturn<LessonEditorFormValues>
   stepIdx: number
   blockIdx: number
   total: number
@@ -260,12 +345,18 @@ function BlockRow({
   onMove: (direction: -1 | 1) => void
 }) {
   const type = form.watch(`steps.${stepIdx}.blocks.${blockIdx}.type`)
+  const quizMode =
+    type === 'quiz'
+      ? (form.watch(`steps.${stepIdx}.blocks.${blockIdx}.mode`) as string | undefined)
+      : undefined
+  const typeLabel =
+    type === 'quiz' && quizMode ? `quiz · ${quizMode}` : type
 
   return (
     <div className="rounded-md border bg-card p-3">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {type}
+          {typeLabel}
         </span>
         <div className="flex gap-1">
           <Button
@@ -301,7 +392,7 @@ function BlockFields({
   stepIdx,
   blockIdx,
 }: {
-  form: UseFormReturn<FormValues>
+  form: UseFormReturn<LessonEditorFormValues>
   stepIdx: number
   blockIdx: number
 }) {
@@ -334,14 +425,232 @@ function BlockFields({
   if (type === 'image') {
     return (
       <div className="grid gap-2">
-        <Input
-          placeholder="Image URL (https://…)"
-          {...form.register(`${base}.src` as const)}
+        <Controller
+          control={form.control}
+          name={`${base}.src` as const}
+          render={({ field }) => (
+            <ImageSrcField
+              label="Image"
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
         />
         <Input
           placeholder="Alt text (optional)"
           {...form.register(`${base}.alt` as const)}
         />
+      </div>
+    )
+  }
+  if (type === 'video') {
+    return (
+      <div className="grid gap-2">
+        <Input
+          placeholder="Video URL (YouTube, Vimeo, or direct .mp4 /path…)"
+          {...form.register(`${base}.src` as const)}
+        />
+        <Input placeholder="Title (optional)" {...form.register(`${base}.title` as const)} />
+        <Textarea
+          rows={2}
+          placeholder="Caption (optional)"
+          {...form.register(`${base}.caption` as const)}
+        />
+      </div>
+    )
+  }
+  if (type === 'file') {
+    return (
+      <div className="grid gap-2">
+        <Input
+          placeholder="File URL (https://… or /path/to/file.pdf)"
+          {...form.register(`${base}.url` as const)}
+        />
+        <Input placeholder="Label (e.g. Workbook.pdf)" {...form.register(`${base}.label` as const)} />
+        <Textarea
+          rows={2}
+          placeholder="Short description (optional)"
+          {...form.register(`${base}.description` as const)}
+        />
+      </div>
+    )
+  }
+  if (type === 'quiz') {
+    const mode = form.watch(`${base}.mode`) as 'single' | 'multi' | 'open'
+    const optionsVal = (form.watch(`${base}.options` as const) as string[] | undefined) ?? []
+
+    return (
+      <div className="grid gap-3 rounded-md border border-primary/15 bg-muted/25 p-3">
+        <div className="grid gap-1">
+          <Label className="text-xs text-muted-foreground">Question type</Label>
+          <Select
+            value={mode}
+            onChange={(e) => {
+              const m = e.target.value as 'single' | 'multi' | 'open'
+              const q = String(form.getValues(`${base}.question`) ?? '')
+              const expl = form.getValues(`${base}.explanation`)
+              const explStr = expl != null && String(expl).trim() ? String(expl) : undefined
+              const prevOpts = form.getValues(`${base}.options`) as string[] | undefined
+              const lines =
+                Array.isArray(prevOpts) && prevOpts.some((s) => String(s).trim())
+                  ? prevOpts.map((s) => String(s))
+                  : ['', '']
+              if (m === 'single') {
+                form.setValue(base as never, {
+                  type: 'quiz',
+                  mode: 'single',
+                  question: q,
+                  options: lines.length >= 2 ? lines : ['', ''],
+                  correctIndex: 0,
+                  ...(explStr ? { explanation: explStr } : {}),
+                } as never)
+              } else if (m === 'multi') {
+                form.setValue(base as never, {
+                  type: 'quiz',
+                  mode: 'multi',
+                  question: q,
+                  options: lines.length >= 2 ? lines : ['', ''],
+                  correctIndices: [0],
+                  ...(explStr ? { explanation: explStr } : {}),
+                } as never)
+              } else {
+                form.setValue(base as never, {
+                  type: 'quiz',
+                  mode: 'open',
+                  question: q,
+                  ...(explStr ? { explanation: explStr } : {}),
+                } as never)
+              }
+            }}
+          >
+            <option value="single">Single choice</option>
+            <option value="multi">Multiple choice</option>
+            <option value="open">Open answer</option>
+          </Select>
+        </div>
+        <Input placeholder="Question" {...form.register(`${base}.question` as const)} />
+        {mode === 'open' ? (
+          <p className="text-xs text-muted-foreground">
+            Learners write a free-text answer; it is saved for review (no auto-grading). Optional
+            explanation below can be shown after they submit.
+          </p>
+        ) : (
+          <>
+            <Controller
+              control={form.control}
+              name={`${base}.options` as const}
+              render={({ field }) => {
+                const items = Array.isArray(field.value) ? field.value : []
+                return (
+                  <div className="grid gap-1">
+                    <Label className="text-xs text-muted-foreground">Options (one per line, min 2)</Label>
+                    <Textarea
+                      rows={5}
+                      placeholder={'Option A\nOption B\nOption C'}
+                      value={items.join('\n')}
+                      onChange={(e) =>
+                        field.onChange(e.target.value.split('\n').map((s) => s.trimEnd()))
+                      }
+                    />
+                  </div>
+                )
+              }}
+            />
+            {mode === 'single' ? (
+              <div className="grid gap-2">
+                <Label className="text-xs text-muted-foreground">Correct answer</Label>
+                {optionsVal.map((opt: string, idx: number) => (
+                  <label
+                    key={idx}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
+                  >
+                    <input
+                      type="radio"
+                      name={`quiz-correct-${stepIdx}-${blockIdx}`}
+                      checked={Number(form.watch(`${base}.correctIndex`)) === idx}
+                      onChange={() => form.setValue(`${base}.correctIndex`, idx)}
+                    />
+                    <span className="min-w-0 truncate">{opt.trim() || `Row ${idx + 1} (empty)`}</span>
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <Controller
+                control={form.control}
+                name={`${base}.correctIndices` as const}
+                render={({ field }) => {
+                  const correct = new Set(Array.isArray(field.value) ? field.value : [])
+                  return (
+                    <div className="grid gap-2">
+                      <Label className="text-xs text-muted-foreground">Mark all correct options</Label>
+                      {optionsVal.map((opt: string, idx: number) => (
+                        <label
+                          key={idx}
+                          className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={correct.has(idx)}
+                            onChange={() => {
+                              const next = new Set(correct)
+                              if (next.has(idx)) next.delete(idx)
+                              else next.add(idx)
+                              field.onChange([...next].sort((a, b) => a - b))
+                            }}
+                          />
+                          <span className="min-w-0 truncate">{opt.trim() || `Row ${idx + 1}`}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )
+                }}
+              />
+            )}
+          </>
+        )}
+        <div className="grid gap-1">
+          <Label className="text-xs text-muted-foreground">After submit (optional)</Label>
+          <Textarea
+            rows={2}
+            placeholder="Explanation or sample answer shown after checking / submitting"
+            {...form.register(`${base}.explanation` as const)}
+          />
+        </div>
+      </div>
+    )
+  }
+  if (type === 'submission') {
+    return (
+      <div className="grid gap-2">
+        <Textarea rows={2} placeholder="Prompt for learners" {...form.register(`${base}.prompt` as const)} />
+        <Controller
+          control={form.control}
+          name={`${base}.acceptAttachment` as const}
+          render={({ field }) => (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={Boolean(field.value)}
+                onChange={(e) => field.onChange(e.target.checked)}
+              />
+              Allow attachment URL field
+            </label>
+          )}
+        />
+      </div>
+    )
+  }
+  if (type === 'callout') {
+    return (
+      <div className="grid gap-2">
+        <Select {...form.register(`${base}.variant`)}>
+          <option value="tip">Tip</option>
+          <option value="note">Note</option>
+          <option value="warn">Warning</option>
+        </Select>
+        <Input placeholder="Title (optional)" {...form.register(`${base}.title` as const)} />
+        <Textarea rows={3} placeholder="Body" {...form.register(`${base}.content` as const)} />
       </div>
     )
   }
@@ -368,12 +677,31 @@ function BlockFields({
   )
 }
 
+/**
+ * Returns a new empty block of the given type for useFieldArray append defaults.
+ */
 function defaultBlock(type: LessonBlock['type']): LessonBlock {
   switch (type) {
     case 'list':
       return { type: 'list', items: [] }
     case 'image':
       return { type: 'image', src: '' }
+    case 'video':
+      return { type: 'video', src: '' }
+    case 'file':
+      return { type: 'file', url: '', label: '' }
+    case 'quiz':
+      return {
+        type: 'quiz',
+        mode: 'single',
+        question: '',
+        options: ['', ''],
+        correctIndex: 0,
+      }
+    case 'submission':
+      return { type: 'submission', prompt: '', acceptAttachment: false }
+    case 'callout':
+      return { type: 'callout', variant: 'tip', content: '' }
     case 'user-message':
       return { type: 'user-message', name: '', text: '' }
     case 'mentor-message':

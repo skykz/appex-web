@@ -7,6 +7,8 @@ export interface User {
   email: string
   name: string
   created_at: string
+  /** Optional profile image URL when the API provides it */
+  avatar_url?: string | null
 }
 
 /**

@@ -12,7 +12,6 @@ import { ApiError } from '@shared/api/http-client'
 
 const schema = z.object({
   title: z.string().min(2).max(120),
-  order: z.coerce.number().int().min(0),
 })
 
 type FormData = z.infer<typeof schema>
@@ -23,6 +22,9 @@ interface Props {
   onDone: () => void
 }
 
+/**
+ * Creates or renames a module; display order is controlled from the course page (move up/down).
+ */
 export function ModuleForm({ courseId, initial, onDone }: Props) {
   const qc = useQueryClient()
   const {
@@ -31,7 +33,7 @@ export function ModuleForm({ courseId, initial, onDone }: Props) {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: initial?.title ?? '', order: initial?.order ?? 0 },
+    defaultValues: { title: initial?.title ?? '' },
   })
 
   const mutation = useMutation({
@@ -56,10 +58,6 @@ export function ModuleForm({ courseId, initial, onDone }: Props) {
         <Label htmlFor="title">Title</Label>
         <Input id="title" placeholder="Getting started" {...register('title')} />
         {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="order">Order</Label>
-        <Input id="order" type="number" min={0} {...register('order')} />
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onDone}>

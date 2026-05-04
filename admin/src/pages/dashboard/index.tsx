@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Users,
@@ -128,15 +129,17 @@ export function DashboardPage() {
             ) : (
               <ul className="divide-y">
                 {data.recentUsers.map((u) => (
-                  <li
-                    key={u.id}
-                    className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-orange-50/40"
-                  >
-                    <div>
-                      <div className="text-sm font-medium">{u.name || '—'}</div>
-                      <div className="text-xs text-muted-foreground">{u.email}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{formatDate(u.created_at)}</div>
+                  <li key={u.id}>
+                    <Link
+                      to={`/users?q=${encodeURIComponent(u.id)}`}
+                      className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-orange-50/40"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{u.name || '—'}</div>
+                        <div className="text-xs text-muted-foreground">{u.email}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{formatDate(u.created_at)}</div>
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -156,17 +159,19 @@ export function DashboardPage() {
             ) : (
               <ul className="divide-y">
                 {data.recentLessonsCompleted.map((l, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-sky-50/50"
-                  >
-                    <div>
-                      <div className="text-sm font-medium">{l.lesson_title}</div>
-                      <div className="text-xs text-muted-foreground">{l.user_email}</div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {formatDate(l.completed_at)}
-                    </div>
+                  <li key={i}>
+                    <Link
+                      to={`/users?q=${encodeURIComponent(l.user_id || l.user_email)}`}
+                      className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-sky-50/50"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{l.lesson_title}</div>
+                        <div className="text-xs text-muted-foreground">{l.user_email}</div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDate(l.completed_at)}
+                      </div>
+                    </Link>
                   </li>
                 ))}
               </ul>

@@ -1,9 +1,9 @@
 import { cn } from '@shared/lib'
-import { skillCategories, type SkillCategory } from './mock-data'
+import { skillCategories, type SkillCategoryFilter } from './types'
 
 interface SkillCategoryTabsProps {
-  value: SkillCategory
-  onChange: (category: SkillCategory) => void
+  value: SkillCategoryFilter
+  onChange: (category: SkillCategoryFilter) => void
 }
 
 export function SkillCategoryTabs({ value, onChange }: SkillCategoryTabsProps) {

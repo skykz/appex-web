@@ -40,14 +40,13 @@ export function SkillsOnboardingDialog() {
             Explore AI skills you can learn and practice at your own pace
           </DialogDescription>
 
-          {/* Preview card */}
           <div className="mt-5 w-full rounded-xl border border-dashed border-border/60 bg-muted/50 p-4">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">📧</span>
+              <span className="text-3xl">🧩</span>
               <div className="text-left">
-                <p className="text-sm font-semibold">Build Gmail Manager Bot</p>
-                <span className="inline-block rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-semibold text-green-600">
-                  Completed
+                <p className="text-sm font-semibold">Courses from your workspace</p>
+                <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                  Progress syncs automatically
                 </span>
               </div>
             </div>

@@ -1,9 +1,10 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
+import { lessonEmoji } from '@appex/lesson-schema'
 import { coursesApi, type Course } from './api'
 import { categoriesApi } from '@features/categories/api'
 import { Button } from '@shared/ui/button'
@@ -12,18 +13,19 @@ import { Textarea } from '@shared/ui/textarea'
 import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
 import { ApiError } from '@shared/api/http-client'
+import { MediaBadgeField } from '@shared/ui/media-badge-field'
 
-const schema = z.object({
+/** Exported for tests and any server/client shared validation of course metadata. */
+export const courseFormSchema = z.object({
   title: z.string().min(2).max(120),
   description: z.string().min(2).max(300),
   about: z.string().min(2),
-  emoji: z.string().min(1).max(8),
+  emoji: lessonEmoji,
   category: z.string().min(1, 'Pick a category'),
   duration: z.string().min(1),
-  order: z.coerce.number().int().min(0),
 })
 
-type FormData = z.infer<typeof schema>
+type FormData = z.infer<typeof courseFormSchema>
 
 interface Props {
   initial?: Course
@@ -45,10 +47,11 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(courseFormSchema),
     defaultValues: {
       title: initial?.title ?? '',
       description: initial?.description ?? '',
@@ -56,7 +59,6 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
       emoji: initial?.emoji ?? '📘',
       category: initial?.category ?? '',
       duration: initial?.duration ?? '2 hours',
-      order: initial?.order ?? 0,
     },
   })
 
@@ -81,27 +83,30 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Basics
         </p>
-        <div className="grid grid-cols-[1fr_4.5rem] gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              className="border-border/80 bg-background"
-              placeholder="Build Gmail Manager Bot"
-              {...register('title')}
-            />
-            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="emoji">Emoji</Label>
-            <Input
-              id="emoji"
-              className="border-border/80 bg-background text-center text-lg"
-              placeholder="🤖"
-              {...register('emoji')}
-            />
-          </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="title">Title</Label>
+          <Input
+            id="title"
+            className="border-border/80 bg-background"
+            placeholder="Build Gmail Manager Bot"
+            {...register('title')}
+          />
+          {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
         </div>
+        <Controller
+          name="emoji"
+          control={control}
+          render={({ field }) => (
+            <MediaBadgeField
+              label="Catalog badge"
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={errors.emoji?.message}
+              helperText="Emoji, image URL, site path, or upload a PNG/JPEG/WebP/GIF (stored with the course)."
+            />
+          )}
+        />
       </section>
 
       <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
@@ -138,8 +143,8 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Placement
         </p>
-        <div className="grid gap-3 md:grid-cols-3">
-          <div className="space-y-1.5 md:col-span-1">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
             <Label htmlFor="category">Category</Label>
             <Select id="category" className="border-border/80 bg-background" {...register('category')}>
               <option value="">— pick one —</option>
@@ -165,16 +170,6 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
               className="border-border/80 bg-background"
               placeholder="2 hours"
               {...register('duration')}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="order">Order</Label>
-            <Input
-              id="order"
-              type="number"
-              min={0}
-              className="border-border/80 bg-background"
-              {...register('order')}
             />
           </div>
         </div>

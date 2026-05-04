@@ -7,6 +7,9 @@ import { AppError } from '../../utils/error-handler.js'
 const contactSchema = z.object({
   subject: z.string().min(1),
   message: z.string().min(1),
+  category: z
+    .enum(['general', 'bug', 'billing', 'content', 'feedback', 'other'])
+    .default('general'),
 })
 
 export async function submitContact(
@@ -22,6 +25,7 @@ export async function submitContact(
       user_id: userId,
       subject: body.subject,
       message: body.message,
+      category: body.category,
     })
 
     if (error) throw new AppError(500, error.message)

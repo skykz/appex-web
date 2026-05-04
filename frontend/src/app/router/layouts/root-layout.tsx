@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@shared/ui'
+import { useCurrentUser } from '@entities/user'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
 import { SupportChat } from '@/widgets/support-chat'
@@ -11,13 +12,15 @@ import { SupportChat } from '@/widgets/support-chat'
  * Suspense boundary handles lazy-loaded route components.
  */
 export function RootLayout() {
+  /** Loads `/users/me` into the auth store so the sidebar shows real name and email. */
+  useCurrentUser()
+
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset>
         {/* Mobile header with glassmorphism and animations */}
         <header className="lg:hidden sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b border-sidebar-border bg-background/95 backdrop-blur-sm px-4 supports-backdrop-filter:bg-background/80 transition-shadow duration-200">
-          {/* Sidebar trigger (mobile): lets users open the sidebar when it’s hidden. */}
           <div className="active:scale-95 transition-transform duration-100">
             <SidebarTrigger />
           </div>

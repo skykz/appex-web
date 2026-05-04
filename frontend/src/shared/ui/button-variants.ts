@@ -5,20 +5,21 @@ import { cva } from 'class-variance-authority'
  * Defines visual styles for different button types and sizes.
  */
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 tap-target',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold tracking-tight ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 tap-target',
   {
     variants: {
       variant: {
         default:
-          'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]',
+          'border border-primary/20 bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/[0.92] hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98]',
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+          'border border-destructive/20 bg-destructive text-destructive-foreground shadow-md shadow-destructive/20 hover:bg-destructive/92 hover:shadow-lg active:scale-[0.98]',
         outline:
-          'border border-input bg-background hover:bg-accent hover:text-accent-foreground active:scale-[0.98]',
+          'border-2 border-primary/35 bg-card text-foreground shadow-sm hover:border-primary/55 hover:bg-primary/[0.06] hover:text-foreground hover:shadow-md active:scale-[0.98]',
         secondary:
-          'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'border border-border/80 bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/75 hover:shadow active:scale-[0.98]',
+        ghost:
+          'font-medium text-foreground hover:bg-accent hover:text-accent-foreground',
+        link: 'font-medium text-primary underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-10 px-4 py-2',

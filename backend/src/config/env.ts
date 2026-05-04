@@ -9,6 +9,37 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   /** Optional extra comma-separated origins merged into CORS (e.g. admin SPA only: https://appex-web-admin.vercel.app). */
   CORS_ORIGINS_EXTRA: z.string().optional(),
+  /**
+   * Public origin of the learner SPA (no path). Used as Supabase `redirectTo` for password recovery emails.
+   * If unset, the server falls back to the request `Origin` header or localhost:5173.
+   */
+  APP_PUBLIC_URL: z.string().url().optional(),
+  /**
+   * Public origin of the admin SPA when it differs from the learner app; used for admin “forgot password” redirects.
+   */
+  ADMIN_APP_PUBLIC_URL: z.string().url().optional(),
+
+  /** OpenAI API key — powers ChatGPT, Nano Banana, and ChatGPT Image (DALL·E 3). */
+  OPENAI_API_KEY: z.string().optional(),
+  /** Chat completion model for `chatgpt` (default gpt-4o). */
+  OPENAI_CHAT_MODEL: z.string().optional(),
+  /** Fast / cheap OpenAI model for `nano-banana` (default gpt-4o-mini). */
+  OPENAI_FAST_MODEL: z.string().optional(),
+
+  /** Anthropic API key — powers Claude. */
+  ANTHROPIC_API_KEY: z.string().optional(),
+  /** Messages model for `claude` (default Claude 3.5 Sonnet). */
+  ANTHROPIC_MODEL: z.string().optional(),
+
+  /** DeepSeek API key — OpenAI-compatible chat at api.deepseek.com. */
+  DEEPSEEK_API_KEY: z.string().optional(),
+  /** Chat model id for DeepSeek (default deepseek-chat). */
+  DEEPSEEK_MODEL: z.string().optional(),
+
+  /** Perplexity API key — OpenAI-compatible chat at api.perplexity.ai. */
+  PERPLEXITY_API_KEY: z.string().optional(),
+  /** Perplexity model (default sonar). */
+  PERPLEXITY_MODEL: z.string().optional(),
 })
 
 const parsed = envSchema.parse(process.env)

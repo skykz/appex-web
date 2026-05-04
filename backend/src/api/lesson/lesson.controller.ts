@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../../types/index.js'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
 
 const progressSchema = z.object({
   stepIndex: z.number().int().min(0),
@@ -42,7 +43,7 @@ export async function getLesson(
       id: lesson.id,
       label: lesson.label,
       title: lesson.title,
-      steps: lesson.content,
+      steps: stripQuizAnswersFromSteps(lesson.content),
       progress: {
         stepIndex: progress?.step_index ?? 0,
         completed: progress?.completed ?? false,
@@ -185,4 +186,188 @@ async function recalculateSkillProgress(userId: string, skillId: number) {
     },
     { onConflict: 'user_id,skill_id' }
   )
+}
+
+const quizCheckSchema = z.object({
+  stepIndex: z.number().int().min(0),
+  blockIndex: z.number().int().min(0),
+  selectedIndices: z.array(z.number().int().min(0)).optional().default([]),
+  openAnswer: z.string().max(8000).optional(),
+})
+
+const submissionBodySchema = z.object({
+  message: z.string().min(1).max(8000),
+  attachmentUrl: z.string().url().or(z.string().startsWith('/')).optional(),
+})
+
+/**
+ * Validates a quiz answer against stored CMS content and logs the attempt (answers never ship to the client).
+ */
+export async function checkQuizAnswer(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userId } = req as AuthenticatedRequest
+    const lessonId = Number(req.params.id)
+    const body = quizCheckSchema.parse(req.body)
+
+    const { data: lesson, error } = await supabaseAdmin
+      .from('lessons')
+      .select('content')
+      .eq('id', lessonId)
+      .single()
+    if (error || !lesson) throw new AppError(404, 'Lesson not found')
+
+    const steps = lesson.content as Array<{ blocks?: unknown[] }>
+    const step = steps[body.stepIndex]
+    const block = step?.blocks?.[body.blockIndex]
+    if (!block || typeof block !== 'object' || !('type' in block)) {
+      throw new AppError(400, 'Invalid quiz location')
+    }
+    const t = (block as { type: string }).type
+    const rawMode =
+      t === 'quiz' ? (block as unknown as { mode?: string }).mode : undefined
+    const mode =
+      typeof rawMode === 'string'
+        ? rawMode
+        : t === 'quiz-single'
+          ? 'single'
+          : t === 'quiz-multi'
+            ? 'multi'
+            : null
+
+    if (mode !== 'single' && mode !== 'multi' && mode !== 'open') {
+      throw new AppError(400, 'Block is not a quiz')
+    }
+
+    let isCorrect = false
+    let explanation: string | undefined
+
+    if (mode === 'open') {
+      const b = block as unknown as { explanation?: string }
+      explanation = b.explanation
+      const text = (body.openAnswer ?? '').trim()
+      if (!text) throw new AppError(400, 'Please enter an answer')
+      isCorrect = true
+      await supabaseAdmin.from('lesson_quiz_attempts').insert({
+        user_id: userId,
+        lesson_id: lessonId,
+        step_index: body.stepIndex,
+        block_index: body.blockIndex,
+        selected_indices: [],
+        is_correct: isCorrect,
+        open_response: text,
+      })
+      res.json({
+        correct: isCorrect,
+        explanation: explanation ?? null,
+      })
+      return
+    }
+
+    if (mode === 'single') {
+      const b = block as unknown as {
+        correctIndex: number
+        explanation?: string
+      }
+      explanation = b.explanation
+      isCorrect =
+        body.selectedIndices.length === 1 && body.selectedIndices[0] === b.correctIndex
+    } else {
+      const b = block as unknown as {
+        correctIndices: number[]
+        explanation?: string
+      }
+      explanation = b.explanation
+      const want = new Set(b.correctIndices)
+      const got = new Set(body.selectedIndices)
+      isCorrect = want.size === got.size && [...want].every((x) => got.has(x))
+    }
+
+    await supabaseAdmin.from('lesson_quiz_attempts').insert({
+      user_id: userId,
+      lesson_id: lessonId,
+      step_index: body.stepIndex,
+      block_index: body.blockIndex,
+      selected_indices: body.selectedIndices,
+      is_correct: isCorrect,
+    })
+
+    res.json({
+      correct: isCorrect,
+      explanation: explanation ?? null,
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Saves optional homework text + attachment URL for a lesson (latest row wins for display).
+ */
+export async function submitLessonSubmission(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userId } = req as AuthenticatedRequest
+    const lessonId = Number(req.params.id)
+    const body = submissionBodySchema.parse(req.body)
+
+    const { data: lesson, error: le } = await supabaseAdmin
+      .from('lessons')
+      .select('id')
+      .eq('id', lessonId)
+      .maybeSingle()
+    if (le || !lesson) throw new AppError(404, 'Lesson not found')
+
+    const { data, error } = await supabaseAdmin
+      .from('lesson_submissions')
+      .insert({
+        user_id: userId,
+        lesson_id: lessonId,
+        message: body.message,
+        attachment_url: body.attachmentUrl ?? null,
+        status: 'submitted',
+        updated_at: new Date().toISOString(),
+      })
+      .select('id, created_at')
+      .single()
+
+    if (error) throw new AppError(500, error.message)
+    res.status(201).json(data)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Returns the learner's most recent submission for this lesson (feedback visibility).
+ */
+export async function getMyLessonSubmission(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { userId } = req as AuthenticatedRequest
+    const lessonId = Number(req.params.id)
+
+    const { data, error } = await supabaseAdmin
+      .from('lesson_submissions')
+      .select('id, message, attachment_url, status, admin_feedback, created_at')
+      .eq('user_id', userId)
+      .eq('lesson_id', lessonId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) throw new AppError(500, error.message)
+    res.json(data ?? null)
+  } catch (err) {
+    next(err)
+  }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button, Input, Label } from '@shared/ui'
 import { useLogin } from '@entities/user'
@@ -42,7 +43,7 @@ export function SigninForm() {
           autoComplete="email"
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? 'signin-email-error' : undefined}
-          className="rounded-xl"
+          className="h-12 rounded-xl"
           {...register('email')}
         />
         {errors.email && (
@@ -53,7 +54,15 @@ export function SigninForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="signin-password">Password</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="signin-password">Password</Label>
+          <Link
+            to="/auth/forgot-password"
+            className="text-primary text-xs font-semibold underline-offset-4 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        </div>
         <div className="relative">
           <Input
             id="signin-password"
@@ -62,7 +71,7 @@ export function SigninForm() {
             autoComplete="current-password"
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'signin-password-error' : undefined}
-            className="rounded-xl pr-10"
+            className="h-12 rounded-xl pr-10"
             {...register('password')}
           />
           <button
@@ -83,10 +92,10 @@ export function SigninForm() {
 
       <Button
         type="submit"
-        className="w-full rounded-xl"
+        className="h-12 w-full rounded-xl text-base font-semibold shadow-md"
         disabled={isPending}
       >
-        {isPending ? 'Signing in...' : 'Sign In'}
+        {isPending ? 'Signing in...' : 'Sign in'}
       </Button>
 
       {login.isError && (

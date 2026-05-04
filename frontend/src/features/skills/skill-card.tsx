@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom'
 import { cn } from '@shared/lib'
-import type { Skill } from './mock-data'
+import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import type { SkillCardModel } from './types'
 
 interface SkillCardProps {
-  skill: Skill
+  skill: SkillCardModel
 }
 
 export function SkillCard({ skill }: SkillCardProps) {
@@ -11,14 +12,20 @@ export function SkillCard({ skill }: SkillCardProps) {
     <Link
       to={`/skills/${skill.id}`}
       className={cn(
-        'flex flex-col overflow-hidden rounded-2xl border border-dashed border-border/60',
-        'bg-card text-left transition-all duration-200',
-        'hover:border-primary/40 hover:shadow-md active:scale-[0.98]'
+        'group flex flex-col overflow-hidden rounded-2xl border-2 border-border/70',
+        'bg-card text-left shadow-sm ring-1 ring-black/[0.04] transition-all duration-200',
+        'hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-lg hover:shadow-primary/10',
+        'active:scale-[0.99] dark:ring-white/[0.06]'
       )}
     >
       {/* Emoji icon area */}
-      <div className="relative flex h-40 items-center justify-center bg-muted/50">
-        <span className="text-6xl">{skill.emoji}</span>
+      <div className="relative flex h-40 items-center justify-center bg-gradient-to-b from-primary/[0.08] via-muted/40 to-muted/30">
+        <div className="transition-transform duration-200 group-hover:scale-105">
+          <EmojiOrImageBadge
+            value={skill.emoji}
+            frameClassName="h-28 w-28 text-6xl drop-shadow-sm"
+          />
+        </div>
 
         {/* Progress / Completed badge */}
         {skill.status === 'completed' ? (
@@ -33,9 +40,11 @@ export function SkillCard({ skill }: SkillCardProps) {
       </div>
 
       {/* Card body */}
-      <div className="flex flex-1 flex-col gap-1 p-4">
-        <h3 className="font-semibold leading-tight">{skill.title}</h3>
-        <p className="line-clamp-2 text-sm text-muted-foreground">
+      <div className="flex flex-1 flex-col gap-1.5 border-t border-border/50 bg-card p-4">
+        <h3 className="font-semibold leading-snug tracking-tight text-foreground">
+          {skill.title}
+        </h3>
+        <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
           {skill.description}
         </p>
       </div>

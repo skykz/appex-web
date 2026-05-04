@@ -2,14 +2,21 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from './guards/protected-route'
 import { AdminLayout } from '@app/layouts/admin-layout'
 import { LoginPage } from '@pages/login'
+import { ForgotPasswordPage } from '@pages/forgot-password'
+import { ResetPasswordPage } from '@pages/reset-password'
 import { DashboardPage } from '@pages/dashboard'
 import { CategoriesPage } from '@pages/categories'
 import { CoursesPage } from '@pages/courses'
 import { CourseDetailPage } from '@pages/courses/detail'
 import { UsersPage } from '@pages/users'
+import { SupportInboxPage } from '@pages/support'
+import { SubmissionsPage } from '@pages/submissions'
+import { BillingPage } from '@pages/billing'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/auth/reset-password', element: <ResetPasswordPage /> },
   {
     element: <ProtectedRoute />,
     children: [
@@ -22,6 +29,9 @@ export const router = createBrowserRouter([
           { path: '/courses', element: <CoursesPage /> },
           { path: '/courses/:id', element: <CourseDetailPage /> },
           { path: '/users', element: <UsersPage /> },
+          { path: '/billing', element: <BillingPage /> },
+          { path: '/support', element: <SupportInboxPage /> },
+          { path: '/submissions', element: <SubmissionsPage /> },
         ],
       },
     ],

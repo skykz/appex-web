@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseAdmin } from '../../db/supabase.js'
+import { env } from '../../config/env.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const loginSchema = z.object({
@@ -18,6 +19,41 @@ const signupSchema = z.object({
 const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 })
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+  /** Which SPA should receive the Supabase redirect (`/auth/reset-password`). */
+  intent: z.enum(['app', 'admin']).optional().default('app'),
+})
+
+const recoverPasswordSchema = z.object({
+  accessToken: z.string().min(20),
+  newPassword: z.string().min(8),
+})
+
+/**
+ * Builds the absolute URL Supabase will redirect to after the user clicks the email link (fragment carries tokens).
+ */
+function passwordResetRedirectUrl(req: Request, intent: 'app' | 'admin'): string {
+  const path = '/auth/reset-password'
+  const trim = (u: string) => u.replace(/\/+$/, '')
+
+  if (intent === 'admin' && env.ADMIN_APP_PUBLIC_URL?.trim()) {
+    return `${trim(env.ADMIN_APP_PUBLIC_URL)}${path}`
+  }
+  if (env.APP_PUBLIC_URL?.trim()) {
+    return `${trim(env.APP_PUBLIC_URL)}${path}`
+  }
+
+  const origin = req.get('origin')?.trim()
+  if (origin) {
+    return `${trim(origin)}${path}`
+  }
+
+  return intent === 'admin'
+    ? `http://localhost:5174${path}`
+    : `http://localhost:5173${path}`
+}
 
 /** Fetch the app user record (with `name`) from the users table. */
 async function fetchAppUser(userId: string) {
@@ -221,6 +257,70 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
       refreshToken: data.session.refresh_token,
       user: user ?? { id: data.user.id, email: data.user.email },
     })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Sends a Supabase password recovery email. Response is always neutral to avoid email enumeration.
+ */
+export async function forgotPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = forgotPasswordSchema.parse(req.body)
+    const redirectTo = passwordResetRedirectUrl(req, body.intent)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
+      redirectTo,
+    })
+
+    if (error) {
+      console.warn('resetPasswordForEmail:', error.message)
+    }
+
+    res.json({
+      ok: true,
+      message:
+        'If an account exists for that email, we sent a link to reset your password.',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Completes recovery using the access token from the email link (hash), then sets a new password.
+ */
+export async function recoverPassword(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = recoverPasswordSchema.parse(req.body)
+
+    const { data: userData, error: userErr } =
+      await supabaseAdmin.auth.getUser(body.accessToken)
+
+    if (userErr || !userData.user) {
+      throw new AppError(
+        401,
+        'Invalid or expired recovery link. Request a new reset email.'
+      )
+    }
+
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+      userData.user.id,
+      { password: body.newPassword }
+    )
+
+    if (updateErr) throw new AppError(400, updateErr.message)
+
+    res.json({ success: true })
   } catch (err) {
     next(err)
   }

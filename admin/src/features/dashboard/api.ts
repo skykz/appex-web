@@ -22,6 +22,7 @@ export interface DashboardStats {
     created_at: string
   }>
   recentLessonsCompleted: Array<{
+    user_id: string
     user_email: string
     lesson_title: string
     completed_at: string

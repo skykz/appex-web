@@ -1,51 +1,43 @@
 import type { Request, Response, NextFunction } from 'express'
+import {
+  lessonCreateSchema,
+  lessonEmoji,
+  lessonUpdateSchema,
+  migrateLegacyQuizShapes,
+} from '@appex/lesson-schema'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
-
-// Lesson block schema — matches the renderer in the user frontend.
-const lessonBlockSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('text'), content: z.string() }),
-  z.object({ type: z.literal('bold-text'), content: z.string() }),
-  z.object({ type: z.literal('heading'), content: z.string() }),
-  z.object({ type: z.literal('image'), src: z.string().url().or(z.string().startsWith('/')), alt: z.string().optional() }),
-  z.object({ type: z.literal('list'), items: z.array(z.string()).min(1) }),
-  z.object({ type: z.literal('user-message'), name: z.string(), text: z.string() }),
-  z.object({ type: z.literal('mentor-message'), text: z.string() }),
-])
-
-const lessonStepSchema = z.object({
-  blocks: z.array(lessonBlockSchema).min(1),
-})
+import {
+  assertCanDeleteCourse,
+  assertCanDeleteLesson,
+  assertCanDeleteModule,
+} from './content-deletion-policy.js'
 
 const courseCreateSchema = z.object({
   title: z.string().min(2).max(120),
   description: z.string().min(2).max(300),
   about: z.string().min(2),
-  emoji: z.string().min(1).max(8),
+  emoji: lessonEmoji,
   category: z.string().min(1),
   duration: z.string().min(1),
-  order: z.coerce.number().int().min(0).default(0),
+  order: z.coerce.number().int().min(0).optional(),
 })
 
 const courseUpdateSchema = courseCreateSchema.partial()
 
 const moduleCreateSchema = z.object({
   title: z.string().min(2).max(120),
-  order: z.coerce.number().int().min(0).default(0),
 })
 
-const moduleUpdateSchema = moduleCreateSchema.partial()
-
-const lessonCreateSchema = z.object({
-  label: z.string().min(1),
-  title: z.string().min(1),
-  emoji: z.string().min(1),
-  content: z.array(lessonStepSchema).min(1),
-  order: z.coerce.number().int().min(0).default(0),
+const moduleUpdateSchema = z.object({
+  title: z.string().min(2).max(120).optional(),
+  order: z.coerce.number().int().min(0).optional(),
 })
 
-const lessonUpdateSchema = lessonCreateSchema.partial()
+const reorderIdsSchema = z.object({
+  orderedIds: z.array(z.number().int()).min(1),
+})
 
 async function ensureCategoryExists(slug: string) {
   const { data, error } = await supabaseAdmin
@@ -167,9 +159,17 @@ export async function createCourse(
     const body = courseCreateSchema.parse(req.body)
     await ensureCategoryExists(body.category)
 
+    const { data: maxSkill } = await supabaseAdmin
+      .from('skills')
+      .select('order')
+      .order('order', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrder = (maxSkill?.order != null ? Number(maxSkill.order) : -1) + 1
+
     const { data, error } = await supabaseAdmin
       .from('skills')
-      .insert(body)
+      .insert({ ...body, order: nextOrder })
       .select('*')
       .single()
     if (error) throw new AppError(500, error.message)
@@ -210,6 +210,7 @@ export async function deleteCourse(
 ) {
   try {
     const id = intParam('id', req.params.id)
+    await assertCanDeleteCourse(id)
     const { error } = await supabaseAdmin.from('skills').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
     res.status(204).end()
@@ -238,9 +239,18 @@ export async function createModule(
     if (sErr) throw new AppError(500, sErr.message)
     if (!skill) throw new AppError(404, 'Course not found')
 
+    const { data: maxMod } = await supabaseAdmin
+      .from('modules')
+      .select('order')
+      .eq('skill_id', skillId)
+      .order('order', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrder = (maxMod?.order != null ? Number(maxMod.order) : -1) + 1
+
     const { data, error } = await supabaseAdmin
       .from('modules')
-      .insert({ ...body, skill_id: skillId })
+      .insert({ title: body.title, skill_id: skillId, order: nextOrder })
       .select('*')
       .single()
     if (error) throw new AppError(500, error.message)
@@ -279,6 +289,7 @@ export async function deleteModule(
 ) {
   try {
     const id = intParam('id', req.params.id)
+    await assertCanDeleteModule(id)
     const { error } = await supabaseAdmin.from('modules').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
     res.status(204).end()
@@ -296,7 +307,10 @@ export async function createLesson(
 ) {
   try {
     const moduleId = intParam('moduleId', req.params.moduleId)
-    const body = lessonCreateSchema.parse(req.body)
+    const body = lessonCreateSchema.parse({
+      ...req.body,
+      content: migrateLegacyQuizShapes(req.body?.content),
+    })
 
     const { data: mod, error: mErr } = await supabaseAdmin
       .from('modules')
@@ -306,9 +320,18 @@ export async function createLesson(
     if (mErr) throw new AppError(500, mErr.message)
     if (!mod) throw new AppError(404, 'Module not found')
 
+    const { data: maxLes } = await supabaseAdmin
+      .from('lessons')
+      .select('order')
+      .eq('module_id', moduleId)
+      .order('order', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    const nextOrder = (maxLes?.order != null ? Number(maxLes.order) : -1) + 1
+
     const { data, error } = await supabaseAdmin
       .from('lessons')
-      .insert({ ...body, module_id: moduleId })
+      .insert({ ...body, module_id: moduleId, order: nextOrder })
       .select('*')
       .single()
     if (error) throw new AppError(500, error.message)
@@ -325,7 +348,9 @@ export async function updateLesson(
 ) {
   try {
     const id = intParam('id', req.params.id)
-    const body = lessonUpdateSchema.parse(req.body)
+    const raw = { ...req.body }
+    if (raw.content != null) raw.content = migrateLegacyQuizShapes(raw.content)
+    const body = lessonUpdateSchema.parse(raw)
     const { data, error } = await supabaseAdmin
       .from('lessons')
       .update(body)
@@ -347,8 +372,71 @@ export async function deleteLesson(
 ) {
   try {
     const id = intParam('id', req.params.id)
+    await assertCanDeleteLesson(id)
     const { error } = await supabaseAdmin.from('lessons').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+// ---------- Reorder (dense order indices via RPC) ----------
+
+/**
+ * Sets `skills.order` from a full permutation of course ids (single DB transaction).
+ */
+export async function reorderCourses(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { orderedIds } = reorderIdsSchema.parse(req.body)
+    const { error } = await supabaseAdmin.rpc('admin_reorder_courses', {
+      p_course_ids: orderedIds,
+    })
+    if (error) throw new AppError(400, error.message)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Sets `modules.order` for one course from a full list of that course’s module ids.
+ */
+export async function reorderCourseModules(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const courseId = intParam('courseId', req.params.courseId)
+    const { orderedIds } = reorderIdsSchema.parse(req.body)
+    const { error } = await supabaseAdmin.rpc('admin_reorder_modules', {
+      p_skill_id: courseId,
+      p_module_ids: orderedIds,
+    })
+    if (error) throw new AppError(400, error.message)
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Sets `lessons.order` for one module from a full list of that module’s lesson ids.
+ */
+export async function reorderModuleLessons(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const moduleId = intParam('moduleId', req.params.moduleId)
+    const { orderedIds } = reorderIdsSchema.parse(req.body)
+    const { error } = await supabaseAdmin.rpc('admin_reorder_lessons', {
+      p_module_id: moduleId,
+      p_lesson_ids: orderedIds,
+    })
+    if (error) throw new AppError(400, error.message)
     res.status(204).end()
   } catch (err) {
     next(err)

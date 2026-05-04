@@ -32,4 +32,24 @@ export const userApi = {
   async refreshToken(refreshToken: string): Promise<AuthResponse> {
     return httpClient.post<AuthResponse>('/auth/refresh', { refreshToken })
   },
+
+  /**
+   * Triggers a Supabase recovery email; always succeeds with a generic message (no email enumeration).
+   */
+  async forgotPassword(email: string): Promise<{ ok: boolean; message: string }> {
+    return httpClient.post<{ ok: boolean; message: string }>(
+      '/auth/forgot-password',
+      { email, intent: 'app' }
+    )
+  },
+
+  /**
+   * Sets a new password using the access token from the recovery link (URL hash).
+   */
+  async recoverPassword(data: {
+    accessToken: string
+    newPassword: string
+  }): Promise<{ success: boolean }> {
+    return httpClient.post<{ success: boolean }>('/auth/recover-password', data)
+  },
 }

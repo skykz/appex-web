@@ -2,8 +2,11 @@ export { LessonViewer } from './lesson-viewer'
 export { LessonCompleteScreen } from './lesson-complete-screen'
 export { DayStreakScreen } from './day-streak-screen'
 export {
-  getLessonContent,
+  buildLessonContentFromApi,
   type LessonContent,
   type LessonStep,
   type LessonBlock,
-} from './mock-content'
+} from './lesson-types'
+export { lessonApi } from './api'
+export { buildCourseMapOutline } from './course-outline'
+export type { CourseMapOutline, CourseMapLessonRow } from './course-outline'

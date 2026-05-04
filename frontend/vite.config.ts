@@ -1,6 +1,87 @@
+import path from 'path'
+import type { ServerResponse } from 'http'
+import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+
+/** CSP for local dev / preview only — allows Vite HMR + React refresh inline scripts. */
+const DEV_CSP =
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws: wss: http: https: data:; img-src 'self' data: blob: https:; font-src 'self' data:;"
+
+const CSP_PATCHED = Symbol('viteDevCspPatched')
+
+/**
+ * Wraps `setHeader` / `appendHeader` / `writeHead` so any `Content-Security-Policy`
+ * (e.g. strict `script-src 'self' 'unsafe-eval'` from another layer) is replaced
+ * with DEV_CSP during `vite` and `vite preview`.
+ */
+function installDevCspHeaderPatch(res: ServerResponse): void {
+  const marked = res as ServerResponse & { [CSP_PATCHED]?: boolean }
+  if (marked[CSP_PATCHED]) return
+  marked[CSP_PATCHED] = true
+
+  const origSetHeader = res.setHeader.bind(res)
+  res.setHeader = (name, value) => {
+    if (String(name).toLowerCase() === 'content-security-policy') {
+      return origSetHeader('Content-Security-Policy', DEV_CSP)
+    }
+    return origSetHeader(name, value)
+  }
+
+  const origAppendHeader = res.appendHeader?.bind(res)
+  if (origAppendHeader) {
+    res.appendHeader = (name, value) => {
+      if (String(name).toLowerCase() === 'content-security-policy') {
+        return origSetHeader('Content-Security-Policy', DEV_CSP)
+      }
+      return origAppendHeader(name, value)
+    }
+  }
+
+  const origWriteHead = res.writeHead.bind(res)
+  res.writeHead = function writeHeadPatched(
+    this: ServerResponse,
+    ...args: unknown[]
+  ): ServerResponse {
+    const last = args[args.length - 1]
+    if (
+      last &&
+      typeof last === 'object' &&
+      !Array.isArray(last) &&
+      !(last instanceof Buffer)
+    ) {
+      const headers = last as Record<string, string | number | string[] | undefined>
+      for (const key of Object.keys(headers)) {
+        if (key.toLowerCase() === 'content-security-policy') {
+          delete headers[key]
+        }
+      }
+      headers['Content-Security-Policy'] = DEV_CSP
+    }
+    return origWriteHead.apply(this, args as Parameters<typeof origWriteHead>) as ServerResponse
+  }
+}
+
+/**
+ * Vite plugin: runs before the request is handled so every response can be patched.
+ */
+function devCspOverridePlugin(): Plugin {
+  return {
+    name: 'dev-csp-override',
+    /** `vite` and `vite preview` both use `command === 'serve'`. */
+    apply: (_, { command }) => command === 'serve',
+    configureServer(server) {
+      server.httpServer?.prependListener('request', (_req, res) => {
+        installDevCspHeaderPatch(res)
+      })
+    },
+    configurePreviewServer(server) {
+      server.httpServer?.prependListener('request', (_req, res) => {
+        installDevCspHeaderPatch(res)
+      })
+    },
+  }
+}
 
 /** Vite base URL (e.g. /app/ when the SPA lives at https://appex.kz/app/). Must end with /. */
 function viteBase(): string {
@@ -13,7 +94,12 @@ function viteBase(): string {
 // https://vite.dev/config/
 export default defineConfig({
   base: viteBase(),
-  plugins: [react()],
+  plugins: [
+    devCspOverridePlugin(),
+    react({
+      jsxRuntime: 'automatic',
+    }),
+  ],
   build: {
     /** Rollup warns above 500 kB; SPA is fine — raise slightly after splitting heavy vendors. */
     chunkSizeWarningLimit: 900,
@@ -53,7 +139,12 @@ export default defineConfig({
   },
   server: {
     headers: {
-      "Content-Security-Policy": "script-src 'self' 'unsafe-eval';"
-    }
-  }
+      'Content-Security-Policy': DEV_CSP,
+    },
+  },
+  preview: {
+    headers: {
+      'Content-Security-Policy': DEV_CSP,
+    },
+  },
 })

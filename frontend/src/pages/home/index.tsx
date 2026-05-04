@@ -1,224 +1,251 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Play,
-  Map,
-  Settings,
-  Satellite,
-  Check,
-  Lock,
-  ChevronRight,
-  Flame,
-} from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Play, Check, Lock, ChevronRight, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { ProgressCard } from '@shared/ui'
-import { StreakSheet } from '@features/streak'
+import { skillsApi, type SkillListItem } from '@features/skills'
+import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
 
 /**
- * Home page - personal plan dashboard with courses and progress.
- * Shows 4-week plan overview, progress tracking, and course modules.
+ * Picks the skill to highlight on the home “continue learning” rail.
+ */
+function pickFeaturedSkillId(skills: SkillListItem[]): number | null {
+  if (!skills.length) return null
+  const inProgress = skills.find((s) => s.status === 'in_progress')
+  if (inProgress) return inProgress.id
+  const next = skills.find((s) => s.status === 'not_started')
+  if (next) return next.id
+  return skills[0].id
+}
+
+/**
+ * Home dashboard — real progress, streak, and course data from the API.
  */
 export default function HomePage() {
-  const [streakOpen, setStreakOpen] = useState(false)
+  const { data: courses = [], isPending: coursesLoading } = useQuery({
+    queryKey: ['skills', 'all'],
+    queryFn: () => skillsApi.list('all'),
+  })
 
-  const mockCourses = [
-    { id: 33, title: 'Start Automation Journey', progress: 0 },
-    { id: 34, title: 'Launch Inventory Agent', progress: 0 },
-    { id: 35, title: 'Build Feedback Agent', progress: 0 },
-    { id: 36, title: 'Build Analytics Agent', progress: 0 },
-  ]
+  const featuredId = useMemo(() => pickFeaturedSkillId(courses), [courses])
 
-  const mockModules = [
-    {
-      id: 1,
-      title: 'Module 1: Understand the Game',
-      lessonCount: 7,
-      lessons: [
-        {
-          id: 526,
-          label: 'Lesson 1',
-          title: 'Why you are here',
-          completed: true,
-          icon: Map,
-          active: false,
-        },
-        {
-          id: 527,
-          label: 'Lesson 2',
-          title: 'Meet n8n',
-          completed: false,
-          icon: Settings,
-          active: true,
-        },
-        {
-          id: 528,
-          label: 'Lesson 3',
-          title: 'Learn how automations work',
-          completed: false,
-          icon: Satellite,
-          active: false,
-        },
-        {
-          id: 529,
-          label: 'Lesson 4',
-          title: 'Spot where automations help',
-          completed: false,
-          icon: Satellite,
-          active: false,
-        },
-      ],
-    },
-  ]
+  const { data: featuredCourse, isPending: detailLoading } = useQuery({
+    queryKey: ['skill', featuredId ?? 0],
+    queryFn: () => skillsApi.getDetail(featuredId!),
+    enabled: featuredId != null,
+  })
+
+  const planProgress = useMemo(() => {
+    if (!courses.length) return 0
+    const sum = courses.reduce((acc, s) => acc + s.progress, 0)
+    return Math.round(sum / courses.length)
+  }, [courses])
 
   return (
     <>
-      <div className="relative mx-auto min-h-dvh w-full max-w-2xl py-2">
-        <div className="px-4">
-          <div className="flex flex-col gap-6">
-            {/* Header */}
-            <div className="mb-2">
-              <div className="mb-1 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="bg-sidebar-accent text-sidebar-accent-foreground rounded-full px-3 py-1 text-xs font-medium">
+      <div className="relative isolate min-h-dvh w-full">
+        <div
+          className="pointer-events-none absolute inset-0 -z-10 opacity-90"
+          aria-hidden
+        >
+          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/[0.07] via-transparent to-transparent" />
+        </div>
+
+        <div className="relative mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,42rem)_minmax(19rem,22rem)] lg:items-start lg:justify-between lg:gap-x-12">
+            <div className="min-w-0 w-full max-w-2xl space-y-8 lg:max-w-[42rem] lg:justify-self-start">
+              <header className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-sidebar-accent text-sidebar-accent-foreground rounded-full px-3 py-1 text-xs font-semibold tracking-wide">
                     Personal plan
+                  </span>
+                  <span className="hidden items-center gap-1 rounded-full border border-primary/15 bg-primary/[0.04] px-2.5 py-0.5 text-xs font-medium text-primary sm:inline-flex">
+                    <Sparkles className="size-3" />
+                    Live data
                   </span>
                 </div>
 
-                {/* Fire / Streak button */}
-                <button
-                  type="button"
-                  onClick={() => setStreakOpen(true)}
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-full px-3 py-1',
-                    'text-sm font-semibold text-orange-700',
-                    'bg-linear-to-r from-orange-100 to-amber-100',
-                    'ring-1 ring-orange-200/80 shadow-sm',
-                    'transition-all duration-200',
-                    'hover:shadow-md hover:ring-orange-300/80 hover:scale-105',
-                    'active:scale-95'
-                  )}
-                  aria-label="View streak progress"
-                >
-                  <span className="tabular-nums">1</span>
-                  <Flame className="size-4 fill-orange-500 text-orange-500" />
-                </button>
-              </div>
-              <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-                AI Bots and Automation
-                <ChevronRight className="text-muted-foreground size-6" />
-              </h1>
-            </div>
-
-            {/* Progress Card - Animated progress indicator */}
-            <ProgressCard progress={26} />
-
-            {/* Courses Section - Horizontal Scroll */}
-            <div>
-              <h2 className="mb-3 text-lg font-semibold">Courses</h2>
-              <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-4">
-                {mockCourses.map((course) => (
-                  <Link
-                    key={course.id}
-                    to={`/academy/courses/${course.id}`}
-                    className="bg-card hover:border-primary/50 relative flex min-w-[200px] flex-col justify-between rounded-xl border p-4 shadow-sm transition-all"
-                  >
-                    <div className="mb-4">
-                      <h3 className="line-clamp-2 font-medium leading-tight">
-                        {course.title}
-                      </h3>
-                    </div>
-                    <div className="flex items-end justify-between">
-                      {course.progress > 0 ? (
-                        <span className="text-muted-foreground text-xs">
-                          {course.progress}%
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">
-                          Start
-                        </span>
-                      )}
-                      <div className="bg-primary/10 flex size-8 items-center justify-center rounded-full">
-                        <Play className="text-primary size-4 fill-current" />
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Modules Section */}
-            {mockModules.map((module) => (
-              <div key={module.id} className="pb-20">
-                <div className="mb-5">
-                  <h2 className="text-lg font-semibold">{module.title}</h2>
-                  <p className="text-muted-foreground text-sm">
-                    {module.lessonCount} lessons
+                <div>
+                  <h1 className="flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight">
+                    Learn AI & automation
+                    <ChevronRight className="text-muted-foreground size-7 shrink-0" />
+                  </h1>
+                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                    Continue structured courses, track streaks, and open the AI
+                    chat when you need a hand.
                   </p>
                 </div>
-                <div className="flex flex-col gap-3">
-                  {module.lessons.map((lesson) => {
-                    const Icon = lesson.icon
-                    return (
+              </header>
+
+              <section>
+                <div className="mb-3 flex items-end justify-between gap-2">
+                  <h2 className="text-lg font-semibold">Your courses</h2>
+                  <Link
+                    to="/skills"
+                    className="text-primary text-sm font-medium hover:underline"
+                  >
+                    Browse all
+                  </Link>
+                </div>
+                {coursesLoading ? (
+                  <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-36 min-w-[200px] shrink-0 animate-pulse rounded-2xl bg-muted/50"
+                      />
+                    ))}
+                  </div>
+                ) : courses.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No courses yet. Ask your admin to publish skills in the
+                      console.
+                    </p>
+                    <Link
+                      to="/skills"
+                      className="text-primary mt-3 inline-block text-sm font-semibold"
+                    >
+                      Open skills
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
+                    {courses.map((course) => (
                       <Link
-                        key={lesson.id}
-                        to={`/academy/courses/33/lessons/${lesson.id}`}
+                        key={course.id}
+                        to={`/academy/courses/${course.id}`}
                         className={cn(
-                          'flex items-center justify-between rounded-2xl p-4 transition-all duration-200',
-                          lesson.active
-                            ? 'bg-primary/5 border-2 border-primary/30 animate-[pulse-border_2.5s_ease-in-out_infinite] motion-reduce:animate-none'
-                            : 'bg-muted/50 border border-transparent hover:bg-muted/80'
+                          'relative flex min-w-[220px] max-w-[260px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-4 shadow-sm transition-all',
+                          'hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md'
                         )}
                       >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={cn(
-                              'flex size-12 shrink-0 items-center justify-center rounded-2xl',
-                              lesson.active
-                                ? 'bg-primary text-primary-foreground'
-                                : lesson.completed
-                                  ? 'bg-primary/10 text-primary'
-                                  : 'bg-muted text-muted-foreground'
-                            )}
-                          >
-                            <Icon className="size-5" />
-                          </div>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-medium text-muted-foreground">
-                              {lesson.label}
-                            </span>
-                            <span
-                              className={cn(
-                                'text-sm font-semibold',
-                                lesson.active || lesson.completed
-                                  ? 'text-foreground'
-                                  : 'text-muted-foreground'
-                              )}
-                            >
-                              {lesson.title}
-                            </span>
-                          </div>
+                        <div className="mb-3 flex items-start gap-3">
+                          <EmojiOrImageBadge value={course.emoji} frameClassName="h-10 w-10 text-3xl" />
+                          <h3 className="line-clamp-3 text-left text-sm font-semibold leading-snug">
+                            {course.title}
+                          </h3>
                         </div>
-                        <div className="shrink-0">
-                          {lesson.completed ? (
-                            <div className="flex size-7 items-center justify-center rounded-full border-2 border-green-500 text-green-500">
-                              <Check className="size-4 stroke-[2.5]" />
-                            </div>
-                          ) : !lesson.active ? (
-                            <Lock className="text-muted-foreground/25 size-5" />
-                          ) : null}
+                        <div className="flex items-end justify-between gap-2 border-t border-border/60 pt-3">
+                          <span className="text-muted-foreground text-xs font-medium">
+                            {course.progress > 0
+                              ? `${course.progress}%`
+                              : course.status === 'completed'
+                                ? 'Done'
+                                : 'Start'}
+                          </span>
+                          <div className="bg-primary/12 flex size-9 items-center justify-center rounded-full">
+                            <Play className="text-primary size-4 fill-current" />
+                          </div>
                         </div>
                       </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {featuredId != null && (
+                <section className="pb-12 lg:pb-24">
+                  {detailLoading || !featuredCourse ? (
+                    <div className="space-y-4 animate-pulse">
+                      <div className="h-6 w-48 rounded bg-muted" />
+                      <div className="h-24 rounded-2xl bg-muted/60" />
+                      <div className="h-24 rounded-2xl bg-muted/60" />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-4">
+                        <h2 className="text-lg font-semibold">
+                          Pick up where you left off
+                        </h2>
+                        <p className="text-muted-foreground text-sm">
+                          {featuredCourse.title}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-3">
+                        {(() => {
+                          const orderedLessons =
+                            featuredCourse.modules.flatMap((m) => m.lessons)
+                          const nextLessonId = orderedLessons.find(
+                            (l) => !l.locked && !(l.completed ?? false)
+                          )?.id
+                          return orderedLessons.map((lesson) => {
+                            const done = Boolean(lesson.completed)
+                            const active =
+                              !lesson.locked &&
+                              !done &&
+                              lesson.id === nextLessonId
+
+                            return (
+                              <Link
+                                key={lesson.id}
+                                to={`/academy/courses/${featuredCourse.id}/lessons/${lesson.id}`}
+                                className={cn(
+                                  'flex items-center justify-between rounded-2xl p-4 transition-all duration-200',
+                                  active
+                                    ? 'border-2 border-primary/35 bg-primary/[0.04] shadow-sm'
+                                    : lesson.locked
+                                      ? 'pointer-events-none border border-transparent bg-muted/30 opacity-60'
+                                      : 'border border-transparent bg-muted/40 hover:bg-muted/70'
+                                )}
+                              >
+                                <div className="flex min-w-0 items-center gap-4">
+                                  <EmojiOrImageBadge
+                                    value={lesson.emoji}
+                                    frameClassName={cn(
+                                      'size-12 shrink-0 rounded-2xl text-xl',
+                                      active
+                                        ? 'bg-primary text-primary-foreground shadow-inner'
+                                        : done
+                                          ? 'bg-primary/12 text-primary'
+                                          : 'bg-background text-muted-foreground shadow-sm'
+                                    )}
+                                  />
+                                  <div className="min-w-0 flex flex-col gap-0.5">
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      {lesson.label}
+                                    </span>
+                                    <span
+                                      className={cn(
+                                        'truncate text-sm font-semibold',
+                                        active || done
+                                          ? 'text-foreground'
+                                          : 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {lesson.title}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="shrink-0">
+                                  {done ? (
+                                    <div className="flex size-7 items-center justify-center rounded-full border-2 border-green-500 text-green-600">
+                                      <Check className="size-4 stroke-[2.5]" />
+                                    </div>
+                                  ) : lesson.locked ? (
+                                    <Lock className="text-muted-foreground/30 size-5" />
+                                  ) : null}
+                                </div>
+                              </Link>
+                            )
+                          })
+                        })()}
+                      </div>
+                    </>
+                  )}
+                </section>
+              )}
+            </div>
+
+            <aside className="flex w-full max-w-md shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:w-full lg:max-w-none lg:justify-self-end lg:self-start">
+              <ProgressCard progress={planProgress} />
+              <HomeStreakPromoSection />
+            </aside>
           </div>
         </div>
       </div>
-
-      {/* Streak Sheet */}
-      <StreakSheet open={streakOpen} onOpenChange={setStreakOpen} />
     </>
   )
 }

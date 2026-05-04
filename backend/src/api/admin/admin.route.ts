@@ -21,8 +21,21 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
+  reorderCourses,
+  reorderCourseModules,
+  reorderModuleLessons,
 } from './courses.controller.js'
 import { listAdminUsers } from './users.controller.js'
+import { listContactMessages, patchContactMessage } from './contact-inbox.controller.js'
+import {
+  listLessonSubmissions,
+  patchLessonSubmission,
+} from './submissions.controller.js'
+import {
+  listAdminSubscriptions,
+  listAdminBillingHistory,
+} from './billing.controller.js'
+import { getLessonEngagement } from './lesson-engagement.controller.js'
 
 const router = Router()
 
@@ -40,19 +53,32 @@ router.patch('/categories/:id', ...guard, updateCategory)
 router.delete('/categories/:id', ...guard, deleteCategory)
 
 router.get('/courses', ...guard, listCourses)
+router.patch('/courses/order', ...guard, reorderCourses)
 router.get('/courses/:id', ...guard, getCourseDetail)
 router.post('/courses', ...guard, createCourse)
 router.patch('/courses/:id', ...guard, updateCourse)
 router.delete('/courses/:id', ...guard, deleteCourse)
 
 router.post('/courses/:courseId/modules', ...guard, createModule)
+router.patch('/courses/:courseId/modules/reorder', ...guard, reorderCourseModules)
 router.patch('/modules/:id', ...guard, updateModule)
 router.delete('/modules/:id', ...guard, deleteModule)
 
+router.patch('/modules/:moduleId/lessons/reorder', ...guard, reorderModuleLessons)
 router.post('/modules/:moduleId/lessons', ...guard, createLesson)
 router.patch('/lessons/:id', ...guard, updateLesson)
 router.delete('/lessons/:id', ...guard, deleteLesson)
+router.get('/lessons/:id/engagement', ...guard, getLessonEngagement)
 
 router.get('/users', ...guard, listAdminUsers)
+
+router.get('/subscriptions', ...guard, listAdminSubscriptions)
+router.get('/billing-history', ...guard, listAdminBillingHistory)
+
+router.get('/contact-messages', ...guard, listContactMessages)
+router.patch('/contact-messages/:id', ...guard, patchContactMessage)
+
+router.get('/lesson-submissions', ...guard, listLessonSubmissions)
+router.patch('/lesson-submissions/:id', ...guard, patchLessonSubmission)
 
 export default router

@@ -1,7 +1,22 @@
+import { useEffect } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderTree, BookOpen, Users, LogOut, Zap } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import {
+  LayoutDashboard,
+  FolderTree,
+  BookOpen,
+  Users,
+  LogOut,
+  Zap,
+  Inbox,
+  Upload,
+  CreditCard,
+} from 'lucide-react'
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
+import { CommandPalette } from '@features/command-palette/command-palette'
+import { setSessionExpiredHandler } from '@shared/session/session-expired'
 import { Button } from '@shared/ui/button'
 
 const nav = [
@@ -9,6 +24,9 @@ const nav = [
   { to: '/categories', label: 'Categories', icon: FolderTree },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/users', label: 'Users', icon: Users },
+  { to: '/billing', label: 'Billing', icon: CreditCard },
+  { to: '/support', label: 'Inbox', icon: Inbox },
+  { to: '/submissions', label: 'Submissions', icon: Upload },
 ]
 
 /** Shell with sidebar navigation, session footer, and a centered main column for admin routes. */
@@ -16,6 +34,21 @@ export function AdminLayout() {
   const user = useAdminAuthStore((s) => s.user)
   const logout = useAdminAuthStore((s) => s.logout)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  /**
+   * Registers global 401 handling: clears persisted auth, drops React Query cache, and sends the operator to login with return path.
+   */
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      logout()
+      queryClient.clear()
+      const from = `${window.location.pathname}${window.location.search}`
+      navigate('/login?session=expired', { replace: true, state: { from } })
+      toast.info('Session expired. Please sign in again.')
+    })
+    return () => setSessionExpiredHandler(null)
+  }, [logout, navigate, queryClient])
 
   /** Clears admin session and returns the operator to the login screen. */
   function handleLogout() {
@@ -27,6 +60,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen">
+      <CommandPalette />
       <aside className="admin-sidebar-surface flex w-64 shrink-0 flex-col border-r shadow-[4px_0_28px_-14px_rgba(15,23,42,0.1)]">
         <div className="flex h-[4.25rem] items-center border-b border-[hsl(var(--sidebar-border))] px-5">
           <div className="flex items-center gap-3">

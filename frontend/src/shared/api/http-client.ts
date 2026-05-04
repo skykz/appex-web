@@ -1,6 +1,51 @@
+import { useAuthStore } from '@entities/user/model/auth-store'
+import type { AuthResponse } from '@entities/user/model/types'
 import { config } from '@shared/config'
 
 const TOKEN_KEY = 'appex_access_token'
+const REFRESH_TOKEN_KEY = 'appex_refresh_token'
+
+/** Single-flight refresh so parallel 401s do not race multiple `/auth/refresh` calls. */
+let refreshInFlight: Promise<boolean> | null = null
+
+/**
+ * Exchanges a stored refresh token for new access/refresh tokens and updates localStorage + auth store.
+ * @returns true when a new access token is available; false if refresh is impossible or failed.
+ */
+async function tryRefreshSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight
+
+  refreshInFlight = (async () => {
+    try {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+      if (!refreshToken) return false
+
+      const url = `${config.apiUrl}/auth/refresh`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!response.ok) return false
+
+      const data = (await response.json()) as AuthResponse
+      localStorage.setItem(TOKEN_KEY, data.accessToken)
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken)
+      useAuthStore.getState().setAuth(
+        data.user,
+        data.accessToken,
+        data.refreshToken
+      )
+      return true
+    } catch {
+      return false
+    } finally {
+      refreshInFlight = null
+    }
+  })()
+
+  return refreshInFlight
+}
 
 /**
  * Custom error class for API-related errors.
@@ -108,19 +153,33 @@ export const httpClient = {
   async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${config.apiUrl}${endpoint}`
 
-    const token = localStorage.getItem(TOKEN_KEY)
-
-    const headers = new Headers(options.headers)
-    headers.set('Content-Type', 'application/json')
-
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`)
+    function buildHeaders(): Headers {
+      const headers = new Headers(options.headers)
+      headers.set('Content-Type', 'application/json')
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`)
+      }
+      return headers
     }
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       ...options,
-      headers,
+      headers: buildHeaders(),
     })
+
+    if (
+      response.status === 401 &&
+      localStorage.getItem(REFRESH_TOKEN_KEY)
+    ) {
+      const refreshed = await tryRefreshSession()
+      if (refreshed) {
+        response = await fetch(url, {
+          ...options,
+          headers: buildHeaders(),
+        })
+      }
+    }
 
     if (!response.ok) {
       const raw = await response.text().catch(() => 'Request failed')

@@ -1,39 +1,122 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { LessonViewer, getLessonContent } from '@/widgets/lesson-viewer'
-import { lessonApi } from '@/widgets/lesson-viewer/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  LessonViewer,
+  buildLessonContentFromApi,
+  lessonApi,
+} from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
-import { mockSkills } from '@features/skills'
 
+/**
+ * Full-screen skill lesson player: loads CMS content and syncs step progress to the API.
+ */
 export default function SkillLessonPage() {
   const { skillId, lessonId } = useParams<{
     skillId: string
     lessonId: string
   }>()
   const navigate = useNavigate()
-
+  const queryClient = useQueryClient()
   const numericLessonId = Number(lessonId)
-  const content = getLessonContent(numericLessonId)
-  const skill = mockSkills.find((s) => s.id === Number(skillId))
-  const lesson = skill?.modules
-    .flatMap((m) => m.lessons)
-    .find((l) => l.id === numericLessonId)
 
-  async function handleFinish() {
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: ['lesson', numericLessonId],
+    queryFn: () => lessonApi.get(numericLessonId),
+    enabled: Number.isFinite(numericLessonId),
+  })
+
+  const content = data
+    ? buildLessonContentFromApi(data.id, data.steps)
+    : null
+
+  /**
+   * Persists the current step index so the learner can resume later.
+   */
+  async function persistStep(stepIndex: number) {
+    if (!Number.isFinite(numericLessonId)) return
     try {
-      await lessonApi.complete(numericLessonId)
-      await streakApi.checkIn()
+      await lessonApi.updateProgress(numericLessonId, stepIndex)
     } catch {
-      // API not available — continue silently
+      /* network — local navigation still works */
     }
+  }
+
+  /**
+   * Marks lesson complete and checks streak; streak UI only on first check-in of the UTC day.
+   */
+  async function onAfterFeedbackCommit() {
+    if (!Number.isFinite(numericLessonId)) {
+      return { showDayStreak: false }
+    }
+    await lessonApi.complete(numericLessonId)
+    const streak = await streakApi.checkIn()
+    void queryClient.invalidateQueries({ queryKey: ['streak'] })
+    return { showDayStreak: streak.firstCheckInToday === true }
+  }
+
+  /**
+   * Leaves the lesson flow: navigate first, then refresh caches in the background (avoids long waits / connection resets).
+   */
+  function handleFinish() {
     navigate(`/skills/${skillId}`)
+    void queryClient.invalidateQueries({ queryKey: ['skills'] })
+    void queryClient.invalidateQueries({ queryKey: ['skill', Number(skillId)] })
+    void queryClient.invalidateQueries({ queryKey: ['lesson', numericLessonId] })
+    void queryClient.invalidateQueries({ queryKey: ['streak'] })
+  }
+
+  if (!Number.isFinite(numericLessonId) || !skillId) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center px-4">
+        <p className="text-muted-foreground text-sm">Invalid lesson link</p>
+      </div>
+    )
+  }
+
+  if (isPending || !content) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background">
+        <div className="size-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-muted-foreground text-sm">Loading lesson…</p>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <p className="text-muted-foreground text-sm">
+          This lesson could not be loaded.
+        </p>
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="rounded-full border px-4 py-2 text-sm font-semibold hover:bg-muted"
+        >
+          Retry
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate(`/skills/${skillId}`)}
+          className="text-primary text-sm font-medium"
+        >
+          Back to course
+        </button>
+      </div>
+    )
   }
 
   return (
-    <LessonViewer
-      content={content}
-      lessonLabel={lesson?.label ?? 'Lesson'}
-      onClose={() => navigate(`/skills/${skillId}`)}
-      onFinish={handleFinish}
-    />
+    <div className="flex min-h-dvh flex-1 flex-col">
+      <LessonViewer
+        content={content}
+        lessonLabel={data.label}
+        initialStepIndex={data.progress.stepIndex}
+        onStepChange={persistStep}
+        onClose={() => navigate(`/skills/${skillId}`)}
+        onFinish={handleFinish}
+        onAfterFeedbackCommit={onAfterFeedbackCommit}
+      />
+    </div>
   )
 }

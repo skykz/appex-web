@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import {
+  ArrowLeft,
+  Building2,
+  ImageIcon,
+  Mountain,
+  Palette,
+  Sparkles,
+  Theater,
+} from 'lucide-react'
 import { cn } from '@shared/lib'
 import {
   Button,
@@ -8,10 +17,15 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@shared/ui'
-import { onboardingSteps, aiModels, actionChips } from './mock-data'
+import { onboardingSteps, actionChips } from './constants'
+import { chatApi } from './api'
+import { AIModelIcon } from './model-icons'
 
 const STORAGE_KEY = 'ai_tools_onboarding_seen'
 
+/**
+ * First-run onboarding carousel for the AI tools section (static copy + live model list).
+ */
 export function AIToolsOnboardingDialog() {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(0)
@@ -42,7 +56,6 @@ export function AIToolsOnboardingDialog() {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
       <DialogContent className="max-w-sm overflow-hidden p-0" hideClose>
-        {/* Header */}
         <div className="flex items-center gap-3 border-b px-4 py-3">
           {!isFirst && (
             <Button
@@ -67,7 +80,6 @@ export function AIToolsOnboardingDialog() {
           </Button>
         </div>
 
-        {/* Body */}
         <div className="flex flex-col items-center px-5 pb-5 pt-4 text-center">
           <DialogTitle className="text-lg font-bold">
             {current.title}
@@ -76,12 +88,10 @@ export function AIToolsOnboardingDialog() {
             {current.description}
           </DialogDescription>
 
-          {/* Step preview */}
           <div className="mt-4 w-full rounded-xl bg-primary/5 p-4">
             <StepPreview step={step} />
           </div>
 
-          {/* Dots */}
           <div className="mt-4 flex gap-1.5">
             {onboardingSteps.map((_, i) => (
               <div
@@ -94,12 +104,7 @@ export function AIToolsOnboardingDialog() {
             ))}
           </div>
 
-          {/* CTA */}
-          <Button
-            onClick={handleNext}
-            size="xl"
-            className="mt-4 w-full"
-          >
+          <Button onClick={handleNext} size="xl" className="mt-4 w-full">
             {isFirst ? 'Try AI tools' : isLast ? 'Get started' : 'Continue'}
           </Button>
         </div>
@@ -109,15 +114,22 @@ export function AIToolsOnboardingDialog() {
 }
 
 function StepPreview({ step }: { step: number }) {
+  const { data: models = [] } = useQuery({
+    queryKey: ['chat-models'],
+    queryFn: () => chatApi.getModels(),
+    staleTime: 5 * 60_000,
+  })
+
   if (step === 0) {
+    const rows = models.length ? models.slice(0, 6) : [{ id: 'chatgpt', name: 'ChatGPT' }]
     return (
-      <div className="flex flex-col gap-1.5">
-        {aiModels.map((m) => (
+      <div className="flex max-h-48 flex-col gap-1.5 overflow-y-auto pr-1">
+        {rows.map((m) => (
           <div
             key={m.id}
             className="flex items-center gap-2 rounded-lg bg-background/60 px-3 py-1.5 text-sm"
           >
-            <span>{m.icon}</span>
+            <AIModelIcon modelId={m.id} />
             <span className="font-medium">{m.name}</span>
           </div>
         ))}
@@ -150,28 +162,31 @@ function StepPreview({ step }: { step: number }) {
   }
 
   if (step === 2) {
+    const tiles = [ImageIcon, Mountain, Building2, Palette, Theater, Sparkles]
     return (
       <div className="grid grid-cols-3 gap-2">
-        {['🎨', '🌄', '🏙️', '🌸', '🎭', '🖌️'].map((emoji, i) => (
+        {tiles.map((Tile, i) => (
           <div
             key={i}
-            className="flex aspect-square items-center justify-center rounded-lg bg-background/60 text-2xl"
+            className="flex aspect-square items-center justify-center rounded-lg border border-border/60 bg-background/80 text-muted-foreground"
           >
-            {emoji}
+            <Tile className="size-6" aria-hidden />
           </div>
         ))}
       </div>
     )
   }
 
+  const first = models[0] ?? { id: 'chatgpt', name: 'ChatGPT' }
+
   return (
     <div className="flex flex-col items-center gap-3">
       <p className="text-sm font-semibold">How can I help you?</p>
-      <div className="flex w-full items-center gap-2 rounded-xl bg-background/60 px-3 py-2">
+      <div className="flex w-full items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-2">
         <span className="flex-1 text-left text-xs text-muted-foreground">
           Ask anything...
         </span>
-        <span className="text-xs">{aiModels[0].icon}</span>
+        <AIModelIcon modelId={first.id} className="size-3.5" />
       </div>
       <div className="flex flex-wrap justify-center gap-1.5">
         {actionChips.slice(0, 4).map((c) => (

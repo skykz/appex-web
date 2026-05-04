@@ -3,7 +3,11 @@ import type { AuthenticatedRequest } from '../../types/index.js'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
-import { getAIResponse, AVAILABLE_MODELS } from '../../services/ai.service.js'
+import {
+  getAIResponse,
+  getAvailableModelsForClient,
+  type ChatTurn,
+} from '../../services/ai.service.js'
 import { deductCredit, getBalance } from '../../services/credit.service.js'
 
 const sendMessageSchema = z.object({
@@ -17,7 +21,7 @@ export async function getModels(
   res: Response,
   _next: NextFunction
 ) {
-  res.json(AVAILABLE_MODELS)
+  res.json(getAvailableModelsForClient())
 }
 
 export async function sendMessage(
@@ -69,8 +73,23 @@ export async function sendMessage(
 
     if (userMsgError) throw new AppError(500, userMsgError.message)
 
-    // Get AI response
-    const aiContent = await getAIResponse(body.modelId, body.content)
+    const { data: transcriptRows, error: transcriptError } = await supabaseAdmin
+      .from('chat_messages')
+      .select('role, content')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: true })
+
+    if (transcriptError) throw new AppError(500, transcriptError.message)
+
+    const conversation: ChatTurn[] = (transcriptRows ?? [])
+      .filter(
+        (r): r is { role: 'user' | 'assistant'; content: string } =>
+          r.role === 'user' || r.role === 'assistant'
+      )
+      .map((r) => ({ role: r.role, content: r.content }))
+
+    // Get AI response (full transcript for multi-turn context)
+    const aiContent = await getAIResponse(body.modelId, conversation)
 
     // Deduct credit AFTER successful AI response
     const creditsRemaining = await deductCredit(userId)

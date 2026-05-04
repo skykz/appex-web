@@ -33,6 +33,7 @@ export const settingsApi = {
   async submitContact(data: {
     subject: string
     message: string
+    category?: 'general' | 'bug' | 'billing' | 'content' | 'feedback' | 'other'
   }): Promise<{ success: boolean }> {
     return httpClient.post('/contact', data)
   },

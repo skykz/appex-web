@@ -1,11 +1,21 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import {
+  ArrowLeft,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  BarChart3,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { coursesApi, type Lesson, type Module } from '@features/courses/api'
 import { ModuleForm } from '@features/courses/module-form'
 import { LessonEditor } from '@features/courses/lesson-editor'
+import { LessonEngagementDialog } from '@features/courses/lesson-engagement-dialog'
 import { Button } from '@shared/ui/button'
 import { Card, CardContent } from '@shared/ui/card'
 import { Skeleton } from '@shared/ui/skeleton'
@@ -16,7 +26,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@shared/ui/dialog'
+import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
+import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { ApiError } from '@shared/api/http-client'
+import { swapAdjacentEntityIds } from '@shared/lib/reorder-payloads'
+
+type CourseBuilderDeleteTarget =
+  | { kind: 'module'; id: number; title: string }
+  | { kind: 'lesson'; id: number; title: string }
 
 /**
  * Course builder: lists modules and lessons, and hosts dialogs for module and lesson editors.
@@ -39,26 +56,87 @@ export function CourseDetailPage() {
     moduleId: number
     lesson?: Lesson
   } | null>(null)
+  const [engagementLesson, setEngagementLesson] = useState<Lesson | null>(null)
+  const [conflictBanner, setConflictBanner] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CourseBuilderDeleteTarget | null>(null)
 
   const removeModule = useMutation({
     mutationFn: (mid: number) => coursesApi.removeModule(mid),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+      setConflictBanner(null)
       toast.success('Module deleted')
     },
-    onError: (err: unknown) =>
-      toast.error(err instanceof ApiError ? err.message : 'Failed'),
+    onError: (err: unknown) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflictBanner(err.message)
+        return
+      }
+      toast.error(err instanceof ApiError ? err.message : 'Failed')
+    },
   })
 
   const removeLesson = useMutation({
     mutationFn: (lid: number) => coursesApi.removeLesson(lid),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+      setConflictBanner(null)
       toast.success('Lesson deleted')
     },
-    onError: (err: unknown) =>
-      toast.error(err instanceof ApiError ? err.message : 'Failed'),
+    onError: (err: unknown) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflictBanner(err.message)
+        return
+      }
+      toast.error(err instanceof ApiError ? err.message : 'Failed')
+    },
   })
+
+  const reorderModulesMutation = useMutation({
+    mutationFn: (orderedIds: number[]) => coursesApi.reorderModules(courseId, orderedIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+      qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+      toast.success('Module order saved')
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof ApiError ? err.message : 'Could not reorder modules'),
+  })
+
+  const reorderLessonsMutation = useMutation({
+    mutationFn: (args: { moduleId: number; orderedIds: number[] }) =>
+      coursesApi.reorderLessons(args.moduleId, args.orderedIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+      toast.success('Lesson order saved')
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof ApiError ? err.message : 'Could not reorder lessons'),
+  })
+
+  const reorderBusy = reorderModulesMutation.isPending || reorderLessonsMutation.isPending
+
+  /**
+   * Moves a module up or down and persists the full ordered id list (dense indices on the server).
+   */
+  function moveModule(moduleIndex: number, direction: -1 | 1) {
+    if (!data) return
+    const next = swapAdjacentEntityIds(data.modules, moduleIndex, direction)
+    if (next) reorderModulesMutation.mutate(next)
+  }
+
+  /**
+   * Moves a lesson within its module; order must include every lesson id in that module.
+   */
+  function moveLesson(
+    moduleId: number,
+    lessonIndex: number,
+    direction: -1 | 1,
+    lessons: Lesson[]
+  ) {
+    const next = swapAdjacentEntityIds(lessons, lessonIndex, direction)
+    if (next) reorderLessonsMutation.mutate({ moduleId, orderedIds: next })
+  }
 
   if (!Number.isFinite(courseId)) {
     return (
@@ -88,6 +166,24 @@ export function CourseDetailPage() {
 
   return (
     <div className="space-y-8">
+      {conflictBanner ? (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="min-w-0 text-pretty font-medium leading-snug">{conflictBanner}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-destructive/40 bg-background"
+            onClick={() => setConflictBanner(null)}
+          >
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
+
       <Button variant="ghost" size="sm" className="-ml-2 gap-2 text-muted-foreground hover:text-foreground" asChild>
         <Link to="/courses">
           <ArrowLeft className="h-4 w-4" />
@@ -99,12 +195,10 @@ export function CourseDetailPage() {
         <CardContent className="p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
             <div className="flex min-w-0 flex-1 gap-4 sm:gap-5">
-              <div
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-muted text-4xl shadow-inner sm:h-20 sm:w-20"
-                aria-hidden
-              >
-                {data.emoji}
-              </div>
+              <EmojiOrImageBadge
+                value={data.emoji}
+                frameClassName="h-16 w-16 text-4xl shadow-inner sm:h-20 sm:w-20"
+              />
               <div className="min-w-0 space-y-2">
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.title}</h1>
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{data.description}</p>
@@ -135,7 +229,7 @@ export function CourseDetailPage() {
             No modules yet. Add one to start building lessons.
           </div>
         )}
-        {data.modules.map((m) => {
+        {data.modules.map((m, moduleIndex) => {
           const isOpen = expanded[m.id] ?? true
           return (
             <Card
@@ -159,6 +253,30 @@ export function CourseDetailPage() {
                   </span>
                 </button>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <div className="flex items-center rounded-md border border-border/60 bg-background/80 p-0.5">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      disabled={reorderBusy || moduleIndex <= 0}
+                      title="Move module up"
+                      onClick={() => moveModule(moduleIndex, -1)}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      disabled={reorderBusy || moduleIndex >= data.modules.length - 1}
+                      title="Move module down"
+                      onClick={() => moveModule(moduleIndex, 1)}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Button
                     size="sm"
                     variant="outline"
@@ -181,15 +299,7 @@ export function CourseDetailPage() {
                     size="icon"
                     variant="ghost"
                     className="h-9 w-9"
-                    onClick={() => {
-                      if (
-                        !confirm(
-                          `Delete module "${m.title}" and all its lessons? This cannot be undone.`
-                        )
-                      )
-                        return
-                      removeModule.mutate(m.id)
-                    }}
+                    onClick={() => setDeleteTarget({ kind: 'module', id: m.id, title: m.title })}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -204,26 +314,55 @@ export function CourseDetailPage() {
                     </div>
                   ) : (
                     <ul className="divide-y divide-border/60">
-                      {m.lessons.map((l) => (
+                      {m.lessons.map((l, lessonIndex) => (
                         <li
                           key={l.id}
                           className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center sm:gap-3 sm:px-6"
                         >
-                          <span
-                            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl shadow-inner"
-                            aria-hidden
-                          >
-                            {l.emoji}
-                          </span>
+                          <EmojiOrImageBadge value={l.emoji} frameClassName="h-11 w-11 text-xl shadow-inner" />
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium leading-snug">
                               {l.label} — {l.title}
                             </div>
                             <div className="mt-0.5 text-xs text-muted-foreground">
-                              {l.content.length} step{l.content.length !== 1 && 's'} · order {l.order}
+                              {l.content.length} step{l.content.length !== 1 && 's'}
                             </div>
                           </div>
                           <div className="flex shrink-0 items-center gap-1 sm:ml-auto">
+                            <div className="mr-1 flex items-center rounded-md border border-border/60 bg-background/80 p-0.5">
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                disabled={reorderBusy || lessonIndex <= 0}
+                                title="Move lesson up"
+                                onClick={() => moveLesson(m.id, lessonIndex, -1, m.lessons)}
+                              >
+                                <ChevronUp className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                                disabled={reorderBusy || lessonIndex >= m.lessons.length - 1}
+                                title="Move lesson down"
+                                onClick={() => moveLesson(m.id, lessonIndex, 1, m.lessons)}
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-border/80"
+                              title="Quiz attempts & submissions"
+                              onClick={() => setEngagementLesson(l)}
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                              Insights
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -237,10 +376,9 @@ export function CourseDetailPage() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              onClick={() => {
-                                if (!confirm(`Delete lesson "${l.title}"?`)) return
-                                removeLesson.mutate(l.id)
-                              }}
+                              onClick={() =>
+                                setDeleteTarget({ kind: 'lesson', id: l.id, title: l.title })
+                              }
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -286,15 +424,44 @@ export function CourseDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {engagementLesson ? (
+        <LessonEngagementDialog
+          lesson={engagementLesson}
+          open
+          onOpenChange={(o) => !o && setEngagementLesson(null)}
+        />
+      ) : null}
+
+      <DestructiveConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title={deleteTarget?.kind === 'module' ? 'Delete module?' : 'Delete lesson?'}
+        description={
+          deleteTarget?.kind === 'module'
+            ? `Delete “${deleteTarget.title}” and all lessons inside it? Learner activity on those lessons will block the delete.`
+            : deleteTarget?.kind === 'lesson'
+              ? `Delete “${deleteTarget.title}”? Progress, submissions, or quiz attempts will block the delete.`
+              : ''
+        }
+        confirmLabel={deleteTarget?.kind === 'module' ? 'Delete module' : 'Delete lesson'}
+        isPending={removeModule.isPending || removeLesson.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          if (deleteTarget.kind === 'module') removeModule.mutate(deleteTarget.id)
+          else removeLesson.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+      />
+
       <Dialog open={Boolean(lessonEditor)} onOpenChange={(o) => !o && setLessonEditor(null)}>
-        <DialogContent className="max-w-3xl gap-0 overflow-hidden border-border/80 p-0 sm:max-w-3xl">
-          <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
+        <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-5xl lg:max-w-6xl">
+          <DialogHeader className="shrink-0 border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>{lessonEditor?.lesson ? 'Edit lesson' : 'New lesson'}</DialogTitle>
             <DialogDescription>
               Lessons are made of steps; each step has blocks rendered in the user app.
             </DialogDescription>
           </DialogHeader>
-          <div className="max-h-[min(70vh,560px)] overflow-y-auto px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
             {lessonEditor ? (
               <LessonEditor
                 moduleId={lessonEditor.moduleId}

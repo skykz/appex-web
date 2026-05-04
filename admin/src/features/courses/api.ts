@@ -1,4 +1,7 @@
 import { httpClient } from '@shared/api/http-client'
+import type { LessonBlock, LessonStep } from '@appex/lesson-schema'
+
+export type { LessonBlock, LessonStep }
 
 export interface Course {
   id: number
@@ -21,7 +24,6 @@ export interface CourseInput {
   emoji: string
   category: string
   duration: string
-  order?: number
 }
 
 export interface Module {
@@ -34,20 +36,6 @@ export interface Module {
 
 export interface ModuleInput {
   title: string
-  order?: number
-}
-
-export type LessonBlock =
-  | { type: 'text'; content: string }
-  | { type: 'bold-text'; content: string }
-  | { type: 'heading'; content: string }
-  | { type: 'image'; src: string; alt?: string }
-  | { type: 'list'; items: string[] }
-  | { type: 'user-message'; name: string; text: string }
-  | { type: 'mentor-message'; text: string }
-
-export interface LessonStep {
-  blocks: LessonBlock[]
 }
 
 export interface Lesson {
@@ -72,6 +60,45 @@ export interface CourseDetail extends Course {
   modules: Array<Module & { lessons: Lesson[] }>
 }
 
+/** Admin lesson insights: quiz attempts by block + submissions (GET …/engagement). */
+export interface LessonEngagementResponse {
+  lesson: { id: number; label: string; title: string }
+  summary: {
+    totalQuizAttempts: number
+    statsApproximate: boolean
+    statsSampleSize: number
+    uniqueQuizBlocks: number
+  }
+  quizByBlock: Array<{
+    stepIndex: number
+    blockIndex: number
+    attempts: number
+    correct: number
+    wrong: number
+    wrongRate: number
+  }>
+  openResponses: Array<{
+    stepIndex: number
+    blockIndex: number
+    userEmail: string
+    userName: string | null
+    text: string
+    createdAt: string
+  }>
+  submissions: {
+    total: number
+    recent: Array<{
+      id: string
+      message: string | null
+      attachmentUrl: string | null
+      status: string
+      createdAt: string
+      userEmail: string
+      userName: string | null
+    }>
+  }
+}
+
 export const coursesApi = {
   list: () => httpClient.get<Course[]>('/admin/courses'),
   detail: (id: number) => httpClient.get<CourseDetail>(`/admin/courses/${id}`),
@@ -91,4 +118,16 @@ export const coursesApi = {
   updateLesson: (id: number, data: Partial<LessonInput>) =>
     httpClient.patch<Lesson>(`/admin/lessons/${id}`, data),
   removeLesson: (id: number) => httpClient.delete<void>(`/admin/lessons/${id}`),
+
+  lessonEngagement: (lessonId: number) =>
+    httpClient.get<LessonEngagementResponse>(`/admin/lessons/${lessonId}/engagement`),
+
+  reorderCourses: (orderedIds: number[]) =>
+    httpClient.patch<void>('/admin/courses/order', { orderedIds }),
+
+  reorderModules: (courseId: number, orderedIds: number[]) =>
+    httpClient.patch<void>(`/admin/courses/${courseId}/modules/reorder`, { orderedIds }),
+
+  reorderLessons: (moduleId: number, orderedIds: number[]) =>
+    httpClient.patch<void>(`/admin/modules/${moduleId}/lessons/reorder`, { orderedIds }),
 }

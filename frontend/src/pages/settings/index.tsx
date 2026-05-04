@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   FileText,
   BadgeCheck,
@@ -30,8 +30,23 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: 'contact', label: 'Contact us', icon: HelpCircle },
 ]
 
+/**
+ * Accepts only known settings section ids from the URL; unknown values fall back to account.
+ */
+function sectionFromParam(value: string | null): Section {
+  return navItems.some((item) => item.id === value) ? (value as Section) : 'account'
+}
+
 export default function SettingsPage() {
-  const [section, setSection] = useState<Section>('account')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const section = sectionFromParam(searchParams.get('section'))
+
+  /**
+   * Keeps settings navigation linkable so account-menu shortcuts can open the correct section.
+   */
+  function selectSection(next: Section) {
+    setSearchParams({ section: next }, { replace: true })
+  }
 
   return (
     <div className="relative min-h-dvh w-full py-2">
@@ -52,7 +67,7 @@ export default function SettingsPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setSection(item.id)}
+                  onClick={() => selectSection(item.id)}
                   className={cn(
                     'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                     section === item.id
@@ -398,6 +413,9 @@ function PlanSection() {
 function ContactSection() {
   const subjectRef = useRef<HTMLInputElement>(null)
   const messageRef = useRef<HTMLTextAreaElement>(null)
+  const [category, setCategory] = useState<
+    'general' | 'bug' | 'billing' | 'content' | 'feedback' | 'other'
+  >('general')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
@@ -408,7 +426,7 @@ function ContactSection() {
 
     setSending(true)
     try {
-      await settingsApi.submitContact({ subject, message })
+      await settingsApi.submitContact({ subject, message, category })
       setSent(true)
       if (subjectRef.current) subjectRef.current.value = ''
       if (messageRef.current) messageRef.current.value = ''
@@ -428,6 +446,22 @@ function ContactSection() {
       </p>
 
       <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label htmlFor="contact-category" className="text-sm font-medium">Category</label>
+          <select
+            id="contact-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as typeof category)}
+            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="general">General</option>
+            <option value="feedback">Feedback</option>
+            <option value="bug">Bug / technical issue</option>
+            <option value="billing">Billing</option>
+            <option value="content">Course content</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
         <div className="space-y-1.5">
           <label htmlFor="contact-subject" className="text-sm font-medium">Subject</label>
           <input

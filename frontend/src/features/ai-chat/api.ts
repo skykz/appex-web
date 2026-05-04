@@ -1,5 +1,5 @@
 import { httpClient } from '@shared/api'
-import type { AIModel, ChatMessage } from './mock-data'
+import type { AIModel, ChatMessage } from './types'
 
 interface SendMessageRequest {
   sessionId?: string
@@ -25,6 +25,9 @@ interface ChatSessionDetail extends ChatSession {
   messages: ChatMessage[]
 }
 
+/**
+ * Chat API: models list, send message, sessions, credits.
+ */
 export const chatApi = {
   async getModels(): Promise<AIModel[]> {
     return httpClient.get('/chat/models')

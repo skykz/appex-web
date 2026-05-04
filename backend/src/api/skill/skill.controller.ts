@@ -97,22 +97,24 @@ export async function getSkillDetail(
         .map((lp) => lp.lesson_id)
     )
 
-    // Build module + lesson structure with lock logic
+    // Linear lock across the whole course: a lesson stays locked until every prior lesson is completed.
+    let previousCompleted = true
     const modulesWithLessons = (modules ?? []).map((mod) => {
       const modLessons = (lessons ?? [])
         .filter((l) => l.module_id === mod.id)
         .sort((a, b) => a.order - b.order)
 
-      let previousCompleted = true
       const lessonsWithLock = modLessons.map((lesson) => {
+        const completed = completedSet.has(lesson.id)
         const locked = !previousCompleted
-        previousCompleted = completedSet.has(lesson.id)
+        previousCompleted = completed
         return {
           id: lesson.id,
           label: lesson.label,
           title: lesson.title,
           emoji: lesson.emoji,
           locked,
+          completed,
         }
       })
 

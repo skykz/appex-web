@@ -1,7 +1,18 @@
 import { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, ChevronRight, Search, ArrowUpDown, FolderOpen } from 'lucide-react'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronRight,
+  ChevronUp,
+  ChevronDown,
+  Search,
+  ArrowUpDown,
+  FolderOpen,
+  Info,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { coursesApi, type Course } from '@features/courses/api'
 import { CourseForm } from '@features/courses/course-form'
@@ -20,7 +31,10 @@ import {
   DialogTitle,
 } from '@shared/ui/dialog'
 import { DataTable, type Column } from '@shared/ui/data-table'
+import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
 import { ApiError } from '@shared/api/http-client'
+import { swapAdjacentIds } from '@shared/lib/reorder-payloads'
 
 type SortKey = 'order' | 'title' | 'created'
 
@@ -41,6 +55,8 @@ export function CoursesPage() {
 
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Course | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Course | null>(null)
+  const [conflictBanner, setConflictBanner] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('order')
@@ -55,12 +71,27 @@ export function CoursesPage() {
     mutationFn: (id: number) => coursesApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+      setConflictBanner(null)
       toast.success('Course deleted')
     },
     onError: (err: unknown) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setConflictBanner(err.message)
+        return
+      }
       const msg = err instanceof ApiError ? err.message : 'Failed'
       toast.error(msg)
     },
+  })
+
+  const reorderCoursesMutation = useMutation({
+    mutationFn: (orderedIds: number[]) => coursesApi.reorderCourses(orderedIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+      toast.success('Course order saved')
+    },
+    onError: (err: unknown) =>
+      toast.error(err instanceof ApiError ? err.message : 'Could not reorder courses'),
   })
 
   const filtered = useMemo(() => {
@@ -86,15 +117,33 @@ export function CoursesPage() {
     return list
   }, [filtered, sortBy])
 
-  /** Prompts before permanently removing a course and its content tree. */
-  function onDelete(c: Course) {
-    if (
-      !confirm(
-        `Delete course "${c.title}"? This will also delete its modules and lessons. User progress will be lost.`
-      )
-    )
-      return
-    remove.mutate(c.id)
+  /** Full list ordered by `order` for global reorder (API requires every course id). */
+  const canonicalCourseOrder = useMemo(
+    () =>
+      [...(courses ?? [])].sort(
+        (a, b) => (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title)
+      ),
+    [courses]
+  )
+
+  const canReorderGlobally =
+    sortBy === 'order' && filter === 'all' && !search.trim() && (courses?.length ?? 0) > 0
+
+  /**
+   * Swaps a course in the global list and saves the new permutation to the server.
+   */
+  function moveCourseRow(courseId: number, direction: -1 | 1) {
+    const idx = canonicalCourseOrder.findIndex((c) => c.id === courseId)
+    const ids = canonicalCourseOrder.map((c) => c.id)
+    const next = swapAdjacentIds(ids, idx, direction)
+    if (next) reorderCoursesMutation.mutate(next)
+  }
+
+  /** Resets list filters so catalog reorder uses the same full permutation the API expects. */
+  function resetFiltersForCatalogReorder() {
+    setFilter('all')
+    setSearch('')
+    setSortBy('order')
   }
 
   const columns: Column<Course>[] = [
@@ -103,12 +152,7 @@ export function CoursesPage() {
       header: 'Course',
       render: (c) => (
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted text-xl shadow-inner"
-            aria-hidden
-          >
-            {c.emoji}
-          </span>
+          <EmojiOrImageBadge value={c.emoji} frameClassName="h-11 w-11 text-xl shadow-inner" />
           <div className="min-w-0">
             <div className="font-medium leading-snug">{c.title}</div>
             <div className="line-clamp-1 text-xs text-muted-foreground">{c.description}</div>
@@ -138,23 +182,62 @@ export function CoursesPage() {
     {
       key: 'actions',
       header: '',
-      className: 'w-48 text-right',
-      render: (c) => (
-        <div className="flex justify-end gap-1">
-          <Button variant="outline" size="sm" className="h-8 border-border/80 bg-background shadow-none" asChild>
-            <Link to={`/courses/${c.id}`}>
-              Open
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(c)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(c)}>
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      ),
+      className: 'w-56 text-right',
+      render: (c) => {
+        const globalIdx = canonicalCourseOrder.findIndex((x) => x.id === c.id)
+        const reorderDisabled =
+          !canReorderGlobally ||
+          reorderCoursesMutation.isPending ||
+          globalIdx < 0
+        return (
+          <div className="flex justify-end gap-1">
+            <div className="mr-1 flex items-center rounded-md border border-border/60 bg-background/80 p-0.5">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={reorderDisabled || globalIdx <= 0}
+                title={
+                  canReorderGlobally
+                    ? 'Move up in catalog'
+                    : 'Sort by “manual order”, clear search, and show all categories to reorder'
+                }
+                onClick={() => moveCourseRow(c.id, -1)}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={reorderDisabled || globalIdx >= canonicalCourseOrder.length - 1}
+                title={
+                  canReorderGlobally
+                    ? 'Move down in catalog'
+                    : 'Sort by “manual order”, clear search, and show all categories to reorder'
+                }
+                onClick={() => moveCourseRow(c.id, 1)}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button variant="outline" size="sm" className="h-8 border-border/80 bg-background shadow-none" asChild>
+              <Link to={`/courses/${c.id}`}>
+                Open
+                <ChevronRight className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(c)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(c)}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        )
+      },
     },
   ]
 
@@ -182,6 +265,48 @@ export function CoursesPage() {
           </Button>
         }
       />
+
+      {conflictBanner ? (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+        >
+          <p className="min-w-0 text-pretty font-medium leading-snug">{conflictBanner}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0 border-destructive/40 bg-background"
+            onClick={() => setConflictBanner(null)}
+          >
+            Dismiss
+          </Button>
+        </div>
+      ) : null}
+
+      {!canReorderGlobally && (courses?.length ?? 0) > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200/80 bg-amber-50/60 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-start sm:justify-between dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+          <div className="flex gap-2">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <div className="space-y-1">
+              <p className="font-medium">Catalog reorder uses the full course list</p>
+              <p className="text-pretty text-xs leading-relaxed opacity-90">
+                Show <strong>all categories</strong>, clear search, and sort by <strong>manual order</strong> so
+                up/down matches the order saved to the server (same scope future bulk actions will use).
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="shrink-0 border-amber-300/80 bg-background dark:border-amber-800"
+            onClick={resetFiltersForCatalogReorder}
+          >
+            Reset filters for reorder
+          </Button>
+        </div>
+      ) : null}
 
       {categories && categories.length === 0 ? (
         <Card className="border-dashed border-primary/30 bg-primary/[0.03]">
@@ -289,6 +414,24 @@ export function CoursesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DestructiveConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        title="Delete course?"
+        description={
+          deleteTarget
+            ? `Delete “${deleteTarget.title}” and all modules and lessons? This cannot be undone if the server allows it. Learner progress or submissions will block the delete.`
+            : ''
+        }
+        confirmLabel="Delete course"
+        isPending={remove.isPending}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          remove.mutate(deleteTarget.id)
+          setDeleteTarget(null)
+        }}
+      />
 
       <Dialog open={Boolean(editing)} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-xl gap-0 overflow-hidden border-border/80 p-0 sm:max-w-xl">
