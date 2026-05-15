@@ -18,8 +18,14 @@ import {
   LogOut,
   PanelLeft,
   PanelLeftClose,
+  Sparkles,
 } from 'lucide-react'
 import { useAuthStore } from '@entities/user'
+import {
+  useSubscriptionSummary,
+  type SubscriptionTier,
+} from '@entities/subscription'
+import { cn } from '@shared/lib'
 import {
   Sidebar,
   SidebarContent,
@@ -100,6 +106,7 @@ export function AppSidebar() {
   const location = useLocation()
   const { toggleSidebar, state } = useSidebar()
   const isAiToolsActive = location.pathname.startsWith('/ai-tools')
+  const subscription = useSubscriptionSummary()
 
   const collapseLabel =
     state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'
@@ -121,8 +128,11 @@ export function AppSidebar() {
                   </div>
                   <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-bold">AppEx</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      Pro Plan
+                    <span
+                      className="truncate text-xs text-muted-foreground"
+                      title={subscription.planLabel}
+                    >
+                      {subscription.isLoading ? '…' : subscription.planLabel}
                     </span>
                   </div>
                 </Link>
@@ -243,12 +253,92 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <SidebarMenu>
+          {/* Free / pending users get an upsell row above the profile button. */}
+          {subscription.tier !== 'premium' && !subscription.isLoading && (
+            <SidebarMenuItem>
+              <UpgradeCta tier={subscription.tier} />
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <ProfileDropdown />
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
+  )
+}
+
+/**
+ * Compact "Premium"/"Free" pill — small enough to sit inline next to a name
+ * or email. Hidden on icon-collapsed sidebars by the parent layout.
+ */
+function TierBadge({ tier }: { tier: SubscriptionTier }) {
+  const cfg =
+    tier === 'premium'
+      ? {
+          text: 'Premium',
+          className:
+            'bg-gradient-to-r from-amber-400/20 to-orange-500/20 text-orange-700 ring-orange-500/30 dark:from-amber-400/15 dark:to-orange-500/15 dark:text-orange-300 dark:ring-orange-400/30',
+          icon: Sparkles,
+        }
+      : tier === 'pending'
+      ? {
+          text: 'Pending',
+          className:
+            'bg-amber-100 text-amber-900 ring-amber-300 dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-700/50',
+          icon: null,
+        }
+      : {
+          text: 'Free',
+          className:
+            'bg-muted text-muted-foreground ring-border',
+          icon: null,
+        }
+  const Icon = cfg.icon
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1',
+        cfg.className
+      )}
+    >
+      {Icon ? <Icon className="size-2.5" /> : null}
+      {cfg.text}
+    </span>
+  )
+}
+
+/**
+ * Sidebar upsell shown to non-premium users above their profile button.
+ * Auto-hides on icon-collapsed sidebars to avoid a wide pill in a narrow rail.
+ */
+function UpgradeCta({ tier }: { tier: SubscriptionTier }) {
+  const { state } = useSidebar()
+  if (state === 'collapsed') return null
+  const label = tier === 'pending' ? 'Finish payment' : 'Upgrade to Premium'
+  const sub =
+    tier === 'pending'
+      ? 'Complete 3D Secure to activate'
+      : 'Unlock all skills · cancel anytime'
+  return (
+    <Link
+      to="/settings?section=plan"
+      className={cn(
+        'group relative flex w-full items-start gap-2.5 overflow-hidden rounded-xl p-2.5 text-left transition-all',
+        'bg-gradient-to-br from-orange-500/10 via-amber-400/10 to-orange-500/10',
+        'ring-1 ring-orange-500/20 hover:ring-orange-500/40 hover:from-orange-500/15 hover:to-orange-500/15',
+        'dark:from-orange-500/15 dark:via-amber-400/10 dark:to-orange-500/15 dark:ring-orange-400/25'
+      )}
+    >
+      <div className="flex aspect-square size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
+        <Sparkles className="size-3.5" />
+      </div>
+      <div className="min-w-0 flex-1 text-xs leading-tight">
+        <p className="truncate font-semibold text-foreground">{label}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{sub}</p>
+      </div>
+      <ChevronRight className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </Link>
   )
 }
 
@@ -292,6 +382,7 @@ function ProfileDropdown() {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const user = useAuthStore((s) => s.user)
+  const subscription = useSubscriptionSummary()
 
   const email = user?.email ?? ''
   const displayName = displayNameFromUser(user?.name, email)
@@ -367,7 +458,12 @@ function ProfileDropdown() {
           </AvatarFallback>
         </Avatar>
         <div className="grid min-w-0 text-sm leading-tight">
-          <span className="truncate font-semibold">{displayName}</span>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-semibold">{displayName}</span>
+            {!subscription.isLoading && (
+              <TierBadge tier={subscription.tier} />
+            )}
+          </div>
           <span className="truncate text-xs text-muted-foreground">
             {email || '—'}
           </span>
@@ -390,12 +486,32 @@ function ProfileDropdown() {
           type="button"
           onClick={() => {
             setOpen(false)
+            navigate('/settings?section=plan')
+          }}
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+        >
+          {subscription.tier === 'premium' ? (
+            <>
+              <CreditCard className="size-4 text-muted-foreground" />
+              <span>Manage plan</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-4 text-orange-500" />
+              <span>Upgrade to Premium</span>
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false)
             navigate('/settings?section=billing')
           }}
           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
         >
           <CreditCard className="size-4 text-muted-foreground" />
-          <span>Billing</span>
+          <span>Billing history</span>
         </button>
       </div>
 
