@@ -14,6 +14,7 @@ import creditRoutes from './api/credit/credit.route.js'
 import contactRoutes from './api/contact/contact.route.js'
 import billingRoutes from './api/billing/billing.route.js'
 import adminRoutes from './api/admin/admin.route.js'
+import { stripeWebhookHandler } from './api/stripe/stripe.webhook.js'
 
 /**
  * Express application (shared by local `index.ts` and Vercel serverless `api/index.ts`).
@@ -36,6 +37,17 @@ app.use(
       })
     : cors()
 )
+
+// Stripe webhook MUST be mounted BEFORE express.json() so the raw body is
+// preserved for signature verification. `stripe.webhooks.constructEvent`
+// rejects any tampering with the body, including the JSON re-serialization
+// that express.json() performs.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookHandler
+)
+
 app.use(express.json())
 
 // Health check

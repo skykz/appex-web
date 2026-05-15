@@ -15,7 +15,7 @@ const envSchema = z.object({
    */
   APP_PUBLIC_URL: z.string().url().optional(),
   /**
-   * Public origin of the admin SPA when it differs from the learner app; used for admin “forgot password” redirects.
+   * Public origin of the admin SPA when it differs from the learner app; used for admin "forgot password" redirects.
    */
   ADMIN_APP_PUBLIC_URL: z.string().url().optional(),
 
@@ -40,6 +40,21 @@ const envSchema = z.object({
   PERPLEXITY_API_KEY: z.string().optional(),
   /** Perplexity model (default sonar). */
   PERPLEXITY_MODEL: z.string().optional(),
+
+  // --- Stripe (subscription billing) ---
+  /** Public URL of the React app (used for Stripe success/cancel/return URLs). */
+  APP_URL: z.string().url().default('http://localhost:5173'),
+  // Empty strings in .env mean "not configured" — coerce to undefined so callers
+  // can do `if (env.STRIPE_INTRO_COUPON_ID)` without empty-string surprises.
+  /** Stripe API secret key. */
+  STRIPE_SECRET_KEY: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Stripe webhook signing secret. */
+  STRIPE_WEBHOOK_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Stripe price IDs for the two billing cadences. */
+  STRIPE_PRICE_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Stripe coupon for the first-cycle intro price; optional. */
+  STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -85,4 +100,12 @@ if (process.env.VERCEL && corsOrigins?.length) {
   console.info('[cors] allowed origins:', corsOrigins.join(' | '))
 }
 
-export const env = { ...parsed, corsOrigins }
+/** Stripe is fully configured when the secret key, webhook secret, and both prices are set. */
+const stripeEnabled = Boolean(
+  parsed.STRIPE_SECRET_KEY &&
+    parsed.STRIPE_WEBHOOK_SECRET &&
+    parsed.STRIPE_PRICE_4WEEK &&
+    parsed.STRIPE_PRICE_YEARLY
+)
+
+export const env = { ...parsed, corsOrigins, stripeEnabled }

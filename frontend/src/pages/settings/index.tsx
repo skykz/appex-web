@@ -1,5 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
   FileText,
   BadgeCheck,
@@ -10,15 +11,25 @@ import {
   Eye,
   EyeOff,
   LogOut,
-  ArrowLeft,
-  ChevronDown,
+  ChevronRight,
+  Download,
   RefreshCw,
   Hourglass,
+  ExternalLink,
+  X,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { Button } from '@shared/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@shared/ui'
 import { useAuthStore, userApi } from '@entities/user'
-import { settingsApi } from './api'
+import { settingsApi, type Subscription, type BillingRecord, type Plan } from './api'
 
 type Section = 'account' | 'password' | 'billing' | 'plan' | 'contact'
 
@@ -40,12 +51,59 @@ function sectionFromParam(value: string | null): Section {
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const section = sectionFromParam(searchParams.get('section'))
+  const checkout = searchParams.get('checkout')
+  const queryClient = useQueryClient()
+
+  // Stripe redirects back here with ?checkout=success&session_id=cs_... after
+  // a finished Checkout. The webhook usually lands first, but to eliminate the
+  // race entirely we synchronously pull the session into our DB *before*
+  // invalidating queries. If the webhook already did the job, the upsert is a
+  // no-op rewrite.
+  useEffect(() => {
+    if (checkout !== 'success') return
+    const sessionId = searchParams.get('session_id')
+    // Ensure we're on the Plan section so the success state is visible.
+    if (searchParams.get('section') !== 'plan') {
+      const next = new URLSearchParams(searchParams)
+      next.set('section', 'plan')
+      setSearchParams(next, { replace: true })
+    }
+    let cancelled = false
+    ;(async () => {
+      if (sessionId) {
+        try {
+          await settingsApi.syncFromSession(sessionId)
+        } catch {
+          // Even if sync fails (e.g. 503 stripe down), still invalidate —
+          // the webhook may have already written the row.
+        }
+      }
+      if (cancelled) return
+      queryClient.invalidateQueries({ queryKey: ['subscription'] })
+      queryClient.invalidateQueries({ queryKey: ['billing-history'] })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [checkout, queryClient, searchParams, setSearchParams])
 
   /**
    * Keeps settings navigation linkable so account-menu shortcuts can open the correct section.
+   * Also clears any checkout=success|cancel residue when the user navigates away.
    */
   function selectSection(next: Section) {
-    setSearchParams({ section: next }, { replace: true })
+    const params = new URLSearchParams(searchParams)
+    params.set('section', next)
+    params.delete('checkout')
+    params.delete('session_id')
+    setSearchParams(params, { replace: true })
+  }
+
+  function dismissBanner() {
+    const next = new URLSearchParams(searchParams)
+    next.delete('checkout')
+    next.delete('session_id')
+    setSearchParams(next, { replace: true })
   }
 
   return (
@@ -59,6 +117,13 @@ export default function SettingsPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your account and subscription settings.
         </p>
+
+        {checkout === 'success' && (
+          <CheckoutBanner kind="success" onDismiss={dismissBanner} />
+        )}
+        {checkout === 'cancel' && (
+          <CheckoutBanner kind="cancel" onDismiss={dismissBanner} />
+        )}
 
         <div className="mt-6 flex flex-col gap-8 lg:flex-row">
           <nav className="w-full shrink-0 lg:w-52">
@@ -91,6 +156,45 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function CheckoutBanner({
+  kind,
+  onDismiss,
+}: {
+  kind: 'success' | 'cancel'
+  onDismiss: () => void
+}) {
+  const isSuccess = kind === 'success'
+  return (
+    <div
+      className={cn(
+        'mt-4 flex items-start gap-3 rounded-xl border p-3 text-sm',
+        isSuccess
+          ? 'border-green-200 bg-green-50 text-green-900 dark:border-green-900/40 dark:bg-green-950/40 dark:text-green-100'
+          : 'border-yellow-200 bg-yellow-50 text-yellow-900 dark:border-yellow-900/40 dark:bg-yellow-950/40 dark:text-yellow-100'
+      )}
+    >
+      <Sparkles className="mt-0.5 size-4 shrink-0" />
+      <div className="flex-1">
+        {isSuccess ? (
+          <p>
+            Welcome to AppEx Premium — your subscription is now active. Your
+            first invoice will appear below shortly.
+          </p>
+        ) : (
+          <p>Checkout cancelled. You haven't been charged.</p>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="rounded p-0.5 opacity-70 hover:opacity-100"
+      >
+        <X className="size-4" />
+      </button>
     </div>
   )
 }
@@ -306,106 +410,566 @@ function PasswordField({
 }
 
 /* ── Billing history ── */
+function formatMoney(amount: number, currency: string | null): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: (currency ?? 'usd').toUpperCase(),
+    }).format(amount)
+  } catch {
+    return `$${amount.toFixed(2)}`
+  }
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleDateString('en-US', {
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    })
+  } catch {
+    return iso.slice(0, 10)
+  }
+}
+
 function BillingSection() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['billing-history'],
+    queryFn: () => settingsApi.getBillingHistory(),
+  })
+
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold">Billing history</h2>
-      <div className="rounded-xl border">
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-muted/30"
-        >
-          <RefreshCw className="size-5 shrink-0 text-muted-foreground" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold">$15.19</p>
-            <p className="text-sm text-muted-foreground">
-              4 week subscription plan
-            </p>
-            <p className="text-xs text-muted-foreground">Jan 27, 2026</p>
-          </div>
-          <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
-        </button>
-      </div>
+
+      {isLoading && (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      )}
+      {isError && (
+        <p className="text-sm text-red-500">Couldn't load billing history.</p>
+      )}
+      {!isLoading && !isError && (!data || data.length === 0) && (
+        <div className="rounded-xl border p-6 text-center">
+          <Receipt className="mx-auto mb-2 size-6 text-muted-foreground" />
+          <p className="text-sm font-medium">No invoices yet</p>
+          <p className="text-xs text-muted-foreground">
+            Your first invoice will appear here right after your first payment.
+          </p>
+        </div>
+      )}
+
+      {data && data.length > 0 && (
+        <div className="divide-y rounded-xl border">
+          {data.map((record: BillingRecord) => (
+            <div key={record.id} className="flex items-center gap-3 p-4">
+              <div className="rounded-lg border p-2 text-muted-foreground">
+                <RefreshCw className="size-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
+                  {record.description}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatDate(record.paid_at)} ·{' '}
+                  {formatMoney(record.amount, record.currency)}
+                </p>
+              </div>
+              {record.invoice_pdf && (
+                <a
+                  href={record.invoice_pdf}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-lg border p-2 text-muted-foreground transition-colors hover:bg-muted/30 hover:text-foreground"
+                  aria-label="Download invoice PDF"
+                >
+                  <Download className="size-4" />
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /* ── Plan management ── */
-function PlanSection() {
-  const [pausing, setPausing] = useState(false)
 
-  async function handlePause() {
-    setPausing(true)
-    try {
-      await settingsApi.pauseSubscription()
-    } catch {
-      // TODO: show error toast
-    } finally {
-      setPausing(false)
-    }
+/** Human-readable label for the Stripe subscription status. */
+function statusLabel(sub: Subscription): { text: string; tone: 'green' | 'red' | 'amber' | 'gray' } {
+  if (sub.cancel_at_period_end && sub.status === 'active') {
+    return { text: 'Canceled', tone: 'red' }
+  }
+  switch (sub.status) {
+    case 'active':
+      return { text: 'Active', tone: 'green' }
+    case 'trialing':
+      return { text: 'Trial', tone: 'green' }
+    case 'past_due':
+      return { text: 'Past due', tone: 'red' }
+    case 'paused':
+      return { text: 'Paused', tone: 'amber' }
+    case 'canceled':
+    case 'incomplete_expired':
+    case 'unpaid':
+      return { text: 'Canceled', tone: 'red' }
+    case 'incomplete':
+      return { text: 'Incomplete', tone: 'amber' }
+    default:
+      return { text: sub.status, tone: 'gray' }
+  }
+}
+
+function PlanSection() {
+  const queryClient = useQueryClient()
+  const { data: subscription, isLoading } = useQuery({
+    queryKey: ['subscription'],
+    queryFn: () => settingsApi.getSubscription(),
+  })
+
+  // The plans endpoint hits Stripe; only fetch it when the user actually
+  // needs to subscribe (no active sub) so a happy-path active user doesn't
+  // pay for a Stripe Prices read on every page open.
+  const hasActiveSub =
+    !!subscription &&
+    ['active', 'trialing', 'past_due', 'paused'].includes(subscription.status)
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading…</p>
+  }
+
+  // `incomplete` means Stripe is waiting for additional payment authentication
+  // (3D Secure) — the subscription exists but isn't usable yet. Showing the
+  // plan picker here would invite the user to pay again; instead point them
+  // to the Customer Portal to finish authentication.
+  if (subscription?.status === 'incomplete') {
+    return <PendingPaymentView />
+  }
+
+  if (!hasActiveSub) {
+    return <ChoosePlanView subscription={subscription ?? null} />
   }
 
   return (
+    <ActiveSubView
+      subscription={subscription as Subscription}
+      onChanged={() => {
+        queryClient.invalidateQueries({ queryKey: ['subscription'] })
+        queryClient.invalidateQueries({ queryKey: ['billing-history'] })
+      }}
+    />
+  )
+}
+
+/** Shown for `status='incomplete'` — checkout succeeded but extra auth (3DS) pending. */
+function PendingPaymentView() {
+  const portal = useMutation({
+    mutationFn: () => settingsApi.createPortalSession(),
+    onSuccess: ({ url }) => {
+      window.location.href = url
+    },
+  })
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">Verifying your payment…</h2>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Your bank asked for an extra security step (3D Secure) to finish this
+        payment. We'll activate your subscription as soon as it completes —
+        usually within a couple of minutes.
+      </p>
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        Didn't finish the step? Open billing to retry with another card.
+      </p>
+      <Button
+        onClick={() => portal.mutate()}
+        disabled={portal.isPending}
+        size="xl"
+      >
+        <ExternalLink className="size-4" />
+        {portal.isPending ? 'Opening…' : 'Open billing'}
+      </Button>
+    </div>
+  )
+}
+
+/** Shown when the user has no active subscription — lists the two plans. */
+function ChoosePlanView({ subscription }: { subscription: Subscription | null }) {
+  const { data: plans, isLoading, isError } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => settingsApi.listPlans(),
+  })
+
+  const checkout = useMutation({
+    mutationFn: (interval: 'week_4' | 'year') =>
+      settingsApi.createCheckoutSession(interval),
+    onSuccess: ({ url }) => {
+      window.location.href = url
+    },
+  })
+
+  return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg border p-1.5">
-          <ArrowLeft className="size-4" />
-        </div>
+      <div>
+        <h2 className="text-xl font-bold">Choose a plan</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Unlock the full AppEx experience. Cancel anytime.
+        </p>
       </div>
 
+      {subscription?.status === 'canceled' && (
+        <div className="rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground">
+          Your previous subscription has ended. Pick a plan to continue learning.
+        </div>
+      )}
+
+      {isLoading && <p className="text-sm text-muted-foreground">Loading plans…</p>}
+      {isError && (
+        <p className="text-sm text-red-500">
+          Couldn't load plans. The store may be temporarily unavailable — try again
+          in a moment.
+        </p>
+      )}
+
+      {plans && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {plans.map((p) => (
+            <PlanCard
+              key={p.id}
+              plan={p}
+              loading={checkout.isPending && checkout.variables === p.id}
+              onSelect={() => checkout.mutate(p.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {checkout.isError && (
+        <p className="text-sm text-red-500">
+          Couldn't start checkout. Please try again.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function PlanCard({
+  plan,
+  loading,
+  onSelect,
+}: {
+  plan: Plan
+  loading: boolean
+  onSelect: () => void
+}) {
+  const isYearly = plan.id === 'year'
+  return (
+    <div
+      className={cn(
+        'flex flex-col rounded-xl border p-5',
+        isYearly && 'ring-2 ring-primary/30'
+      )}
+    >
+      <p className="text-sm font-semibold">
+        {isYearly ? 'Yearly plan' : '4-week plan'}
+      </p>
+      {plan.intro_amount != null && plan.intro_amount < plan.amount ? (
+        <div className="mt-2">
+          <p className="text-2xl font-bold">
+            {formatMoney(plan.intro_amount, plan.currency)}{' '}
+            <span className="text-sm font-normal text-muted-foreground">
+              first {plan.interval_label}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground">
+            then {formatMoney(plan.amount, plan.currency)} every{' '}
+            {plan.interval_label}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-2">
+          <p className="text-2xl font-bold">
+            {formatMoney(plan.amount, plan.currency)}{' '}
+            <span className="text-sm font-normal text-muted-foreground">
+              / {plan.interval_label}
+            </span>
+          </p>
+          {isYearly && (
+            <p className="text-xs text-green-600">Save vs. 4-week plan</p>
+          )}
+        </div>
+      )}
+      <div className="mt-auto pt-4">
+        <Button onClick={onSelect} disabled={loading} size="xl" className="w-full">
+          {loading ? 'Redirecting…' : isYearly ? 'Get yearly plan' : 'Subscribe'}
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Active/paused/past_due subscription view. */
+function ActiveSubView({
+  subscription,
+  onChanged,
+}: {
+  subscription: Subscription
+  onChanged: () => void
+}) {
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const status = statusLabel(subscription)
+  const periodLabel =
+    subscription.billing_interval === 'year' ? 'year' : '4 weeks'
+
+  const pause = useMutation({
+    mutationFn: () => settingsApi.pauseSubscription(),
+    onSuccess: onChanged,
+  })
+  const resume = useMutation({
+    mutationFn: () => settingsApi.resumeSubscription(),
+    onSuccess: onChanged,
+  })
+  const reactivate = useMutation({
+    mutationFn: () => settingsApi.reactivateSubscription(),
+    onSuccess: onChanged,
+  })
+  const portal = useMutation({
+    mutationFn: () => settingsApi.createPortalSession(),
+    onSuccess: ({ url }) => {
+      window.location.href = url
+    },
+  })
+
+  return (
+    <div className="space-y-6">
       <h2 className="text-xl font-bold">Manage subscription</h2>
 
       <div>
         <h3 className="mb-3 text-base font-bold">Your subscription plan</h3>
-        <div className="rounded-xl border divide-y">
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm">Status</span>
-            <span className="text-sm font-medium">Active</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm">Introductory price</span>
-            <span className="text-sm font-medium">$15.19</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm">Subscription price</span>
-            <span className="text-sm font-medium">$39.99/mo</span>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm">Renewal date</span>
-            <span className="text-sm font-medium">Feb 24, 2026</span>
-          </div>
+        <div className="divide-y rounded-xl border">
+          <Row label="Status">
+            <span
+              className={cn(
+                'rounded-full px-2.5 py-0.5 text-xs font-medium',
+                status.tone === 'green' && 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
+                status.tone === 'red' && 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
+                status.tone === 'amber' && 'bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200',
+                status.tone === 'gray' && 'bg-muted text-muted-foreground'
+              )}
+            >
+              {status.text}
+            </span>
+          </Row>
+          <Row label="Subscription price">
+            <span className="text-sm font-medium">
+              {formatMoney(subscription.price, subscription.currency)} / {periodLabel}
+            </span>
+          </Row>
+          {subscription.cancel_at_period_end ? (
+            <Row label="Access until">
+              <span className="text-sm font-medium">
+                {formatDate(subscription.current_period_end)}
+              </span>
+            </Row>
+          ) : (
+            <Row label="Renewal date">
+              <span className="text-sm font-medium">
+                {formatDate(subscription.renewal_date ?? subscription.current_period_end)}
+              </span>
+            </Row>
+          )}
         </div>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-base font-bold">
-          Need a break? Pause your plan
-        </h3>
-        <p className="mb-4 text-sm text-muted-foreground leading-relaxed">
-          Too busy to focus on your learning right now? Pause your subscription
-          and when you come back, you'll be ready to reach your goals.
-        </p>
+      {/* Quick actions row */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <Button
-          onClick={handlePause}
-          disabled={pausing}
+          onClick={() => portal.mutate()}
+          disabled={portal.isPending}
+          variant="outline"
           size="xl"
           className="w-full"
         >
-          <Hourglass className="size-4" />
-          {pausing ? 'Pausing...' : 'Pause subscription'}
+          <ExternalLink className="size-4" />
+          {portal.isPending ? 'Opening…' : 'Manage billing'}
         </Button>
+
+        {subscription.cancel_at_period_end ? (
+          <Button
+            onClick={() => reactivate.mutate()}
+            disabled={reactivate.isPending}
+            size="xl"
+            className="w-full"
+          >
+            {reactivate.isPending ? 'Working…' : 'Resume subscription'}
+          </Button>
+        ) : subscription.status === 'paused' ? (
+          <Button
+            onClick={() => resume.mutate()}
+            disabled={resume.isPending}
+            size="xl"
+            className="w-full"
+          >
+            {resume.isPending ? 'Working…' : 'Resume subscription'}
+          </Button>
+        ) : (
+          <Button
+            onClick={() => pause.mutate()}
+            disabled={pause.isPending}
+            variant="outline"
+            size="xl"
+            className="w-full"
+          >
+            <Hourglass className="size-4" />
+            {pause.isPending ? 'Pausing…' : 'Pause subscription'}
+          </Button>
+        )}
       </div>
 
-      <div>
-        <h3 className="mb-2 text-base font-bold">
-          Stay in control with your renewal reminder
-        </h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Enjoy your subscription without worry. Get a heads up 3 days before
-          your subscription renews — so you always know what's next.
-        </p>
-      </div>
+      {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
+        <div>
+          <h3 className="mb-2 text-base font-bold">Need to cancel?</h3>
+          <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
+            You can cancel anytime. Your access stays active until the end of
+            the current billing period.
+          </p>
+          <button
+            type="button"
+            onClick={() => setCancelOpen(true)}
+            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Cancel subscription
+          </button>
+        </div>
+      )}
+
+      <CancelDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        subscription={subscription}
+        onDone={onChanged}
+      />
     </div>
+  )
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3">
+      <span className="text-sm">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+/** Cancel modal with yearly win-back offer (mirrors the competitor flow). */
+function CancelDialog({
+  open,
+  onOpenChange,
+  subscription,
+  onDone,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  subscription: Subscription
+  onDone: () => void
+}) {
+  const { data: plans } = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => settingsApi.listPlans(),
+    enabled: open,
+  })
+  const yearly = plans?.find((p) => p.id === 'year')
+  const showWinBack = subscription.billing_interval !== 'year' && !!yearly
+
+  const switchPlan = useMutation({
+    mutationFn: () => settingsApi.switchToYearly(),
+    onSuccess: () => {
+      onDone()
+      onOpenChange(false)
+    },
+  })
+  const cancel = useMutation({
+    mutationFn: () => settingsApi.cancelSubscription(),
+    onSuccess: () => {
+      onDone()
+      onOpenChange(false)
+    },
+  })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          {showWinBack ? (
+            <>
+              <DialogTitle className="text-center text-2xl">
+                Don't lose your savings
+              </DialogTitle>
+              <DialogDescription className="text-center">
+                Switch to yearly and keep learning for less.
+              </DialogDescription>
+            </>
+          ) : (
+            <>
+              <DialogTitle>Cancel subscription?</DialogTitle>
+              <DialogDescription>
+                Your access stays active until{' '}
+                {formatDate(subscription.current_period_end)}.
+              </DialogDescription>
+            </>
+          )}
+        </DialogHeader>
+
+        {showWinBack && yearly && (
+          <div className="rounded-2xl border-2 border-primary/40 p-4 text-center">
+            <p className="text-3xl font-bold">
+              {formatMoney(yearly.amount, yearly.currency)} now
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Billed yearly at {formatMoney(yearly.amount, yearly.currency)}
+            </p>
+          </div>
+        )}
+
+        <div className="mt-2 flex flex-col gap-2">
+          {showWinBack && (
+            <Button
+              onClick={() => switchPlan.mutate()}
+              disabled={switchPlan.isPending}
+              size="xl"
+              className="w-full"
+            >
+              {switchPlan.isPending ? 'Switching…' : 'Switch to yearly plan'}
+            </Button>
+          )}
+          <Button
+            onClick={() => cancel.mutate()}
+            disabled={cancel.isPending}
+            variant="outline"
+            size="xl"
+            className="w-full"
+          >
+            {cancel.isPending ? 'Cancelling…' : 'Cancel anyway'}
+          </Button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="mt-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            Keep current plan
+          </button>
+        </div>
+
+        {(switchPlan.isError || cancel.isError) && (
+          <p className="text-center text-sm text-red-500">
+            Something went wrong. Please try again.
+          </p>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }
 
