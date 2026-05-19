@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { Play, Check, Lock, ChevronRight, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { ProgressCard } from '@shared/ui'
-import { skillsApi, type SkillListItem } from '@features/skills'
+import { skillsApi, type SkillDetail, type SkillListItem } from '@features/skills'
 import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
 
 /**
@@ -21,6 +21,15 @@ function pickFeaturedSkillId(skills: SkillListItem[]): number | null {
 }
 
 /**
+ * Picks one resume lesson per course so recent activity does not repeat the same course.
+ */
+function pickResumeLesson(course: SkillDetail) {
+  const orderedLessons = course.modules.flatMap((module) => module.lessons)
+  const next = orderedLessons.find((lesson) => !lesson.locked && !(lesson.completed ?? false))
+  return next ?? orderedLessons.find((lesson) => !lesson.locked) ?? null
+}
+
+/**
  * Home dashboard — real progress, streak, and course data from the API.
  */
 export default function HomePage() {
@@ -31,10 +40,19 @@ export default function HomePage() {
 
   const featuredId = useMemo(() => pickFeaturedSkillId(courses), [courses])
 
-  const { data: featuredCourse, isPending: detailLoading } = useQuery({
-    queryKey: ['skill', featuredId ?? 0],
-    queryFn: () => skillsApi.getDetail(featuredId!),
-    enabled: featuredId != null,
+  const activeCourseIds = useMemo(() => {
+    const active = courses
+      .filter((course) => course.status === 'in_progress' || course.progress > 0)
+      .map((course) => course.id)
+    return active.length ? active : featuredId != null ? [featuredId] : []
+  }, [courses, featuredId])
+
+  const activityQueries = useQueries({
+    queries: activeCourseIds.map((id) => ({
+      queryKey: ['skill', id],
+      queryFn: () => skillsApi.getDetail(id),
+      enabled: Number.isFinite(id),
+    })),
   })
 
   const planProgress = useMemo(() => {
@@ -42,6 +60,14 @@ export default function HomePage() {
     const sum = courses.reduce((acc, s) => acc + s.progress, 0)
     return Math.round(sum / courses.length)
   }, [courses])
+  const activityCourses = useMemo(
+    () =>
+      activityQueries
+        .map((query) => query.data)
+        .filter((course): course is SkillDetail => Boolean(course)),
+    [activityQueries]
+  )
+  const activitiesLoading = activityQueries.some((query) => query.isPending)
 
   return (
     <>
@@ -72,10 +98,6 @@ export default function HomePage() {
                     Learn AI & automation
                     <ChevronRight className="text-muted-foreground size-7 shrink-0" />
                   </h1>
-                  <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-                    Continue structured courses, track streaks, and open the AI
-                    chat when you need a hand.
-                  </p>
                 </div>
               </header>
 
@@ -146,9 +168,9 @@ export default function HomePage() {
                 )}
               </section>
 
-              {featuredId != null && (
+              {activeCourseIds.length > 0 && (
                 <section className="pb-12 lg:pb-24">
-                  {detailLoading || !featuredCourse ? (
+                  {activitiesLoading && activityCourses.length === 0 ? (
                     <div className="space-y-4 animate-pulse">
                       <div className="h-6 w-48 rounded bg-muted" />
                       <div className="h-24 rounded-2xl bg-muted/60" />
@@ -160,28 +182,21 @@ export default function HomePage() {
                         <h2 className="text-lg font-semibold">
                           Pick up where you left off
                         </h2>
-                        <p className="text-muted-foreground text-sm">
-                          {featuredCourse.title}
-                        </p>
                       </div>
                       <div className="flex flex-col gap-3">
-                        {(() => {
-                          const orderedLessons =
-                            featuredCourse.modules.flatMap((m) => m.lessons)
-                          const nextLessonId = orderedLessons.find(
-                            (l) => !l.locked && !(l.completed ?? false)
-                          )?.id
-                          return orderedLessons.map((lesson) => {
+                        {activityCourses.map((course) => {
+                          const lesson = pickResumeLesson(course)
+                          if (!lesson) return null
                             const done = Boolean(lesson.completed)
                             const active =
                               !lesson.locked &&
                               !done &&
-                              lesson.id === nextLessonId
+                              course.status !== 'completed'
 
                             return (
                               <Link
-                                key={lesson.id}
-                                to={`/academy/courses/${featuredCourse.id}/lessons/${lesson.id}`}
+                                key={course.id}
+                                to={`/academy/courses/${course.id}/lessons/${lesson.id}`}
                                 className={cn(
                                   'flex items-center justify-between rounded-2xl p-4 transition-all duration-200',
                                   active
@@ -204,6 +219,9 @@ export default function HomePage() {
                                     )}
                                   />
                                   <div className="min-w-0 flex flex-col gap-0.5">
+                                    <span className="truncate text-xs font-semibold text-primary">
+                                      {course.title}
+                                    </span>
                                     <span className="text-xs font-medium text-muted-foreground">
                                       {lesson.label}
                                     </span>
@@ -230,8 +248,7 @@ export default function HomePage() {
                                 </div>
                               </Link>
                             )
-                          })
-                        })()}
+                        })}
                       </div>
                     </>
                   )}

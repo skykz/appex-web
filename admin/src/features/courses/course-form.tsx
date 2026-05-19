@@ -23,6 +23,7 @@ export const courseFormSchema = z.object({
   emoji: lessonEmoji,
   category: z.string().min(1, 'Pick a category'),
   duration: z.string().min(1),
+  is_visible: z.boolean().default(false),
 })
 
 type FormData = z.infer<typeof courseFormSchema>
@@ -59,6 +60,7 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
       emoji: initial?.emoji ?? '📘',
       category: initial?.category ?? '',
       duration: initial?.duration ?? '2 hours',
+      is_visible: initial?.is_visible ?? false,
     },
   })
 
@@ -78,66 +80,68 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
   })
 
   return (
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-6">
-      <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Basics
-        </p>
-        <div className="space-y-1.5">
-          <Label htmlFor="title">Title</Label>
-          <Input
-            id="title"
-            className="border-border/80 bg-background"
-            placeholder="Build Gmail Manager Bot"
-            {...register('title')}
-          />
-          {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
-        </div>
-        <Controller
-          name="emoji"
-          control={control}
-          render={({ field }) => (
-            <MediaBadgeField
-              label="Catalog badge"
-              value={field.value}
-              onChange={field.onChange}
-              onBlur={field.onBlur}
-              error={errors.emoji?.message}
-              helperText="Emoji, image URL, site path, or upload a PNG/JPEG/WebP/GIF (stored with the course)."
-            />
-          )}
-        />
-      </section>
-
-      <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Descriptions
-        </p>
-        <div className="space-y-4">
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-5">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Basics
+          </p>
           <div className="space-y-1.5">
-            <Label htmlFor="description">Short description</Label>
+            <Label htmlFor="title">Title</Label>
             <Input
-              id="description"
+              id="title"
               className="border-border/80 bg-background"
-              placeholder="Learn how to build…"
-              {...register('description')}
+              placeholder="Build Gmail Manager Bot"
+              {...register('title')}
             />
-            {errors.description && (
-              <p className="text-xs text-destructive">{errors.description.message}</p>
+            {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+          </div>
+          <Controller
+            name="emoji"
+            control={control}
+            render={({ field }) => (
+              <MediaBadgeField
+                label="Catalog badge"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={errors.emoji?.message}
+                helperText="Emoji, image URL, site path, or upload a PNG/JPEG/WebP/GIF (stored with the course)."
+              />
             )}
+          />
+        </section>
+
+        <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Descriptions
+          </p>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Short description</Label>
+              <Input
+                id="description"
+                className="border-border/80 bg-background"
+                placeholder="Learn how to build…"
+                {...register('description')}
+              />
+              {errors.description && (
+                <p className="text-xs text-destructive">{errors.description.message}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="about">Long description (about)</Label>
+              <Textarea
+                id="about"
+                rows={5}
+                className="resize-y border-border/80 bg-background"
+                {...register('about')}
+              />
+              {errors.about && <p className="text-xs text-destructive">{errors.about.message}</p>}
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="about">Long description (about)</Label>
-            <Textarea
-              id="about"
-              rows={5}
-              className="resize-y border-border/80 bg-background"
-              {...register('about')}
-            />
-            {errors.about && <p className="text-xs text-destructive">{errors.about.message}</p>}
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -173,9 +177,18 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
             />
           </div>
         </div>
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
+          <input type="checkbox" className="mt-1" {...register('is_visible')} />
+          <span>
+            <span className="block font-medium">Visible to learners</span>
+            <span className="block text-xs leading-relaxed text-muted-foreground">
+              Hidden courses hide all modules and lessons in this course.
+            </span>
+          </span>
+        </label>
       </section>
 
-      <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 pt-4">
+      <div className="sticky bottom-0 -mx-6 flex flex-wrap justify-end gap-2 border-t border-border/60 bg-card/95 px-6 py-4 backdrop-blur">
         <Button type="button" variant="outline" className="border-border/80" onClick={onDone}>
           Cancel
         </Button>

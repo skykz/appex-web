@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { EyeOff, Plus, Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { categoriesApi, type Category } from '@features/categories/api'
 import { CategoryForm } from '@features/categories/category-form'
@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@shared/ui/dialog'
 import { DataTable, type Column } from '@shared/ui/data-table'
+import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
 import { ApiError } from '@shared/api/http-client'
 
 /**
@@ -29,32 +30,45 @@ export function CategoriesPage() {
 
   const [editing, setEditing] = useState<Category | null>(null)
   const [creating, setCreating] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const remove = useMutation({
-    mutationFn: (id: number) => categoriesApi.remove(id),
+    mutationFn: (args: { id: number; force?: boolean }) => categoriesApi.remove(args.id, args),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'categories'] })
+      setDeleteTarget(null)
+      setDeleteError(null)
       toast.success('Category deleted')
     },
     onError: (err: unknown) => {
       const msg =
         err instanceof ApiError
           ? err.status === 409
-            ? 'Cannot delete: category still has courses.'
+            ? err.message
             : err.message
-          : 'Failed'
+          : 'Could not delete category.'
+      setDeleteError(msg)
       toast.error(msg)
     },
   })
 
-  /** Confirms destructive delete for a category row. */
-  function onDelete(c: Category) {
-    if (!confirm(`Delete category "${c.label}"? This cannot be undone.`)) return
-    remove.mutate(c.id)
-  }
-
   const columns: Column<Category>[] = [
-    { key: 'label', header: 'Name', render: (c) => <span className="font-medium">{c.label}</span> },
+    {
+      key: 'label',
+      header: 'Name',
+      render: (c) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{c.label}</span>
+          {!c.is_visible ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+              <EyeOff className="h-3 w-3" />
+              Hidden
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
     {
       key: 'slug',
       header: 'Slug',
@@ -81,7 +95,15 @@ export function CategoriesPage() {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(c)}>
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(c)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => {
+              setDeleteTarget(c)
+              setDeleteError(null)
+            }}
+          >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
@@ -118,30 +140,56 @@ export function CategoriesPage() {
       )}
 
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
-        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>New category</DialogTitle>
             <DialogDescription>
               Slug is used internally and must be unique (letters, numbers, underscores).
             </DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <CategoryForm onDone={() => setCreating(false)} />
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(editing)} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>Edit category</DialogTitle>
             <DialogDescription>Update label, slug, or sort order.</DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {editing ? <CategoryForm initial={editing} onDone={() => setEditing(null)} /> : null}
           </div>
         </DialogContent>
       </Dialog>
+
+      <DestructiveConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(o) => {
+          if (o) return
+          setDeleteTarget(null)
+          setDeleteError(null)
+        }}
+        title="Delete category?"
+        description={
+          deleteTarget
+            ? `Delete “${deleteTarget.label}”? Categories with courses will be blocked by the server.`
+            : ''
+        }
+        confirmLabel="Delete category"
+        isPending={remove.isPending}
+        errorMessage={deleteError}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          remove.mutate({ id: deleteTarget.id })
+        }}
+        onHardConfirm={() => {
+          if (!deleteTarget) return
+          remove.mutate({ id: deleteTarget.id, force: true })
+        }}
+      />
     </div>
   )
 }

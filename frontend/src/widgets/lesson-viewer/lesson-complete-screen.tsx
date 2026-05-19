@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Star, Monitor, Loader2 } from 'lucide-react'
+import { Star, Monitor, Loader2, Trophy } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button } from '@shared/ui'
 
@@ -34,20 +34,22 @@ export function LessonCompleteScreen({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background">
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-6">
-        <div className="flex w-full max-w-md flex-col items-center text-center">
-          <div className="mb-6 text-7xl">🏆</div>
+    <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-orange-50/70 via-background to-background">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
+        <div className="w-full max-w-xl rounded-3xl border border-orange-200/70 bg-white px-5 py-7 text-center shadow-xl shadow-orange-500/10 ring-1 ring-orange-100 sm:px-8 sm:py-8">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow-lg shadow-orange-500/25">
+            <Trophy className="size-9" strokeWidth={2.4} aria-hidden />
+          </div>
 
-          <div className="mb-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+          <div className="mb-2 flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-500">
             <Monitor className="size-4" />
             <span>{lessonLabel}</span>
           </div>
 
-          <h1 className="text-2xl font-bold">Lesson complete!</h1>
-          <p className="mt-1.5 text-muted-foreground">Excellent work today!</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950">Lesson complete!</h1>
+          <p className="mt-2 text-base text-zinc-600">Nice work. How was this lesson?</p>
 
-          <div className="mt-5 flex gap-1">
+          <div className="mt-6 flex justify-center gap-1.5">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
@@ -55,14 +57,15 @@ export function LessonCompleteScreen({
                 onClick={() => setRating(star)}
                 onMouseEnter={() => setHoveredStar(star)}
                 onMouseLeave={() => setHoveredStar(0)}
-                className="p-0.5 transition-transform hover:scale-110 active:scale-95"
+                className="rounded-lg p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-400 active:scale-95"
+                aria-label={`Rate ${star} star${star === 1 ? '' : 's'}`}
               >
                 <Star
                   className={cn(
-                    'size-8 transition-colors',
+                    'size-9 transition-colors',
                     star <= (hoveredStar || rating)
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'fill-muted text-muted'
+                      ? 'fill-amber-400 text-amber-500 drop-shadow-sm'
+                      : 'fill-white text-zinc-300'
                   )}
                 />
               </button>
@@ -72,17 +75,17 @@ export function LessonCompleteScreen({
           <textarea
             placeholder="Share your thoughts"
             rows={4}
-            className="mt-5 w-full resize-none rounded-xl bg-muted/50 px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-ring"
+            className="mt-6 w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-900 shadow-inner outline-none placeholder:text-zinc-500 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
         </div>
       </div>
 
-      <div className="shrink-0 border-t bg-background px-4 py-4">
+      <div className="shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.25)] backdrop-blur">
         <div className="mx-auto w-full max-w-2xl">
           <Button
             onClick={() => void handleContinue()}
-            size="xl"
-            className="w-full"
+            size="lg"
+            className="w-full rounded-xl shadow-lg shadow-orange-500/20"
             disabled={busy}
           >
             {busy ? (

@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useState, useEffect } from 'react'
-import { FileText, X } from 'lucide-react'
+import { ExternalLink, FileText, Flag, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import {
   Avatar,
@@ -19,6 +19,9 @@ import {
   QuizBlockView,
   SubmissionBlockView,
 } from './lesson-interactive-blocks'
+import { LessonIssueReportDialog } from './lesson-issue-report-dialog'
+import { LessonAssistantWidget } from './lesson-assistant-widget'
+import { renderLinkedText } from './render-linked-text'
 
 type Phase = 'lesson' | 'complete' | 'streak'
 
@@ -54,6 +57,7 @@ export function LessonViewer({
   )
   const [phase, setPhase] = useState<Phase>('lesson')
   const [exitDialogOpen, setExitDialogOpen] = useState(false)
+  const [reportDialogOpen, setReportDialogOpen] = useState(false)
 
   useEffect(() => {
     const max = Math.max(0, content.steps.length - 1)
@@ -147,30 +151,61 @@ export function LessonViewer({
         </DialogContent>
       </Dialog>
 
+      <LessonIssueReportDialog
+        open={reportDialogOpen}
+        onOpenChange={setReportDialogOpen}
+        lessonId={content.lessonId}
+        lessonLabel={lessonLabel}
+        stepIndex={stepIndex}
+        stepCount={totalSteps}
+      />
+      <LessonAssistantWidget
+        lessonLabel={lessonLabel}
+        stepIndex={stepIndex}
+        stepCount={totalSteps}
+        blocks={currentBlocks}
+      />
+
       {/* Top bar */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/80 bg-background/90 px-3 py-3 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/75 sm:gap-4 sm:px-4">
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-background/95 px-2.5 py-2 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/80 sm:px-3">
         <Button
           variant="ghost"
           size="sm-icon"
+          className="size-7"
           onClick={() => setExitDialogOpen(true)}
+          title="Exit lesson"
         >
-          <X className="size-5" />
+          <X className="size-4" />
         </Button>
 
         {/* Segmented progress bar */}
-        <div className="flex min-w-0 flex-1 items-center gap-1">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'h-1.5 flex-1 rounded-full transition-all duration-500',
-                i <= stepIndex
-                  ? 'bg-gradient-to-r from-primary to-orange-400 shadow-sm shadow-primary/25'
-                  : 'bg-muted'
-              )}
-            />
-          ))}
+        <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+          <div className="flex w-full items-center gap-1">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'h-1.5 flex-1 rounded-full transition-all duration-500',
+                  i <= stepIndex
+                    ? 'bg-gradient-to-r from-primary to-orange-400 shadow-sm shadow-primary/25'
+                    : 'bg-muted'
+                )}
+              />
+            ))}
+          </div>
+          <p className="rounded-full border border-primary/20 bg-primary/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary shadow-sm">
+            Step {stepIndex + 1} of {totalSteps}
+          </p>
         </div>
+        <Button
+          variant="ghost"
+          size="sm-icon"
+          className="size-7 text-muted-foreground hover:text-foreground"
+          onClick={() => setReportDialogOpen(true)}
+          title="Report content issue"
+        >
+          <Flag className="size-4" />
+        </Button>
       </div>
 
       {/* Scrollable content — subtle panel so the lesson reads as a distinct surface */}
@@ -184,31 +219,32 @@ export function LessonViewer({
       </div>
 
       {/* Bottom bar */}
-      <div className="sticky bottom-0 z-10 border-t border-border/80 bg-background/95 px-4 py-4 shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.08)] backdrop-blur-md supports-[backdrop-filter]:bg-background/85 dark:shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.35)]">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-1 sm:px-2">
+      <div className="sticky bottom-0 z-10 border-t border-border/60 bg-background/85 px-3 py-2.5 shadow-[0_-6px_20px_-16px_rgba(0,0,0,0.2)] backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
           {!isFirst ? (
             <>
               <Button
                 variant="outline"
-                size="xl"
+                size="sm"
+                className="h-9 rounded-lg px-4"
                 onClick={handleBack}
               >
                 Back
               </Button>
               <div className="flex-1" />
               <Button
-                size="xl"
+                size="sm"
                 onClick={handleNext}
-                className="px-10"
+                className="h-9 rounded-lg px-6 shadow-sm"
               >
                 {isLast ? 'Finish' : 'Continue'}
               </Button>
             </>
           ) : (
             <Button
-              size="xl"
+              size="sm"
               onClick={handleNext}
-              className="w-full"
+              className="h-9 w-full rounded-lg shadow-sm"
             >
               Continue
             </Button>
@@ -278,6 +314,49 @@ function videoPresentation(
 }
 
 type BlockContext = { lessonId: number; stepIndex: number }
+
+/**
+ * Renders text content with blank lines as paragraph breaks, preserving intentional line breaks.
+ */
+function renderTextParagraphs(
+  keyPrefix: string,
+  runs: Array<{ content: string; bold: boolean }>
+): React.ReactNode[] {
+  const groups: Array<Array<{ content: string; bold: boolean }>> = [[]]
+
+  for (const run of runs) {
+    const parts = run.content.split(/(\r?\n\s*\r?\n)/)
+    for (const part of parts) {
+      if (!part) continue
+      if (/\r?\n\s*\r?\n/.test(part)) {
+        groups.push([])
+        continue
+      }
+      groups[groups.length - 1]!.push({ ...run, content: part })
+    }
+  }
+
+  return groups
+    .filter((group) => group.some((run) => run.content.trim().length > 0))
+    .map((group, idx) => (
+      <p
+        key={`${keyPrefix}-${idx}`}
+        className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed first:mt-0"
+      >
+        {group.map((run, runIdx) =>
+          run.bold ? (
+            <strong key={runIdx} className="font-semibold">
+              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+            </strong>
+          ) : (
+            <span key={runIdx}>
+              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+            </span>
+          )
+        )}
+      </p>
+    ))
+}
 
 /**
  * Renders ordered lesson blocks (headings, media, chat bubbles, etc.) for the current step.
@@ -363,9 +442,9 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
           href={block.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 flex items-start gap-3 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:bg-zinc-900 first:mt-0"
+          className="group mt-5 flex items-start gap-3 rounded-2xl border border-blue-500/70 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:border-blue-400 hover:bg-zinc-900 first:mt-0"
         >
-          <FileText className="mt-0.5 size-5 shrink-0 text-zinc-400" aria-hidden />
+          <FileText className="mt-0.5 size-5 shrink-0 text-blue-300" aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold leading-snug">{block.label}</span>
             {block.description ? (
@@ -373,7 +452,12 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
                 {block.description}
               </span>
             ) : null}
-            <span className="mt-1.5 block truncate text-xs text-zinc-500">{block.url}</span>
+            <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-300">
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate underline decoration-blue-300/60 underline-offset-4 group-hover:decoration-blue-200">
+                {block.url}
+              </span>
+            </span>
           </span>
         </a>
       )
@@ -415,7 +499,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     // Merge consecutive text/bold-text into a single <p>
     if (block.type === 'text' || block.type === 'bold-text') {
-      const spans: React.ReactNode[] = []
+      const textRuns: Array<{ content: string; bold: boolean }> = []
       let j = i
       while (
         j < blocks.length &&
@@ -423,23 +507,16 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
       ) {
         const b = blocks[j]
         if (b.type === 'bold-text') {
-          spans.push(
-            <strong key={j} className="font-semibold">
-              {b.content}
-            </strong>
-          )
+          textRuns.push({ content: b.content, bold: true })
         } else if (b.type === 'text') {
-          spans.push(<span key={j}>{b.content}</span>)
+          textRuns.push({ content: b.content, bold: false })
         }
         j++
       }
       elements.push(
-        <p
-          key={`p-${i}`}
-          className="mt-5 text-[15px] leading-relaxed first:mt-0"
-        >
-          {spans}
-        </p>
+        <div key={`p-${i}`} className="mt-5 first:mt-0">
+          {renderTextParagraphs(`p-${i}`, textRuns)}
+        </div>
       )
       i = j
       continue
@@ -453,7 +530,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
         >
           {block.items.map((item, idx) => (
             <li key={idx} className="text-[15px] leading-relaxed">
-              {item}
+              {renderLinkedText(item, `list-${i}-${idx}`)}
             </li>
           ))}
         </ul>
@@ -499,7 +576,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
               </AvatarFallback>
             </Avatar>
             <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-[15px] leading-relaxed">
-              {block.text}
+              {renderLinkedText(block.text, `mentor-${i}`)}
             </div>
           </div>
         </div>

@@ -13,6 +13,7 @@ const listQuerySchema = z.object({
 const patchSchema = z.object({
   status: z.enum(['submitted', 'reviewed']).optional(),
   adminFeedback: z.string().max(8000).optional(),
+  grade: z.string().max(120).nullable().optional(),
 })
 
 /**
@@ -31,7 +32,7 @@ export async function listLessonSubmissions(
     let q = supabaseAdmin
       .from('lesson_submissions')
       .select(
-        'id, user_id, lesson_id, message, attachment_url, status, admin_feedback, created_at, users(email, name), lessons(title, label)',
+        'id, user_id, lesson_id, message, attachment_url, status, admin_feedback, grade, created_at, users(email, name), lessons(title, label)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -58,6 +59,7 @@ export async function listLessonSubmissions(
       attachment_url: r.attachment_url,
       status: r.status,
       admin_feedback: r.admin_feedback,
+      grade: r.grade,
       created_at: r.created_at,
     }))
 
@@ -84,6 +86,7 @@ export async function patchLessonSubmission(
     }
     if (body.status != null) patch.status = body.status
     if (body.adminFeedback !== undefined) patch.admin_feedback = body.adminFeedback
+    if (body.grade !== undefined) patch.grade = body.grade?.trim() || null
 
     const { data, error } = await supabaseAdmin
       .from('lesson_submissions')

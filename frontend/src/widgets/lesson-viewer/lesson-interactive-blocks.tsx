@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button, Input, Textarea } from '@shared/ui'
 import type { LessonBlock } from './lesson-types'
 import { lessonApi } from './api'
+import { renderLinkedText } from './render-linked-text'
 
 type QuizBlock =
   | Extract<LessonBlock, { type: 'quiz' }>
@@ -52,12 +53,39 @@ const OPEN_THANKS = [
   'Recorded. Thanks for taking the time.',
 ] as const
 
+const MAX_SUBMISSION_FILE_BYTES = 15 * 1024 * 1024
+
 /**
  * Picks a stable phrase from a list so feedback varies between blocks without flickering on re-render.
  */
 function pickPhrase<T extends readonly string[]>(list: T, seed: number): T[number] {
   const i = Math.abs(seed) % list.length
   return list[i]!
+}
+
+/**
+ * Converts a selected file to plain base64 so the authenticated JSON API can store it.
+ */
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Could not read file. Please choose it again.'))
+    reader.onload = () => {
+      const result = String(reader.result ?? '')
+      const comma = result.indexOf(',')
+      resolve(comma >= 0 ? result.slice(comma + 1) : result)
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+/**
+ * Formats file sizes for the submission helper text.
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 /**
@@ -80,6 +108,7 @@ export function QuizBlockView({
   const [result, setResult] = useState<{
     correct: boolean
     explanation: string | null
+    correctIndices?: number[]
   } | null>(null)
 
   const mutation = useMutation({
@@ -114,6 +143,7 @@ export function QuizBlockView({
 
   const options = getQuizOptions(block)
   const feedbackSeed = stepIndex * 47 + blockIndex * 13
+  const correctAfterSubmit = new Set(result?.correctIndices ?? [])
 
   const canSubmit =
     mode === 'open'
@@ -147,7 +177,9 @@ export function QuizBlockView({
         <ul className="mt-4 flex flex-col gap-2.5">
           {options.map((opt, idx) => {
             const isSelected = selected.includes(idx)
-            const showOutcome = result !== null && isSelected
+            const hasResult = result !== null
+            const isCorrectOption = hasResult && correctAfterSubmit.has(idx)
+            const isWrongSelected = hasResult && isSelected && !isCorrectOption
 
             return (
               <li key={idx}>
@@ -158,18 +190,20 @@ export function QuizBlockView({
                   aria-pressed={isSelected}
                   className={cn(
                     'flex w-full items-start gap-3 rounded-xl border-2 px-3 py-3 text-left text-[15px] leading-relaxed transition-all',
-                    !isSelected &&
-                      !showOutcome &&
+                    !hasResult &&
+                      !isSelected &&
                       'border-zinc-200 bg-white hover:border-orange-200 hover:bg-orange-50/50',
                     isSelected &&
                       !result &&
                       'border-primary bg-primary/[0.12] shadow-[inset_3px_0_0_0_hsl(var(--primary))] ring-2 ring-primary/25',
-                    showOutcome &&
-                      result?.correct &&
+                    hasResult &&
+                      !isSelected &&
+                      !isCorrectOption &&
+                      'border-zinc-200 bg-white opacity-75',
+                    isCorrectOption &&
                       'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200',
-                    showOutcome &&
-                      !result?.correct &&
-                      'border-amber-600 bg-amber-50 ring-2 ring-amber-200'
+                    isWrongSelected &&
+                      'border-red-500 bg-red-50 ring-2 ring-red-200'
                   )}
                 >
                   <span
@@ -180,15 +214,15 @@ export function QuizBlockView({
                       isSelected &&
                         !result &&
                         'border-primary bg-primary text-primary-foreground',
-                      showOutcome &&
-                        result?.correct &&
+                      isCorrectOption &&
                         'border-emerald-600 bg-emerald-600 text-white',
-                      showOutcome &&
-                        !result?.correct &&
-                        'border-amber-700 bg-amber-700 text-white'
+                      isWrongSelected &&
+                        'border-red-600 bg-red-600 text-white'
                     )}
                   >
-                    {isSelected ? (
+                    {isWrongSelected ? (
+                      <X className="size-4" strokeWidth={3} aria-hidden />
+                    ) : isSelected || isCorrectOption ? (
                       <Check className="size-4" strokeWidth={3} aria-hidden />
                     ) : (
                       idx + 1
@@ -197,7 +231,9 @@ export function QuizBlockView({
                   <span
                     className={cn(
                       'min-w-0 flex-1 pt-0.5',
-                      isSelected && !result && 'font-medium text-zinc-900'
+                      isSelected && !result && 'font-medium text-zinc-900',
+                      isCorrectOption && 'font-medium text-emerald-950',
+                      isWrongSelected && 'font-medium text-red-950'
                     )}
                   >
                     {opt}
@@ -243,7 +279,7 @@ export function QuizBlockView({
 }
 
 /**
- * Collects student text (and optional file URL) and posts it to the lesson submissions API.
+ * Collects student text and an optional uploaded file, then posts it to the lesson submissions API.
  */
 export function SubmissionBlockView({
   lessonId,
@@ -254,7 +290,8 @@ export function SubmissionBlockView({
 }) {
   const qc = useQueryClient()
   const [message, setMessage] = useState('')
-  const [attachmentUrl, setAttachmentUrl] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
 
   const { data: existing } = useQuery({
     queryKey: ['lesson-submission', lessonId],
@@ -262,17 +299,49 @@ export function SubmissionBlockView({
   })
 
   const submit = useMutation({
-    mutationFn: () =>
-      lessonApi.submitSubmission(lessonId, {
-        message,
-        attachmentUrl: attachmentUrl.trim() || undefined,
-      }),
+    mutationFn: async () => {
+      let attachmentUrl: string | undefined
+      if (selectedFile) {
+        const dataBase64 = await readFileAsBase64(selectedFile)
+        const uploaded = await lessonApi.uploadSubmissionFile(lessonId, {
+          fileName: selectedFile.name,
+          contentType: selectedFile.type || 'application/octet-stream',
+          size: selectedFile.size,
+          dataBase64,
+        })
+        attachmentUrl = uploaded.attachmentUrl
+      }
+      return lessonApi.submitSubmission(lessonId, {
+        message: message.trim() || undefined,
+        attachmentUrl,
+      })
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lesson-submission', lessonId] })
+      qc.invalidateQueries({ queryKey: ['lesson-submissions', 'me'] })
       setMessage('')
-      setAttachmentUrl('')
+      setSelectedFile(null)
+      setFileError(null)
     },
   })
+
+  /**
+   * Validates the optional submission attachment before upload.
+   */
+  function handleFileChange(file: File | undefined) {
+    if (!file) {
+      setSelectedFile(null)
+      setFileError(null)
+      return
+    }
+    if (file.size > MAX_SUBMISSION_FILE_BYTES) {
+      setSelectedFile(null)
+      setFileError(`File is too large. Maximum size is ${formatBytes(MAX_SUBMISSION_FILE_BYTES)}.`)
+      return
+    }
+    setSelectedFile(file)
+    setFileError(null)
+  }
 
   return (
     <div className="mt-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.06] p-4 ring-1 ring-sky-500/15">
@@ -285,31 +354,66 @@ export function SubmissionBlockView({
         disabled={submit.isPending}
       />
       {block.acceptAttachment ? (
-        <Input
-          className="mt-2 border-border/80 bg-background"
-          placeholder="Link to file (URL you uploaded elsewhere)"
-          value={attachmentUrl}
-          onChange={(e) => setAttachmentUrl(e.target.value)}
-        />
+        <div className="mt-3 rounded-xl border border-border/70 bg-background/80 p-3">
+          <label className="text-xs font-semibold text-muted-foreground">
+            Attach file
+          </label>
+          <Input
+            key={selectedFile ? `${selectedFile.name}-${selectedFile.lastModified}` : 'empty-file'}
+            className="mt-2 border-border/80 bg-background"
+            type="file"
+            onChange={(e) => handleFileChange(e.target.files?.[0])}
+            disabled={submit.isPending}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Any file type, up to {formatBytes(MAX_SUBMISSION_FILE_BYTES)}.
+          </p>
+          {selectedFile ? (
+            <p className="mt-2 text-xs font-medium text-foreground">
+              Selected: {selectedFile.name} ({formatBytes(selectedFile.size)})
+            </p>
+          ) : null}
+          {fileError ? (
+            <p className="mt-2 text-xs font-medium text-destructive">{fileError}</p>
+          ) : null}
+        </div>
       ) : null}
       <Button
         type="button"
         className="mt-3"
         size="sm"
-        disabled={!message.trim() || submit.isPending}
+        disabled={(!message.trim() && !selectedFile) || Boolean(fileError) || submit.isPending}
         onClick={() => submit.mutate()}
       >
-        {submit.isPending ? 'Sending…' : 'Submit work'}
+        {submit.isPending ? 'Uploading…' : 'Submit work'}
       </Button>
+      {submit.error instanceof Error ? (
+        <p className="mt-2 text-xs font-medium text-destructive">{submit.error.message}</p>
+      ) : null}
       {existing ? (
         <div className="mt-4 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-sm">
           <p className="text-xs font-medium text-muted-foreground">Latest submission</p>
+          {existing.grade ? (
+            <p className="mt-2 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              Grade: {existing.grade}
+            </p>
+          ) : null}
           <p className="mt-1 whitespace-pre-wrap text-foreground">{existing.message}</p>
           {existing.admin_feedback ? (
             <p className="mt-2 border-t border-border/60 pt-2 text-muted-foreground">
               <span className="font-semibold text-foreground">Feedback: </span>
               {existing.admin_feedback}
             </p>
+          ) : null}
+          {existing.attachment_url ? (
+            <a
+              href={existing.attachment_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-block text-sm font-medium text-primary underline"
+            >
+              Open submitted file
+            </a>
           ) : null}
         </div>
       ) : null}
@@ -353,7 +457,9 @@ export function CalloutBlockView({
           {block.variant === 'warn' && 'Warning'}
         </p>
       )}
-      <p className="mt-2 text-[15px] leading-relaxed text-foreground">{block.content}</p>
+      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
+        {renderLinkedText(block.content, 'callout')}
+      </p>
     </div>
   )
 }

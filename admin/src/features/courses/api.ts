@@ -12,6 +12,7 @@ export interface Course {
   category: string
   duration: string
   order: number
+  is_visible: boolean
   created_at: string
   module_count?: number
   lesson_count?: number
@@ -24,6 +25,7 @@ export interface CourseInput {
   emoji: string
   category: string
   duration: string
+  is_visible?: boolean
 }
 
 export interface Module {
@@ -31,11 +33,13 @@ export interface Module {
   skill_id: number
   title: string
   order: number
+  is_visible: boolean
   lesson_count?: number
 }
 
 export interface ModuleInput {
   title: string
+  is_visible?: boolean
 }
 
 export interface Lesson {
@@ -46,6 +50,7 @@ export interface Lesson {
   emoji: string
   content: LessonStep[]
   order: number
+  is_visible: boolean
 }
 
 export interface LessonInput {
@@ -53,6 +58,7 @@ export interface LessonInput {
   title: string
   emoji: string
   content: LessonStep[]
+  is_visible?: boolean
   order?: number
 }
 
@@ -105,19 +111,22 @@ export const coursesApi = {
   create: (data: CourseInput) => httpClient.post<Course>('/admin/courses', data),
   update: (id: number, data: Partial<CourseInput>) =>
     httpClient.patch<Course>(`/admin/courses/${id}`, data),
-  remove: (id: number) => httpClient.delete<void>(`/admin/courses/${id}`),
+  remove: (id: number, options?: { force?: boolean }) =>
+    httpClient.delete<void>(`/admin/courses/${id}${options?.force ? '?force=true' : ''}`),
 
   createModule: (courseId: number, data: ModuleInput) =>
     httpClient.post<Module>(`/admin/courses/${courseId}/modules`, data),
   updateModule: (id: number, data: Partial<ModuleInput>) =>
     httpClient.patch<Module>(`/admin/modules/${id}`, data),
-  removeModule: (id: number) => httpClient.delete<void>(`/admin/modules/${id}`),
+  removeModule: (id: number, options?: { force?: boolean }) =>
+    httpClient.delete<void>(`/admin/modules/${id}${options?.force ? '?force=true' : ''}`),
 
   createLesson: (moduleId: number, data: LessonInput) =>
     httpClient.post<Lesson>(`/admin/modules/${moduleId}/lessons`, data),
   updateLesson: (id: number, data: Partial<LessonInput>) =>
     httpClient.patch<Lesson>(`/admin/lessons/${id}`, data),
-  removeLesson: (id: number) => httpClient.delete<void>(`/admin/lessons/${id}`),
+  removeLesson: (id: number, options?: { force?: boolean }) =>
+    httpClient.delete<void>(`/admin/lessons/${id}${options?.force ? '?force=true' : ''}`),
 
   lessonEngagement: (lessonId: number) =>
     httpClient.get<LessonEngagementResponse>(`/admin/lessons/${lessonId}/engagement`),

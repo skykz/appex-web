@@ -11,10 +11,23 @@ export async function listSkills(
   try {
     const { userId } = req as AuthenticatedRequest
     const { category } = req.query
+    const { data: visibleCategories, error: categoryError } = await supabaseAdmin
+      .from('categories')
+      .select('slug')
+      .eq('is_visible', true)
+    if (categoryError) throw new AppError(500, categoryError.message)
+
+    const visibleCategorySlugs = (visibleCategories ?? []).map((c) => c.slug)
+    if (visibleCategorySlugs.length === 0) {
+      res.json([])
+      return
+    }
 
     let query = supabaseAdmin
       .from('skills')
       .select('*')
+      .eq('is_visible', true)
+      .in('category', visibleCategorySlugs)
       .order('order', { ascending: true })
 
     if (category && category !== 'all') {
@@ -64,15 +77,26 @@ export async function getSkillDetail(
       .from('skills')
       .select('*')
       .eq('id', skillId)
+      .eq('is_visible', true)
       .single()
 
     if (skillError || !skill) throw new AppError(404, 'Skill not found')
+
+    const { data: categoryRow, error: categoryError } = await supabaseAdmin
+      .from('categories')
+      .select('slug')
+      .eq('slug', skill.category)
+      .eq('is_visible', true)
+      .maybeSingle()
+    if (categoryError) throw new AppError(500, categoryError.message)
+    if (!categoryRow) throw new AppError(404, 'Skill not found')
 
     // Fetch modules with lessons
     const { data: modules } = await supabaseAdmin
       .from('modules')
       .select('*')
       .eq('skill_id', skillId)
+      .eq('is_visible', true)
       .order('order', { ascending: true })
 
     const moduleIds = (modules ?? []).map((m) => m.id)
@@ -80,6 +104,7 @@ export async function getSkillDetail(
     const { data: lessons } = await supabaseAdmin
       .from('lessons')
       .select('id, module_id, label, title, emoji, "order"')
+      .eq('is_visible', true)
       .in('module_id', moduleIds.length > 0 ? moduleIds : [-1])
       .order('order', { ascending: true })
 

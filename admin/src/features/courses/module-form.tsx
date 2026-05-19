@@ -12,6 +12,7 @@ import { ApiError } from '@shared/api/http-client'
 
 const schema = z.object({
   title: z.string().min(2).max(120),
+  is_visible: z.boolean().default(false),
 })
 
 type FormData = z.infer<typeof schema>
@@ -33,7 +34,7 @@ export function ModuleForm({ courseId, initial, onDone }: Props) {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { title: initial?.title ?? '' },
+    defaultValues: { title: initial?.title ?? '', is_visible: initial?.is_visible ?? false },
   })
 
   const mutation = useMutation({
@@ -53,13 +54,22 @@ export function ModuleForm({ courseId, initial, onDone }: Props) {
   })
 
   return (
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-5">
       <div className="space-y-1.5">
         <Label htmlFor="title">Title</Label>
         <Input id="title" placeholder="Getting started" {...register('title')} />
         {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
       </div>
-      <div className="flex justify-end gap-2">
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-sm">
+        <input type="checkbox" className="mt-1" {...register('is_visible')} />
+        <span>
+          <span className="block font-medium">Visible to learners</span>
+          <span className="block text-xs leading-relaxed text-muted-foreground">
+            Hidden modules hide every lesson inside them.
+          </span>
+        </span>
+      </label>
+      <div className="sticky bottom-0 -mx-6 flex justify-end gap-2 border-t border-border/60 bg-card/95 px-6 py-4 backdrop-blur">
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>

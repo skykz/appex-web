@@ -1,7 +1,64 @@
 import type { ReactNode } from 'react'
 import type { LessonBlockLearner } from '@appex/lesson-schema'
-import { FileText } from 'lucide-react'
+import { ExternalLink, FileText } from 'lucide-react'
 import { cn } from '@shared/lib'
+
+const URL_PATTERN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
+const TRAILING_PUNCTUATION_PATTERN = /[),.!?:;]+$/
+
+/**
+ * Splits punctuation from the end of a URL so preview links do not swallow commas or periods.
+ */
+function splitTrailingPunctuation(url: string): { hrefText: string; trailing: string } {
+  const match = url.match(TRAILING_PUNCTUATION_PATTERN)
+  if (!match) return { hrefText: url, trailing: '' }
+
+  return {
+    hrefText: url.slice(0, -match[0].length),
+    trailing: match[0],
+  }
+}
+
+/**
+ * Mirrors the learner view by making pasted URLs visibly clickable in preview text.
+ */
+function renderLinkedText(text: string, keyPrefix = 'linked-text'): ReactNode[] {
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(URL_PATTERN)) {
+    const rawUrl = match[0]
+    const index = match.index ?? 0
+
+    if (index > lastIndex) {
+      nodes.push(text.slice(lastIndex, index))
+    }
+
+    const { hrefText, trailing } = splitTrailingPunctuation(rawUrl)
+    const href = hrefText.startsWith('www.') ? `https://${hrefText}` : hrefText
+
+    nodes.push(
+      <a
+        key={`${keyPrefix}-${index}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-primary underline decoration-primary/45 underline-offset-4 transition-colors hover:text-primary/80 hover:decoration-primary"
+      >
+        {hrefText}
+      </a>
+    )
+
+    if (trailing) nodes.push(trailing)
+    lastIndex = index + rawUrl.length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return nodes
+}
 
 /**
  * Resolves a YouTube page or short link to a standard embed URL for an iframe (matches learner app).
@@ -67,6 +124,49 @@ type QuizBlock =
   | Extract<LessonBlockLearner, { type: 'quiz-multi' }>
 
 /**
+ * Renders text content with blank lines as paragraph breaks, matching the learner lesson view.
+ */
+function renderTextParagraphs(
+  keyPrefix: string,
+  runs: Array<{ content: string; bold: boolean }>
+): ReactNode[] {
+  const groups: Array<Array<{ content: string; bold: boolean }>> = [[]]
+
+  for (const run of runs) {
+    const parts = run.content.split(/(\r?\n\s*\r?\n)/)
+    for (const part of parts) {
+      if (!part) continue
+      if (/\r?\n\s*\r?\n/.test(part)) {
+        groups.push([])
+        continue
+      }
+      groups[groups.length - 1]!.push({ ...run, content: part })
+    }
+  }
+
+  return groups
+    .filter((group) => group.some((run) => run.content.trim().length > 0))
+    .map((group, idx) => (
+      <p
+        key={`${keyPrefix}-${idx}`}
+        className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed first:mt-0"
+      >
+        {group.map((run, runIdx) =>
+          run.bold ? (
+            <strong key={runIdx} className="font-semibold">
+              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+            </strong>
+          ) : (
+            <span key={runIdx}>
+              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+            </span>
+          )
+        )}
+      </p>
+    ))
+}
+
+/**
  * Derives quiz interaction mode from unified or legacy quiz blocks.
  */
 function getQuizPreviewMode(block: QuizBlock): 'single' | 'multi' | 'open' {
@@ -107,7 +207,7 @@ function CalloutPreview({
   return (
     <div className={cn('mt-5 rounded-xl border px-4 py-3 text-[15px] leading-relaxed first:mt-0', tone)}>
       {title ? <p className="mb-1 text-sm font-semibold">{title}</p> : null}
-      <p className="whitespace-pre-wrap">{content}</p>
+      <p className="whitespace-pre-wrap">{renderLinkedText(content, 'callout-preview')}</p>
     </div>
   )
 }
@@ -212,15 +312,20 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
           href={block.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 flex items-start gap-3 rounded-2xl border border-zinc-700 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:bg-zinc-900 first:mt-0"
+          className="group mt-5 flex items-start gap-3 rounded-2xl border border-blue-500/70 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:border-blue-400 hover:bg-zinc-900 first:mt-0"
         >
-          <FileText className="mt-0.5 size-5 shrink-0 text-zinc-400" aria-hidden />
+          <FileText className="mt-0.5 size-5 shrink-0 text-blue-300" aria-hidden />
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold leading-snug">{block.label}</span>
             {block.description ? (
               <span className="mt-1 block text-xs leading-relaxed text-zinc-400">{block.description}</span>
             ) : null}
-            <span className="mt-1.5 block truncate text-xs text-zinc-500">{block.url}</span>
+            <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-300">
+              <ExternalLink className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate underline decoration-blue-300/60 underline-offset-4 group-hover:decoration-blue-200">
+                {block.url}
+              </span>
+            </span>
           </span>
         </a>
       )
@@ -244,7 +349,7 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">{block.prompt}</p>
           <p className="text-xs text-muted-foreground">
             Learners send messages here in the app
-            {block.acceptAttachment ? ' (attachments allowed).' : '.'}
+            {block.acceptAttachment ? ' (file uploads allowed).' : '.'}
           </p>
         </div>
       )
@@ -261,25 +366,21 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
     }
 
     if (block.type === 'text' || block.type === 'bold-text') {
-      const spans: React.ReactNode[] = []
+      const textRuns: Array<{ content: string; bold: boolean }> = []
       let j = i
       while (j < blocks.length && (blocks[j].type === 'text' || blocks[j].type === 'bold-text')) {
         const b = blocks[j]
         if (b.type === 'bold-text') {
-          spans.push(
-            <strong key={j} className="font-semibold">
-              {b.content}
-            </strong>
-          )
+          textRuns.push({ content: b.content, bold: true })
         } else if (b.type === 'text') {
-          spans.push(<span key={j}>{b.content}</span>)
+          textRuns.push({ content: b.content, bold: false })
         }
         j++
       }
       elements.push(
-        <p key={`p-${i}`} className="mt-5 text-[15px] leading-relaxed first:mt-0">
-          {spans}
-        </p>
+        <div key={`p-${i}`} className="mt-5 first:mt-0">
+          {renderTextParagraphs(`p-${i}`, textRuns)}
+        </div>
       )
       i = j
       continue
@@ -290,7 +391,7 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
         <ul key={`list-${i}`} className="ml-6 mt-4 flex list-disc flex-col gap-1.5">
           {block.items.map((item, idx) => (
             <li key={idx} className="text-[15px] leading-relaxed">
-              {item}
+              {renderLinkedText(item, `list-${i}-${idx}`)}
             </li>
           ))}
         </ul>
@@ -326,7 +427,7 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
               M
             </div>
             <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-[15px] leading-relaxed">
-              {block.text}
+              {renderLinkedText(block.text, `mentor-${i}`)}
             </div>
           </div>
         </div>
@@ -338,5 +439,5 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
     i++
   }
 
-  return <>{elements}</>
+  return <div className="flex flex-col gap-5 [&>*]:mt-0">{elements}</div>
 }

@@ -21,6 +21,7 @@ const courseCreateSchema = z.object({
   emoji: lessonEmoji,
   category: z.string().min(1),
   duration: z.string().min(1),
+  is_visible: z.boolean().default(false),
   order: z.coerce.number().int().min(0).optional(),
 })
 
@@ -28,10 +29,12 @@ const courseUpdateSchema = courseCreateSchema.partial()
 
 const moduleCreateSchema = z.object({
   title: z.string().min(2).max(120),
+  is_visible: z.boolean().default(false),
 })
 
 const moduleUpdateSchema = z.object({
   title: z.string().min(2).max(120).optional(),
+  is_visible: z.boolean().optional(),
   order: z.coerce.number().int().min(0).optional(),
 })
 
@@ -54,6 +57,11 @@ function intParam(name: string, value: string | string[] | undefined): number {
   const n = Number(raw)
   if (!Number.isFinite(n)) throw new AppError(400, `Invalid ${name}`)
   return n
+}
+
+/** Reads the explicit force flag used for irreversible admin deletes. */
+function isForceDelete(req: Request): boolean {
+  return req.query.force === 'true' || req.query.force === '1'
 }
 
 // ---------- Courses (skills) ----------
@@ -210,7 +218,7 @@ export async function deleteCourse(
 ) {
   try {
     const id = intParam('id', req.params.id)
-    await assertCanDeleteCourse(id)
+    if (!isForceDelete(req)) await assertCanDeleteCourse(id)
     const { error } = await supabaseAdmin.from('skills').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
     res.status(204).end()
@@ -250,7 +258,12 @@ export async function createModule(
 
     const { data, error } = await supabaseAdmin
       .from('modules')
-      .insert({ title: body.title, skill_id: skillId, order: nextOrder })
+      .insert({
+        title: body.title,
+        is_visible: body.is_visible,
+        skill_id: skillId,
+        order: nextOrder,
+      })
       .select('*')
       .single()
     if (error) throw new AppError(500, error.message)
@@ -289,7 +302,7 @@ export async function deleteModule(
 ) {
   try {
     const id = intParam('id', req.params.id)
-    await assertCanDeleteModule(id)
+    if (!isForceDelete(req)) await assertCanDeleteModule(id)
     const { error } = await supabaseAdmin.from('modules').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
     res.status(204).end()
@@ -372,7 +385,7 @@ export async function deleteLesson(
 ) {
   try {
     const id = intParam('id', req.params.id)
-    await assertCanDeleteLesson(id)
+    if (!isForceDelete(req)) await assertCanDeleteLesson(id)
     const { error } = await supabaseAdmin.from('lessons').delete().eq('id', id)
     if (error) throw new AppError(500, error.message)
     res.status(204).end()

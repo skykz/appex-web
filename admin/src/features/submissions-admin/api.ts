@@ -12,6 +12,7 @@ export interface LessonSubmissionRow {
   attachment_url: string | null
   status: string
   admin_feedback: string | null
+  grade: string | null
   created_at: string
 }
 
@@ -48,10 +49,11 @@ export async function fetchLessonSubmissions(params: {
  */
 export async function patchLessonSubmission(
   id: string,
-  body: { adminFeedback?: string; status?: 'submitted' | 'reviewed' }
+  body: { adminFeedback?: string; grade?: string | null; status?: 'submitted' | 'reviewed' }
 ): Promise<void> {
   await httpClient.patch(`/admin/lesson-submissions/${id}`, {
     adminFeedback: body.adminFeedback,
+    grade: body.grade,
     status: body.status,
   })
 }

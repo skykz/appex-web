@@ -88,7 +88,7 @@ export function LessonPreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-3xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-4xl">
+      <DialogContent className="flex max-h-[94vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-5xl xl:max-w-6xl">
         <DialogHeader className="shrink-0 border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
           <DialogTitle className="flex flex-wrap items-center gap-2 text-lg">
             <EmojiOrImageBadge value={emoji || '📘'} frameClassName="h-10 w-10 text-2xl" />
@@ -120,14 +120,14 @@ export function LessonPreviewDialog({
           </p>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-          <div className="mx-auto max-w-3xl rounded-2xl border border-border/50 bg-card/40 px-4 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl rounded-2xl border border-border/50 bg-card/40 px-4 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 lg:px-10 dark:ring-white/[0.06]">
             <LessonPreviewBlocks blocks={current.blocks} />
           </div>
         </div>
 
         <div className="shrink-0 border-t border-border/80 bg-background/95 px-6 py-4">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
+          <div className="mx-auto flex max-w-5xl items-center gap-3">
             <Button type="button" variant="outline" disabled={isFirst} onClick={() => setStepIndex((s) => s - 1)}>
               Back
             </Button>

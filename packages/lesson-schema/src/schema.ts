@@ -4,14 +4,13 @@ import { z } from 'zod'
 export const urlOrPath = z.string().url().or(z.string().startsWith('/'))
 
 /**
- * Image block `src`: remote URL, site path, or a small raster inlined from admin (PNG/JPEG/WebP/GIF).
+ * Image block `src`: remote URL, site path, or an inlined raster from admin (PNG/JPEG/WebP/GIF).
  */
 export const imageSrcFlexible = z.union([
   urlOrPath,
   z
     .string()
-    .regex(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i, 'Use PNG, JPEG, WebP, or GIF')
-    .max(600_000),
+    .regex(/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i, 'Use PNG, JPEG, WebP, or GIF'),
 ])
 
 /** Trims list / quiz option lines coming from the admin textarea. */
@@ -134,15 +133,13 @@ export const lessonStepSchema = z.object({
   blocks: z.array(lessonBlockSchema).min(1),
 })
 
-const MAX_BADGE_INLINE = 600_000
-
 /**
- * Catalog / lesson badge: emoji text, `https` image URL, `/path`, or small `data:image/...;base64,` from admin.
+ * Catalog / lesson badge: emoji text, `https` image URL, `/path`, or `data:image/...;base64,` from admin.
  */
 export const lessonEmoji = z.preprocess((v) => {
   const s = String(v ?? '').trim()
   return s.length > 0 ? s : '📘'
-}, z.string().min(1).max(MAX_BADGE_INLINE).superRefine((s, ctx) => {
+}, z.string().min(1).superRefine((s, ctx) => {
   if (/^data:image\//i.test(s)) {
     if (!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(s)) {
       ctx.addIssue({
@@ -177,6 +174,7 @@ export const lessonCreateSchema = z.object({
   title: z.string().min(1),
   emoji: lessonEmoji,
   content: z.array(lessonStepSchema).min(1),
+  is_visible: z.boolean().default(false),
   order: z.coerce.number().int().min(0).default(0),
 })
 
@@ -190,6 +188,7 @@ export const lessonEditorFormSchema = z.object({
   label: z.string().min(1),
   title: z.string().min(1),
   emoji: lessonEmoji,
+  is_visible: z.boolean().default(false),
   order: z.preprocess(
     (v) => {
       if (v === '' || v === null || v === undefined) return 0

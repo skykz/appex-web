@@ -28,6 +28,7 @@ import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
 import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
+import { DialogDescription, DialogHeader, DialogTitle } from '@shared/ui/dialog'
 import { ApiError } from '@shared/api/http-client'
 import { MediaBadgeField } from '@shared/ui/media-badge-field'
 import { ImageSrcField } from '@shared/ui/image-src-field'
@@ -83,6 +84,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
       label: initial?.label ?? 'Lesson 1',
       title: initial?.title ?? '',
       emoji: initial?.emoji ?? '📘',
+      is_visible: initial?.is_visible ?? false,
       order: initial?.order ?? 0,
       steps: normalizeLessonStepsFromApi(initial?.content),
     },
@@ -106,6 +108,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
         label: values.label,
         title: values.title,
         emoji: values.emoji,
+        is_visible: values.is_visible,
         order: values.order,
         content: values.steps as LessonStep[],
       }
@@ -135,133 +138,173 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
 
   return (
     <>
-    <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
-      <input type="hidden" {...form.register('order')} />
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,8rem)_1fr]">
-        <div className="space-y-1.5">
-          <Label>Label</Label>
-          <Input placeholder="Lesson 1" {...form.register('label')} />
-          {form.formState.errors.label?.message ? (
-            <p className="text-xs text-destructive">{form.formState.errors.label.message}</p>
-          ) : null}
-        </div>
-        <div className="space-y-1.5">
-          <Label>Title</Label>
-          <Input placeholder="Introduction" {...form.register('title')} />
-          {form.formState.errors.title?.message ? (
-            <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
-          ) : null}
-        </div>
-      </div>
-      <Controller
-        name="emoji"
-        control={form.control}
-        render={({ field }) => (
-          <MediaBadgeField
-            label="Lesson badge"
-            value={field.value}
-            onChange={field.onChange}
-            onBlur={field.onBlur}
-            error={form.formState.errors.emoji?.message}
-            helperText="Emoji, image URL, path, or upload — shown next to the lesson in the catalog."
+      <form
+        onSubmit={form.handleSubmit(onSubmit, onInvalid)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <DialogHeader className="shrink-0 border-b border-border/60 bg-muted/20 px-5 py-3 pr-16 text-left sm:px-6 sm:pr-16">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <DialogTitle className="text-base">
+                {initial ? 'Edit lesson' : 'New lesson'}
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Lessons are made of steps; each step has blocks rendered in the user app.
+              </DialogDescription>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm">
+                <input type="checkbox" className="size-3.5" {...form.register('is_visible')} />
+                Visibility
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-2 bg-background"
+                onClick={() => appendStep({ blocks: [{ type: 'heading', content: '' }] })}
+              >
+                <Plus className="h-4 w-4" />
+                Add step
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-2 bg-background"
+                onClick={() => setPreviewOpen(true)}
+              >
+                <Eye className="h-4 w-4" aria-hidden />
+                Preview
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 bg-background"
+                onClick={onDone}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 min-w-28"
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Save lesson'
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-4">
+          <input type="hidden" {...form.register('order')} />
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,8rem)_1fr]">
+            <div className="space-y-1.5">
+              <Label>Label</Label>
+              <Input placeholder="Lesson 1" {...form.register('label')} />
+              {form.formState.errors.label?.message ? (
+                <p className="text-xs text-destructive">{form.formState.errors.label.message}</p>
+              ) : null}
+            </div>
+            <div className="space-y-1.5">
+              <Label>Title</Label>
+              <Input placeholder="Introduction" {...form.register('title')} />
+              {form.formState.errors.title?.message ? (
+                <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>
+              ) : null}
+            </div>
+          </div>
+          <Controller
+            name="emoji"
+            control={form.control}
+            render={({ field }) => (
+              <MediaBadgeField
+                label="Lesson badge"
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                error={form.formState.errors.emoji?.message}
+                helperText="Emoji, image URL, path, or upload — shown next to the lesson in the catalog."
+              />
+            )}
           />
-        )}
-      />
-      <p className="text-xs text-muted-foreground">
-        Lesson order within the module is set on the course page (move up / down).
-      </p>
-
-      <div className="space-y-3">
-        {form.formState.errors.steps &&
-        typeof form.formState.errors.steps.message === 'string' ? (
-          <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-            {form.formState.errors.steps.message}
+          <p className="text-xs text-muted-foreground">
+            Lesson order within the module is set on the course page (move up / down).
           </p>
-        ) : null}
-        <div className="flex items-center justify-between">
-          <Label>Steps ({stepFields.length})</Label>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => appendStep({ blocks: [{ type: 'heading', content: '' }] })}
-          >
-            <Plus className="h-4 w-4" />
-            Add step
-          </Button>
-        </div>
-
-        {stepFields.map((step, stepIdx) => (
-          <div key={step.id} className="rounded-lg border bg-muted/20 p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-                Step {stepIdx + 1}
-              </div>
-              <div className="flex gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={stepIdx === 0}
-                  onClick={() => moveStep(stepIdx, stepIdx - 1)}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={stepIdx === stepFields.length - 1}
-                  onClick={() => moveStep(stepIdx, stepIdx + 1)}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => {
-                    if (stepFields.length === 1) {
-                      toast.error('At least one step is required.')
-                      return
-                    }
-                    removeStep(stepIdx)
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
+          <div className="space-y-3">
+            {form.formState.errors.steps &&
+            typeof form.formState.errors.steps.message === 'string' ? (
+              <p className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                {form.formState.errors.steps.message}
+              </p>
+            ) : null}
+            <div className="flex items-center justify-between rounded-lg border border-border/70 bg-background/95 px-4 py-2 shadow-sm">
+              <Label>Steps ({stepFields.length})</Label>
             </div>
 
-            <StepBlocksEditor form={form} stepIdx={stepIdx} />
-          </div>
-        ))}
-      </div>
+            {stepFields.map((step, stepIdx) => (
+              <div key={step.id} className="rounded-lg border bg-muted/20 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    Step {stepIdx + 1}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={stepIdx === 0}
+                      onClick={() => moveStep(stepIdx, stepIdx - 1)}
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      disabled={stepIdx === stepFields.length - 1}
+                      onClick={() => moveStep(stepIdx, stepIdx + 1)}
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        if (stepFields.length === 1) {
+                          toast.error('At least one step is required.')
+                          return
+                        }
+                        removeStep(stepIdx)
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
 
-      <div className="flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <Button type="button" variant="outline" className="gap-2" onClick={() => setPreviewOpen(true)}>
-          <Eye className="h-4 w-4" aria-hidden />
-          Preview
-        </Button>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onDone}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save lesson'}
-          </Button>
+                <StepBlocksEditor form={form} stepIdx={stepIdx} />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
-    </form>
-    <LessonPreviewDialog
-      open={previewOpen}
-      onOpenChange={setPreviewOpen}
-      label={typeof watchedLabel === 'string' ? watchedLabel : ''}
-      title={typeof watchedTitle === 'string' ? watchedTitle : ''}
-      emoji={typeof watchedEmoji === 'string' ? watchedEmoji : '📘'}
-      steps={watchedSteps ?? form.getValues('steps')}
-    />
+      </form>
+      <LessonPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        label={typeof watchedLabel === 'string' ? watchedLabel : ''}
+        title={typeof watchedTitle === 'string' ? watchedTitle : ''}
+        emoji={typeof watchedEmoji === 'string' ? watchedEmoji : '📘'}
+        steps={watchedSteps ?? form.getValues('steps')}
+      />
     </>
   )
 }
@@ -635,7 +678,7 @@ function BlockFields({
                 checked={Boolean(field.value)}
                 onChange={(e) => field.onChange(e.target.checked)}
               />
-              Allow attachment URL field
+              Allow file upload field
             </label>
           )}
         />

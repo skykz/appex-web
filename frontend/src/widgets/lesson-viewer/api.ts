@@ -47,15 +47,30 @@ export const lessonApi = {
       selectedIndices?: number[]
       openAnswer?: string
     }
-  ): Promise<{ correct: boolean; explanation: string | null }> {
+  ): Promise<{ correct: boolean; explanation: string | null; correctIndices?: number[] }> {
     return httpClient.post(`/lessons/${lessonId}/quiz-check`, body)
   },
 
   async submitSubmission(
     lessonId: number,
-    body: { message: string; attachmentUrl?: string }
+    body: { message?: string; attachmentUrl?: string }
   ): Promise<{ id: string; created_at: string }> {
     return httpClient.post(`/lessons/${lessonId}/submissions`, body)
+  },
+
+  /**
+   * Uploads one selected work file before its public URL is attached to a submission.
+   */
+  async uploadSubmissionFile(
+    lessonId: number,
+    body: {
+      fileName: string
+      contentType: string
+      size: number
+      dataBase64: string
+    }
+  ): Promise<{ attachmentUrl: string }> {
+    return httpClient.post(`/lessons/${lessonId}/submissions/file`, body)
   },
 
   async getMySubmission(lessonId: number): Promise<{
@@ -64,9 +79,33 @@ export const lessonApi = {
     attachment_url: string | null
     status: string
     admin_feedback: string | null
+    grade: string | null
     created_at: string
   } | null> {
     return httpClient.get(`/lessons/${lessonId}/submissions/me`)
+  },
+
+  /**
+   * Loads every submission made by the current learner for the submissions history page.
+   */
+  async listMySubmissions(): Promise<{
+    items: Array<{
+      id: string
+      lesson_id: number
+      lesson_title: string
+      lesson_label: string
+      module_title: string
+      course_title: string
+      message: string | null
+      attachment_url: string | null
+      status: string
+      admin_feedback: string | null
+      grade: string | null
+      created_at: string
+      updated_at: string
+    }>
+  }> {
+    return httpClient.get('/lessons/submissions/me')
   },
 
   /**

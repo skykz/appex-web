@@ -9,6 +9,7 @@ const AuthPage = lazy(() => import('@pages/auth'))
 const ForgotPasswordPage = lazy(() => import('@pages/auth/forgot-password'))
 const ResetPasswordPage = lazy(() => import('@pages/auth/reset-password'))
 const SettingsPage = lazy(() => import('@pages/settings'))
+const MySubmissionsPage = lazy(() => import('@pages/submissions'))
 const SkillsPage = lazy(() => import('@pages/skills'))
 const SkillDetailPage = lazy(() => import('@pages/skills/detail'))
 const AIChatPage = lazy(() => import('@pages/ai-tools/chat'))
@@ -53,6 +54,10 @@ export const router = createBrowserRouter(
           {
             path: 'settings',
             element: <SettingsPage />,
+          },
+          {
+            path: 'submissions',
+            element: <MySubmissionsPage />,
           },
           {
             path: 'skills',

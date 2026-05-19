@@ -6,6 +6,17 @@ import {
   lessonApi,
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
+import { skillsApi, type SkillDetail } from '@features/skills'
+
+/**
+ * Finds the next lesson in course order after the current lesson.
+ */
+function getNextLessonId(skill: SkillDetail | undefined, currentLessonId: number) {
+  const lessons = skill?.modules.flatMap((module) => module.lessons) ?? []
+  const currentIndex = lessons.findIndex((lesson) => lesson.id === currentLessonId)
+  if (currentIndex < 0) return null
+  return lessons[currentIndex + 1]?.id ?? null
+}
 
 /**
  * Academy route lesson player — same lesson API as skills, with academy navigation paths.
@@ -23,6 +34,13 @@ export default function LessonPage() {
     queryKey: ['lesson', numericLessonId],
     queryFn: () => lessonApi.get(numericLessonId),
     enabled: Number.isFinite(numericLessonId),
+  })
+  const numericCourseId = Number(courseId)
+
+  const { data: course } = useQuery({
+    queryKey: ['skill', numericCourseId],
+    queryFn: () => skillsApi.getDetail(numericCourseId),
+    enabled: Number.isFinite(numericCourseId),
   })
 
   const content = data
@@ -49,7 +67,12 @@ export default function LessonPage() {
   }
 
   function handleFinish() {
-    navigate(`/academy/courses/${courseId}`)
+    const nextLessonId = getNextLessonId(course, numericLessonId)
+    navigate(
+      nextLessonId
+        ? `/academy/courses/${courseId}/lessons/${nextLessonId}`
+        : `/academy/courses/${courseId}`
+    )
     void queryClient.invalidateQueries({ queryKey: ['skills'] })
     void queryClient.invalidateQueries({
       queryKey: ['skill', Number(courseId)],

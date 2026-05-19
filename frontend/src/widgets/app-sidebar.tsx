@@ -19,6 +19,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Sparkles,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useAuthStore } from '@entities/user'
 import {
@@ -59,6 +60,11 @@ const mainNav = [
         title: 'Skills',
         url: '/skills',
         icon: Puzzle,
+      },
+      {
+        title: 'Submissions',
+        url: '/submissions',
+        icon: ClipboardCheck,
       },
     ],
   },

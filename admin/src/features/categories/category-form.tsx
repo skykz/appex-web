@@ -17,6 +17,7 @@ const schema = z.object({
     .max(40)
     .regex(/^[a-z0-9_]+$/, 'lowercase letters, numbers, underscore'),
   label: z.string().min(2).max(60),
+  is_visible: z.boolean().default(false),
   order: z.coerce.number().int().min(0),
 })
 
@@ -27,6 +28,9 @@ interface Props {
   onDone: () => void
 }
 
+/**
+ * Creates or updates a category; slugs are locked after creation because courses reference them.
+ */
 export function CategoryForm({ initial, onDone }: Props) {
   const qc = useQueryClient()
   const {
@@ -38,6 +42,7 @@ export function CategoryForm({ initial, onDone }: Props) {
     defaultValues: {
       slug: initial?.slug ?? '',
       label: initial?.label ?? '',
+      is_visible: initial?.is_visible ?? false,
       order: initial?.order ?? 0,
     },
   })
@@ -57,7 +62,7 @@ export function CategoryForm({ initial, onDone }: Props) {
   })
 
   return (
-    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+    <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-5">
       <div className="space-y-1.5">
         <Label htmlFor="slug">Slug</Label>
         <Input
@@ -82,7 +87,16 @@ export function CategoryForm({ initial, onDone }: Props) {
         <Label htmlFor="order">Order</Label>
         <Input id="order" type="number" min={0} {...register('order')} />
       </div>
-      <div className="flex justify-end gap-2">
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-sm">
+        <input type="checkbox" className="mt-1" {...register('is_visible')} />
+        <span>
+          <span className="block font-medium">Visible to learners</span>
+          <span className="block text-xs leading-relaxed text-muted-foreground">
+            Hidden categories hide every course, module, and lesson inside them.
+          </span>
+        </span>
+      </label>
+      <div className="sticky bottom-0 -mx-6 flex justify-end gap-2 border-t border-border/60 bg-card/95 px-6 py-4 backdrop-blur">
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel
         </Button>

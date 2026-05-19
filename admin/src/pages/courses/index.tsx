@@ -12,6 +12,7 @@ import {
   ArrowUpDown,
   FolderOpen,
   Info,
+  EyeOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { coursesApi, type Course } from '@features/courses/api'
@@ -56,6 +57,7 @@ export function CoursesPage() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Course | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [conflictBanner, setConflictBanner] = useState<string | null>(null)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -68,18 +70,21 @@ export function CoursesPage() {
   }, [categories])
 
   const remove = useMutation({
-    mutationFn: (id: number) => coursesApi.remove(id),
+    mutationFn: (args: { id: number; force?: boolean }) => coursesApi.remove(args.id, args),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
       setConflictBanner(null)
+      setDeleteError(null)
+      setDeleteTarget(null)
       toast.success('Course deleted')
     },
     onError: (err: unknown) => {
+      const msg = err instanceof ApiError ? err.message : 'Could not delete course.'
+      setDeleteError(msg)
       if (err instanceof ApiError && err.status === 409) {
-        setConflictBanner(err.message)
+        setConflictBanner(msg)
         return
       }
-      const msg = err instanceof ApiError ? err.message : 'Failed'
       toast.error(msg)
     },
   })
@@ -154,7 +159,15 @@ export function CoursesPage() {
         <div className="flex items-center gap-3">
           <EmojiOrImageBadge value={c.emoji} frameClassName="h-11 w-11 text-xl shadow-inner" />
           <div className="min-w-0">
-            <div className="font-medium leading-snug">{c.title}</div>
+            <div className="flex flex-wrap items-center gap-2 font-medium leading-snug">
+              <span>{c.title}</span>
+              {!c.is_visible ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                  <EyeOff className="h-3 w-3" />
+                  Hidden
+                </span>
+              ) : null}
+            </div>
             <div className="line-clamp-1 text-xs text-muted-foreground">{c.description}</div>
           </div>
         </div>
@@ -398,7 +411,7 @@ export function CoursesPage() {
       )}
 
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
-        <DialogContent className="max-w-xl gap-0 overflow-hidden border-border/80 p-0 sm:max-w-xl">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-3xl lg:max-w-4xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>New course</DialogTitle>
             <DialogDescription>
@@ -406,7 +419,7 @@ export function CoursesPage() {
               lessons.
             </DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <CourseForm
               onDone={() => setCreating(false)}
               onCreated={(course) => navigate(`/courses/${course.id}`)}
@@ -417,7 +430,11 @@ export function CoursesPage() {
 
       <DestructiveConfirmDialog
         open={Boolean(deleteTarget)}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onOpenChange={(o) => {
+          if (o) return
+          setDeleteTarget(null)
+          setDeleteError(null)
+        }}
         title="Delete course?"
         description={
           deleteTarget
@@ -426,22 +443,26 @@ export function CoursesPage() {
         }
         confirmLabel="Delete course"
         isPending={remove.isPending}
+        errorMessage={deleteError}
         onConfirm={() => {
           if (!deleteTarget) return
-          remove.mutate(deleteTarget.id)
-          setDeleteTarget(null)
+          remove.mutate({ id: deleteTarget.id })
+        }}
+        onHardConfirm={() => {
+          if (!deleteTarget) return
+          remove.mutate({ id: deleteTarget.id, force: true })
         }}
       />
 
       <Dialog open={Boolean(editing)} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent className="max-w-xl gap-0 overflow-hidden border-border/80 p-0 sm:max-w-xl">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-3xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-3xl lg:max-w-4xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>Edit course</DialogTitle>
             <DialogDescription>
               Update title, descriptions, category, duration, and display order.
             </DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {editing ? <CourseForm initial={editing} onDone={() => setEditing(null)} /> : null}
           </div>
         </DialogContent>

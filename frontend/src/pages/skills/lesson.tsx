@@ -6,6 +6,17 @@ import {
   lessonApi,
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
+import { skillsApi, type SkillDetail } from '@features/skills'
+
+/**
+ * Finds the next lesson in course order after the current lesson.
+ */
+function getNextLessonId(skill: SkillDetail | undefined, currentLessonId: number) {
+  const lessons = skill?.modules.flatMap((module) => module.lessons) ?? []
+  const currentIndex = lessons.findIndex((lesson) => lesson.id === currentLessonId)
+  if (currentIndex < 0) return null
+  return lessons[currentIndex + 1]?.id ?? null
+}
 
 /**
  * Full-screen skill lesson player: loads CMS content and syncs step progress to the API.
@@ -23,6 +34,13 @@ export default function SkillLessonPage() {
     queryKey: ['lesson', numericLessonId],
     queryFn: () => lessonApi.get(numericLessonId),
     enabled: Number.isFinite(numericLessonId),
+  })
+  const numericSkillId = Number(skillId)
+
+  const { data: skill } = useQuery({
+    queryKey: ['skill', numericSkillId],
+    queryFn: () => skillsApi.getDetail(numericSkillId),
+    enabled: Number.isFinite(numericSkillId),
   })
 
   const content = data
@@ -58,7 +76,8 @@ export default function SkillLessonPage() {
    * Leaves the lesson flow: navigate first, then refresh caches in the background (avoids long waits / connection resets).
    */
   function handleFinish() {
-    navigate(`/skills/${skillId}`)
+    const nextLessonId = getNextLessonId(skill, numericLessonId)
+    navigate(nextLessonId ? `/skills/${skillId}/lessons/${nextLessonId}` : `/skills/${skillId}`)
     void queryClient.invalidateQueries({ queryKey: ['skills'] })
     void queryClient.invalidateQueries({ queryKey: ['skill', Number(skillId)] })
     void queryClient.invalidateQueries({ queryKey: ['lesson', numericLessonId] })

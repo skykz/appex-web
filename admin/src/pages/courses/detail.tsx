@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ChevronUp,
   BarChart3,
+  EyeOff,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { coursesApi, type Lesson, type Module } from '@features/courses/api'
@@ -59,36 +60,45 @@ export function CourseDetailPage() {
   const [engagementLesson, setEngagementLesson] = useState<Lesson | null>(null)
   const [conflictBanner, setConflictBanner] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CourseBuilderDeleteTarget | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const removeModule = useMutation({
-    mutationFn: (mid: number) => coursesApi.removeModule(mid),
+    mutationFn: (args: { id: number; force?: boolean }) => coursesApi.removeModule(args.id, args),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
       setConflictBanner(null)
+      setDeleteTarget(null)
+      setDeleteError(null)
       toast.success('Module deleted')
     },
     onError: (err: unknown) => {
+      const msg = err instanceof ApiError ? err.message : 'Could not delete module.'
+      setDeleteError(msg)
       if (err instanceof ApiError && err.status === 409) {
-        setConflictBanner(err.message)
+        setConflictBanner(msg)
         return
       }
-      toast.error(err instanceof ApiError ? err.message : 'Failed')
+      toast.error(msg)
     },
   })
 
   const removeLesson = useMutation({
-    mutationFn: (lid: number) => coursesApi.removeLesson(lid),
+    mutationFn: (args: { id: number; force?: boolean }) => coursesApi.removeLesson(args.id, args),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
       setConflictBanner(null)
+      setDeleteTarget(null)
+      setDeleteError(null)
       toast.success('Lesson deleted')
     },
     onError: (err: unknown) => {
+      const msg = err instanceof ApiError ? err.message : 'Could not delete lesson.'
+      setDeleteError(msg)
       if (err instanceof ApiError && err.status === 409) {
-        setConflictBanner(err.message)
+        setConflictBanner(msg)
         return
       }
-      toast.error(err instanceof ApiError ? err.message : 'Failed')
+      toast.error(msg)
     },
   })
 
@@ -203,6 +213,12 @@ export function CourseDetailPage() {
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.title}</h1>
                 <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">{data.description}</p>
                 <div className="flex flex-wrap gap-2 pt-1">
+                  {!data.is_visible ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                      <EyeOff className="h-3.5 w-3.5" />
+                      Hidden course
+                    </span>
+                  ) : null}
                   <span className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-foreground/90">
                     {data.category}
                   </span>
@@ -248,6 +264,12 @@ export function CourseDetailPage() {
                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                   )}
                   <span className="truncate font-semibold">{m.title}</span>
+                  {!m.is_visible ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                      <EyeOff className="h-3 w-3" />
+                      Hidden
+                    </span>
+                  ) : null}
                   <span className="shrink-0 rounded-full bg-background/80 px-2 py-0.5 text-xs text-muted-foreground ring-1 ring-border/60">
                     {m.lessons.length} lessons
                   </span>
@@ -299,7 +321,10 @@ export function CourseDetailPage() {
                     size="icon"
                     variant="ghost"
                     className="h-9 w-9"
-                    onClick={() => setDeleteTarget({ kind: 'module', id: m.id, title: m.title })}
+                    onClick={() => {
+                      setDeleteTarget({ kind: 'module', id: m.id, title: m.title })
+                      setDeleteError(null)
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -321,8 +346,16 @@ export function CourseDetailPage() {
                         >
                           <EmojiOrImageBadge value={l.emoji} frameClassName="h-11 w-11 text-xl shadow-inner" />
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium leading-snug">
-                              {l.label} — {l.title}
+                            <div className="flex flex-wrap items-center gap-2 text-sm font-medium leading-snug">
+                              <span>
+                                {l.label} — {l.title}
+                              </span>
+                              {!l.is_visible ? (
+                                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300/70 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+                                  <EyeOff className="h-3 w-3" />
+                                  Hidden
+                                </span>
+                              ) : null}
                             </div>
                             <div className="mt-0.5 text-xs text-muted-foreground">
                               {l.content.length} step{l.content.length !== 1 && 's'}
@@ -376,9 +409,10 @@ export function CourseDetailPage() {
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
-                              onClick={() =>
+                              onClick={() => {
                                 setDeleteTarget({ kind: 'lesson', id: l.id, title: l.title })
-                              }
+                                setDeleteError(null)
+                              }}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -395,24 +429,24 @@ export function CourseDetailPage() {
       </div>
 
       <Dialog open={creatingModule} onOpenChange={(o) => !o && setCreatingModule(false)}>
-        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>New module</DialogTitle>
             <DialogDescription>Add a section that will contain ordered lessons.</DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <ModuleForm courseId={courseId} onDone={() => setCreatingModule(false)} />
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={Boolean(editingModule)} onOpenChange={(o) => !o && setEditingModule(null)}>
-        <DialogContent className="max-w-lg gap-0 overflow-hidden border-border/80 p-0">
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-2xl">
           <DialogHeader className="border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
             <DialogTitle>Edit module</DialogTitle>
             <DialogDescription>Rename the module or change its order.</DialogDescription>
           </DialogHeader>
-          <div className="px-6 py-5">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {editingModule ? (
               <ModuleForm
                 courseId={courseId}
@@ -434,7 +468,11 @@ export function CourseDetailPage() {
 
       <DestructiveConfirmDialog
         open={Boolean(deleteTarget)}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
+        onOpenChange={(o) => {
+          if (o) return
+          setDeleteTarget(null)
+          setDeleteError(null)
+        }}
         title={deleteTarget?.kind === 'module' ? 'Delete module?' : 'Delete lesson?'}
         description={
           deleteTarget?.kind === 'module'
@@ -445,31 +483,31 @@ export function CourseDetailPage() {
         }
         confirmLabel={deleteTarget?.kind === 'module' ? 'Delete module' : 'Delete lesson'}
         isPending={removeModule.isPending || removeLesson.isPending}
+        errorMessage={deleteError}
         onConfirm={() => {
           if (!deleteTarget) return
-          if (deleteTarget.kind === 'module') removeModule.mutate(deleteTarget.id)
-          else removeLesson.mutate(deleteTarget.id)
-          setDeleteTarget(null)
+          if (deleteTarget.kind === 'module') removeModule.mutate({ id: deleteTarget.id })
+          else removeLesson.mutate({ id: deleteTarget.id })
+        }}
+        onHardConfirm={() => {
+          if (!deleteTarget) return
+          if (deleteTarget.kind === 'module') {
+            removeModule.mutate({ id: deleteTarget.id, force: true })
+          } else {
+            removeLesson.mutate({ id: deleteTarget.id, force: true })
+          }
         }}
       />
 
       <Dialog open={Boolean(lessonEditor)} onOpenChange={(o) => !o && setLessonEditor(null)}>
         <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-5xl lg:max-w-6xl">
-          <DialogHeader className="shrink-0 border-b border-border/60 bg-muted/30 px-6 py-5 text-left">
-            <DialogTitle>{lessonEditor?.lesson ? 'Edit lesson' : 'New lesson'}</DialogTitle>
-            <DialogDescription>
-              Lessons are made of steps; each step has blocks rendered in the user app.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-            {lessonEditor ? (
-              <LessonEditor
-                moduleId={lessonEditor.moduleId}
-                initial={lessonEditor.lesson}
-                onDone={() => setLessonEditor(null)}
-              />
-            ) : null}
-          </div>
+          {lessonEditor ? (
+            <LessonEditor
+              moduleId={lessonEditor.moduleId}
+              initial={lessonEditor.lesson}
+              onDone={() => setLessonEditor(null)}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

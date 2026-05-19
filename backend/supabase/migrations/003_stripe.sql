@@ -10,6 +10,7 @@ create table if not exists public.stripe_customers (
 );
 
 alter table public.stripe_customers enable row level security;
+drop policy if exists "Users own stripe_customers" on public.stripe_customers;
 create policy "Users own stripe_customers"
   on public.stripe_customers for all
   using (auth.uid() = user_id);
@@ -36,14 +37,14 @@ alter table public.subscriptions
   add column if not exists trial_end              timestamptz,
   add column if not exists currency               text default 'usd';
 
+-- `cancelled` (British) is now `canceled` (Stripe spelling). Normalize before tightening the check.
+update public.subscriptions set status = 'canceled' where status = 'cancelled';
+
 -- Broaden status enum to mirror Stripe's lifecycle states
 alter table public.subscriptions drop constraint if exists subscriptions_status_check;
 alter table public.subscriptions
   add constraint subscriptions_status_check
   check (status in ('active', 'trialing', 'past_due', 'paused', 'canceled', 'incomplete', 'incomplete_expired', 'unpaid'));
-
--- `cancelled` (British) is now `canceled` (Stripe spelling). Normalize any pre-existing rows.
-update public.subscriptions set status = 'canceled' where status = 'cancelled';
 
 -- 4. Extend billing_history with Stripe invoice references
 alter table public.billing_history
@@ -61,19 +62,22 @@ create index if not exists idx_billing_history_stripe_invoice on public.billing_
 --    by the webhook handler (it runs without an auth.uid()). The existing
 --    "Users own" policies grant access by user_id, which the webhook does not have;
 --    add explicit service-role write policies so the webhook can upsert.
-create policy if not exists "Service writes subscriptions"
+drop policy if exists "Service writes subscriptions" on public.subscriptions;
+create policy "Service writes subscriptions"
   on public.subscriptions for all
   to service_role
   using (true)
   with check (true);
 
-create policy if not exists "Service writes billing_history"
+drop policy if exists "Service writes billing_history" on public.billing_history;
+create policy "Service writes billing_history"
   on public.billing_history for all
   to service_role
   using (true)
   with check (true);
 
-create policy if not exists "Service writes stripe_customers"
+drop policy if exists "Service writes stripe_customers" on public.stripe_customers;
+create policy "Service writes stripe_customers"
   on public.stripe_customers for all
   to service_role
   using (true)
