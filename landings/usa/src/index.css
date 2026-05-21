@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 25 100% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 25 100% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 10%;
+    --muted-foreground: 0 0% 50%;
+
+    --accent: 25 80% 12%;
+    --accent-foreground: 25 100% 50%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 12%;
+    --input: 0 0% 12%;
+    --ring: 25 100% 50%;
+
+    --radius: 0.75rem;
+
+    --cream: 0 0% 7%;
+    --cream-foreground: 0 0% 100%;
+    --cream-border: 0 0% 14%;
+
+    --green-light: 25 60% 15%;
+    --green-dark-bg: 25 80% 12%;
+    --green-hover: 25 100% 42%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(25, 100%, 50%), hsl(42, 100%, 55%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+  }
+}
+
+@layer utilities {
+  .font-serif-display {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+  }
+
+  .font-body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  .bg-gradient-primary {
+    background: var(--gradient-primary);
+  }
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-16px); }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes slide-quiz-in {
+  from { transform: translateX(var(--slide-from, 20px)); opacity: 0; filter: blur(2px); }
+  to { transform: translateX(0); opacity: 1; filter: blur(0); }
+}
+
+@keyframes slide-quiz-out {
+  from { transform: translateX(0); opacity: 1; filter: blur(0); }
+  to { transform: translateX(var(--slide-to, -20px)); opacity: 0; filter: blur(2px); }
+}
+
+.animate-slide-quiz {
+  animation: slide-quiz-in 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-slide-quiz-out {
+  animation: slide-quiz-out 180ms ease-in forwards;
+}
