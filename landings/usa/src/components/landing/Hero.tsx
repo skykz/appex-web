@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 
 const options = [
   "Quit my 9-5 and work for myself",
@@ -6,38 +6,20 @@ const options = [
   "Build an additional income stream",
 ];
 
-function AnimatedNumber({ target, prefix = "", suffix = "" }: { target: number; prefix?: string; suffix?: string }) {
-  const [value, setValue] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const started = useRef(false);
+/** Dashboard mockup figures (must match monthly goal row). */
+const DASHBOARD_EARNED = 1200;
+const DASHBOARD_GOAL = 2000;
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && !started.current) {
-          started.current = true;
-          const duration = 1200;
-          const start = performance.now();
-          const step = (now: number) => {
-            const progress = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            setValue(Math.round(eased * target));
-            if (progress < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [target]);
-
-  return <span ref={ref}>{prefix}{value.toLocaleString()}{suffix}</span>;
+/**
+ * Formats a USD amount for the hero dashboard mockup.
+ */
+function formatUsd(amount: number): string {
+  return `$${amount.toLocaleString("en-US")}`;
 }
 
+/**
+ * Renders the Sarah dashboard card shown beside the hero CTA.
+ */
 function DashboardMockup() {
   return (
     <div
@@ -53,25 +35,34 @@ function DashboardMockup() {
         <p className="text-[12px] font-body" style={{ color: "#666" }}>AI Automation Specialist</p>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      {/* Stats row — middle column wider so "$1,200" fits */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,1fr)] gap-2 mb-5">
         {[
           { value: 3, label: "Agents active", live: true },
-          { value: 1200, label: "Earned this month", prefix: "$" },
+          { value: DASHBOARD_EARNED, label: "Earned this month", prefix: "$", compact: true },
           { value: 12, label: "Clients served" },
         ].map((s) => (
           <div
             key={s.label}
-            className="rounded-xl p-4 text-center"
+            className="min-w-0 rounded-xl px-2 py-3.5 text-center"
             style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)" }}
           >
-            <div className="text-primary text-[28px] md:text-[32px] font-black leading-none mb-1 relative">
-              <AnimatedNumber target={s.value} prefix={s.prefix} />
+            <div
+              className={`text-primary font-black leading-none mb-1 relative tabular-nums tracking-tight ${
+                s.compact ? "text-[20px]" : "text-[24px]"
+              }`}
+            >
+              <span className="block whitespace-nowrap">
+                {s.prefix}
+                {s.value.toLocaleString("en-US")}
+              </span>
               {s.live && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               )}
             </div>
-            <div className="text-[10px] md:text-[11px] font-body" style={{ color: "#888" }}>{s.label}</div>
+            <div className="text-[9px] md:text-[10px] font-body leading-tight" style={{ color: "#888" }}>
+              {s.label}
+            </div>
           </div>
         ))}
       </div>
@@ -104,13 +95,15 @@ function DashboardMockup() {
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[11px] font-body" style={{ color: "#888" }}>Monthly goal</span>
-          <span className="text-[11px] text-foreground font-semibold">$1,200 / $2,000</span>
+          <span className="text-[11px] text-foreground font-semibold">
+            {formatUsd(DASHBOARD_EARNED)} / {formatUsd(DASHBOARD_GOAL)}
+          </span>
         </div>
         <div className="w-full h-1.5 rounded-full" style={{ background: "#1A1A1A" }}>
           <div
             className="h-1.5 rounded-full"
             style={{
-              width: "60%",
+              width: `${(DASHBOARD_EARNED / DASHBOARD_GOAL) * 100}%`,
               background: "linear-gradient(90deg, #FF6B00, #FFB800)",
             }}
           />
@@ -120,6 +113,9 @@ function DashboardMockup() {
   );
 }
 
+/**
+ * Landing hero with quiz-style intent checkboxes and dashboard preview.
+ */
 export default function Hero() {
   const [selected, setSelected] = useState<string[]>([]);
 
