@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
+import { canAccessSkill, getLessonSkillId } from '../../services/access.service.js'
 
 const progressSchema = z.object({
   stepIndex: z.number().int().min(0),
@@ -64,6 +65,19 @@ export async function getLesson(
     const lessonId = Number(req.params.id)
 
     const { lesson } = await getVisibleLessonOrThrow(lessonId)
+
+    // Paywall: every skill beyond the first one requires an active subscription.
+    // We resolve the skill from the lesson, then run the centralized check so
+    // the rule lives in one place (access.service.ts).
+    const skillId = await getLessonSkillId(lessonId)
+    if (skillId !== null) {
+      const allowed = await canAccessSkill(userId, skillId)
+      if (!allowed) {
+        // 402 Payment Required is semantically perfect here and the frontend
+        // can render a paywall modal on this specific code without ambiguity.
+        throw new AppError(402, 'This lesson requires an active subscription')
+      }
+    }
 
     // Fetch user progress
     const { data: progress } = await supabaseAdmin

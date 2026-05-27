@@ -9,6 +9,14 @@ export interface SkillLesson {
   title: string
   emoji: string
   locked: boolean
+  /**
+   * Why the lesson is locked:
+   *   - 'sequence' — previous lesson not finished (linear progression)
+   *   - 'premium'  — this skill requires an active subscription
+   *   - null       — not locked
+   * The UI uses this to choose between a plain padlock and a Premium badge.
+   */
+  locked_reason?: 'premium' | 'sequence' | null
   /** Present on skill detail responses; reflects `lesson_progress.completed`. */
   completed?: boolean
 }
@@ -40,6 +48,10 @@ export interface SkillListItem {
   created_at?: string
   progress: number
   status: SkillStatus
+  /** True when the skill is a paid skill (everything except the first one). */
+  requires_premium?: boolean
+  /** True when `requires_premium` AND the user is not on an active subscription. */
+  premium_locked?: boolean
 }
 
 export interface SkillDetail extends SkillListItem {
