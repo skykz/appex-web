@@ -311,33 +311,124 @@ function TierBadge({ tier }: { tier: SubscriptionTier }) {
 /**
  * Sidebar upsell shown to non-premium users above their profile button.
  * Auto-hides on icon-collapsed sidebars to avoid a wide pill in a narrow rail.
+ *
+ * `pending` users (incomplete 3DS) see a simple "Finish payment" prompt.
+ * Free users get the time-limited intro-offer banner with a countdown timer —
+ * the timer creates urgency that lifts conversion (Jobescape-style upsell).
  */
 function UpgradeCta({ tier }: { tier: SubscriptionTier }) {
   const { state } = useSidebar()
   if (state === 'collapsed') return null
-  const label = tier === 'pending' ? 'Finish payment' : 'Upgrade to Premium'
-  const sub =
-    tier === 'pending'
-      ? 'Complete 3D Secure to activate'
-      : 'Unlock all skills · cancel anytime'
+
+  if (tier === 'pending') {
+    return (
+      <Link
+        to="/settings?section=plan"
+        className={cn(
+          'group relative flex w-full items-start gap-2.5 overflow-hidden rounded-xl p-2.5 text-left transition-all',
+          'bg-amber-50 ring-1 ring-amber-300 hover:bg-amber-100',
+          'dark:bg-amber-950/30 dark:ring-amber-700/50 dark:hover:bg-amber-950/50'
+        )}
+      >
+        <div className="flex aspect-square size-7 shrink-0 items-center justify-center rounded-lg bg-amber-500 text-white shadow-sm">
+          <Sparkles className="size-3.5" />
+        </div>
+        <div className="min-w-0 flex-1 text-xs leading-tight">
+          <p className="truncate font-semibold text-foreground">Finish payment</p>
+          <p className="truncate text-[11px] text-muted-foreground">
+            Complete 3D Secure to activate
+          </p>
+        </div>
+        <ChevronRight className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </Link>
+    )
+  }
+
+  return <IntroOfferCta />
+}
+
+/**
+ * 5-minute countdown localStorage key. We persist the *deadline timestamp*,
+ * not seconds-remaining — that way the timer keeps ticking across tab reloads
+ * and route changes instead of resetting. When it hits zero we start a new
+ * one (some retention loops re-arm; this one just lets the user always have
+ * an offer to claim).
+ */
+const INTRO_OFFER_DEADLINE_KEY = 'appex_intro_offer_deadline'
+const INTRO_OFFER_DURATION_MS = 5 * 60 * 1000
+
+function readDeadline(): number {
+  if (typeof window === 'undefined') return Date.now() + INTRO_OFFER_DURATION_MS
+  const raw = window.localStorage.getItem(INTRO_OFFER_DEADLINE_KEY)
+  const parsed = raw ? Number(raw) : 0
+  // Re-arm if missing, malformed, or already expired by more than an hour.
+  if (!Number.isFinite(parsed) || parsed - Date.now() < -3600_000) {
+    const next = Date.now() + INTRO_OFFER_DURATION_MS
+    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
+    return next
+  }
+  // If clock crossed zero while page was closed, reset to a fresh window
+  // so the timer always shows something > 0 and the offer feels active.
+  if (parsed <= Date.now()) {
+    const next = Date.now() + INTRO_OFFER_DURATION_MS
+    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
+    return next
+  }
+  return parsed
+}
+
+function IntroOfferCta() {
+  const [deadline, setDeadline] = useState<number>(() => readDeadline())
+  const [now, setNow] = useState<number>(() => Date.now())
+
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(tick)
+  }, [])
+
+  // When the timer reaches 0 we re-arm so there's always a fresh deadline
+  // showing — keeps the urgency present without nagging the user.
+  useEffect(() => {
+    if (deadline - now > 0) return
+    const next = Date.now() + INTRO_OFFER_DURATION_MS
+    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
+    setDeadline(next)
+  }, [deadline, now])
+
+  const remainingMs = Math.max(0, deadline - now)
+  const minutes = Math.floor(remainingMs / 60_000)
+  const seconds = Math.floor((remainingMs % 60_000) / 1000)
+  const mm = String(minutes).padStart(2, '0')
+  const ss = String(seconds).padStart(2, '0')
+
   return (
     <Link
       to="/settings?section=plan"
       className={cn(
-        'group relative flex w-full items-start gap-2.5 overflow-hidden rounded-xl p-2.5 text-left transition-all',
-        'bg-gradient-to-br from-orange-500/10 via-amber-400/10 to-orange-500/10',
-        'ring-1 ring-orange-500/20 hover:ring-orange-500/40 hover:from-orange-500/15 hover:to-orange-500/15',
-        'dark:from-orange-500/15 dark:via-amber-400/10 dark:to-orange-500/15 dark:ring-orange-400/25'
+        'group block w-full overflow-hidden rounded-2xl p-3 text-left transition-all',
+        'bg-gradient-to-br from-sky-100 via-blue-100 to-indigo-100',
+        'ring-1 ring-blue-200 hover:ring-blue-300 hover:shadow-sm',
+        'dark:from-sky-950/40 dark:via-blue-950/40 dark:to-indigo-950/40 dark:ring-blue-900/60'
       )}
+      aria-label={`Exclusive offer — ${mm}:${ss} left. Open plans.`}
     >
-      <div className="flex aspect-square size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm">
-        <Sparkles className="size-3.5" />
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 font-mono text-base font-bold tabular-nums text-foreground">
+          <span className="rounded-md bg-white/70 px-2 py-0.5 shadow-sm dark:bg-white/10">
+            {mm}
+          </span>
+          <span className="text-foreground/60">:</span>
+          <span className="rounded-md bg-white/70 px-2 py-0.5 shadow-sm dark:bg-white/10">
+            {ss}
+          </span>
+        </div>
+        <span className="text-2xl" role="img" aria-label="gift">
+          🎁
+        </span>
       </div>
-      <div className="min-w-0 flex-1 text-xs leading-tight">
-        <p className="truncate font-semibold text-foreground">{label}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{sub}</p>
-      </div>
-      <ChevronRight className="mt-1 size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      <p className="mt-2 text-sm font-semibold leading-snug text-foreground">
+        Your exclusive gift is waiting — grab it within
+      </p>
     </Link>
   )
 }

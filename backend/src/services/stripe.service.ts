@@ -276,6 +276,54 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
   }
 }
 
+/**
+ * AI chat credit balance for Premium users. Picked as "effectively unlimited":
+ * 999999 chats is several lifetimes of usage, but still a hard ceiling in case
+ * something runs away (a bug, abuse, etc). New free users start at 5 (defined
+ * in the user_credits table default).
+ */
+const PREMIUM_CREDIT_BALANCE = 999_999
+const FREE_CREDIT_BALANCE = 5
+
+/**
+ * After a subscription state change, sync the AI chat credit balance to match
+ * the user's tier. Premium gets effectively unlimited; revoking access (e.g.
+ * sub.deleted or canceled at period end) resets to the free allowance.
+ *
+ * Idempotent — running the same upsert twice produces the same balance.
+ */
+export async function syncCreditsForSubscription(
+  sub: Stripe.Subscription
+): Promise<void> {
+  const userId = sub.metadata?.user_id
+  if (!userId) {
+    // Most subs created by our checkout always carry user_id metadata, so a
+    // missing one is unusual — skip rather than guess.
+    return
+  }
+
+  const accessStatuses = new Set(['active', 'trialing', 'past_due', 'paused'])
+  const grantsAccess = accessStatuses.has(sub.status)
+  const targetBalance = grantsAccess ? PREMIUM_CREDIT_BALANCE : FREE_CREDIT_BALANCE
+
+  // upsert handles users who never had a credit row (rare but possible if
+  // signup ran before the credit-default trigger was wired).
+  const { error } = await supabaseAdmin
+    .from('user_credits')
+    .upsert(
+      {
+        user_id: userId,
+        balance: targetBalance,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    )
+
+  if (error) {
+    console.error('Failed to sync credits for', userId, error)
+  }
+}
+
 /** True if this Stripe event id has already been processed. */
 export async function isEventProcessed(eventId: string): Promise<boolean> {
   const { data } = await supabaseAdmin

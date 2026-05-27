@@ -6,6 +6,7 @@ import {
   isEventProcessed,
   markEventProcessed,
   recordInvoicePayment,
+  syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
 } from '../../services/stripe.service.js'
 
@@ -79,17 +80,22 @@ async function dispatch(event: Stripe.Event): Promise<void> {
           : session.subscription.id
       )
       await upsertSubscriptionFromStripe(sub)
+      await syncCreditsForSubscription(sub)
       return
     }
 
-    // Full lifecycle of the subscription — all funnel into the same upsert.
+    // Full lifecycle of the subscription — all funnel into the same upsert
+    // and credit sync. Credits flip back to free on `deleted` (sub.status is
+    // 'canceled' on that event) so cancellation cleanly revokes the bump.
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
     case 'customer.subscription.paused':
     case 'customer.subscription.resumed':
     case 'customer.subscription.trial_will_end': {
-      await upsertSubscriptionFromStripe(event.data.object as Stripe.Subscription)
+      const sub = event.data.object as Stripe.Subscription
+      await upsertSubscriptionFromStripe(sub)
+      await syncCreditsForSubscription(sub)
       return
     }
 

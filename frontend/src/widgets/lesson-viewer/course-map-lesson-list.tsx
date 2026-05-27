@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Check, Lock } from 'lucide-react'
+import { Check, Lock, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import { PaywallDialog } from '@features/skills/paywall-dialog'
 import type { CourseMapLessonRow, CourseMapOutline } from './course-outline'
 
 type CourseMapLessonListProps = {
@@ -24,6 +25,9 @@ export function CourseMapLessonList({
   density = 'comfortable',
 }: CourseMapLessonListProps) {
   const navigate = useNavigate()
+  // Paywall is opened by a click on a `locked_reason='premium'` row.
+  // We keep the blocked lesson's title around so the modal can name it.
+  const [paywallFor, setPaywallFor] = useState<string | null>(null)
 
   const moduleGroups = useMemo(() => {
     const groups: { moduleTitle: string; rows: CourseMapLessonRow[] }[] = []
@@ -64,21 +68,33 @@ export function CourseMapLessonList({
           <ol className="flex flex-col gap-0.5">
             {group.rows.map((row) => {
               const isCurrent = row.lessonId === outline.currentLessonId
+              const isPremiumLocked = row.locked && row.locked_reason === 'premium'
+              // Premium-locked rows are clickable (opens paywall); sequence-locked rows are disabled.
+              const sequenceLocked = row.locked && !isPremiumLocked
               return (
                 <li key={row.lessonId} className="list-none">
                   <button
                     type="button"
-                    disabled={row.locked}
-                    onClick={() => !row.locked && activateLesson(row.lessonId)}
+                    disabled={sequenceLocked}
+                    onClick={() => {
+                      if (sequenceLocked) return
+                      if (isPremiumLocked) {
+                        setPaywallFor(row.title)
+                        return
+                      }
+                      activateLesson(row.lessonId)
+                    }}
                     className={cn(
                       'flex w-full items-center gap-2 rounded-lg border text-left transition-colors',
                       px,
                       py,
-                      row.locked
+                      sequenceLocked
                         ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-55'
-                        : isCurrent
-                          ? 'border-primary/35 bg-primary/[0.06]'
-                          : 'border-transparent hover:bg-muted/60'
+                        : isPremiumLocked
+                          ? 'border-amber-400/30 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40'
+                          : isCurrent
+                            ? 'border-primary/35 bg-primary/[0.06]'
+                            : 'border-transparent hover:bg-muted/60'
                     )}
                   >
                     <EmojiOrImageBadge
@@ -93,7 +109,12 @@ export function CourseMapLessonList({
                         {row.title}
                       </span>
                     </span>
-                    {row.locked ? (
+                    {isPremiumLocked ? (
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                        <Sparkles className="size-2.5" />
+                        Premium
+                      </span>
+                    ) : sequenceLocked ? (
                       <Lock className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
                     ) : row.completed ? (
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
@@ -111,6 +132,13 @@ export function CourseMapLessonList({
           </ol>
         </section>
       ))}
+      <PaywallDialog
+        open={paywallFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setPaywallFor(null)
+        }}
+        blockedContent={paywallFor ?? undefined}
+      />
     </div>
   )
 }

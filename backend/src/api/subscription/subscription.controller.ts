@@ -8,6 +8,7 @@ import {
   createCheckoutSession as createCheckoutSessionSvc,
   createPortalSession as createPortalSessionSvc,
   resolvePriceId,
+  syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
 } from '../../services/stripe.service.js'
 
@@ -186,6 +187,9 @@ export async function syncFromSession(
         ? await stripe.subscriptions.retrieve(session.subscription)
         : session.subscription
     await upsertSubscriptionFromStripe(sub)
+    // Mirror the webhook side-effects so the UI doesn't have to wait for the
+    // webhook to bump credits before the chat works.
+    await syncCreditsForSubscription(sub)
     res.json({ synced: true, status: sub.status })
   } catch (err) {
     next(err)

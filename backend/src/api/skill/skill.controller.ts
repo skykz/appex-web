@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import type { AuthenticatedRequest } from '../../types/index.js'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { getFreeSkillId, hasAccess } from '../../services/access.service.js'
 
 export async function listSkills(
   req: Request,
@@ -35,12 +36,24 @@ export async function listSkills(
       (progress ?? []).map((p) => [p.skill_id, p])
     )
 
+    // Paywall annotation: every skill except the first one is Premium.
+    // We compute it once per request rather than per-row to avoid a chatty DB.
+    const [freeSkillId, userHasAccess] = await Promise.all([
+      getFreeSkillId(),
+      hasAccess(userId),
+    ])
+
     const result = (skills ?? []).map((skill) => {
       const p = progressMap.get(skill.id)
+      const requiresPremium = freeSkillId !== null && skill.id !== freeSkillId
       return {
         ...skill,
         progress: p?.progress ?? 0,
         status: p?.status ?? 'not_started',
+        requires_premium: requiresPremium,
+        // The frontend uses this to decide whether to grey out the card and
+        // show a paywall modal instead of routing into the skill.
+        premium_locked: requiresPremium && !userHasAccess,
       }
     })
 
@@ -97,7 +110,18 @@ export async function getSkillDetail(
         .map((lp) => lp.lesson_id)
     )
 
-    // Linear lock across the whole course: a lesson stays locked until every prior lesson is completed.
+    // Two independent gates feed into `locked`:
+    //   - `sequence`: previous lesson not finished (the existing rule)
+    //   - `premium`:  this skill is paid and the user has no active subscription
+    // `locked_reason` lets the UI render a Premium badge instead of a generic
+    // padlock when payment is the blocker.
+    const [freeSkillId, userHasAccess] = await Promise.all([
+      getFreeSkillId(),
+      hasAccess(userId),
+    ])
+    const requiresPremium = freeSkillId !== null && skill.id !== freeSkillId
+    const premiumLocked = requiresPremium && !userHasAccess
+
     let previousCompleted = true
     const modulesWithLessons = (modules ?? []).map((mod) => {
       const modLessons = (lessons ?? [])
@@ -106,7 +130,13 @@ export async function getSkillDetail(
 
       const lessonsWithLock = modLessons.map((lesson) => {
         const completed = completedSet.has(lesson.id)
-        const locked = !previousCompleted
+        const sequenceLocked = !previousCompleted
+        const locked = sequenceLocked || premiumLocked
+        const locked_reason: 'premium' | 'sequence' | null = premiumLocked
+          ? 'premium'
+          : sequenceLocked
+          ? 'sequence'
+          : null
         previousCompleted = completed
         return {
           id: lesson.id,
@@ -114,6 +144,7 @@ export async function getSkillDetail(
           title: lesson.title,
           emoji: lesson.emoji,
           locked,
+          locked_reason,
           completed,
         }
       })
@@ -138,6 +169,8 @@ export async function getSkillDetail(
       ...skill,
       progress: progress?.progress ?? 0,
       status: progress?.status ?? 'not_started',
+      requires_premium: requiresPremium,
+      premium_locked: premiumLocked,
       modules: modulesWithLessons,
     })
   } catch (err) {

@@ -8,6 +8,8 @@ export type CourseMapLessonRow = {
   title: string
   emoji: string
   locked: boolean
+  /** Distinguishes a paywall lock from an "earn the previous lesson first" lock. */
+  locked_reason?: 'premium' | 'sequence' | null
   completed?: boolean
 }
 
@@ -37,6 +39,7 @@ export function buildCourseMapOutline(
         title: l.title,
         emoji: l.emoji,
         locked: l.locked,
+        locked_reason: l.locked_reason ?? null,
         completed: l.completed,
       })
     }

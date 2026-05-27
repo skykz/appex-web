@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronUp, ChevronDown, Lock } from 'lucide-react'
+import { ChevronRight, ChevronUp, ChevronDown, Lock, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { skillsApi, type SkillModule } from '@features/skills'
+import { PaywallDialog } from '@features/skills/paywall-dialog'
 
 /**
  * Single skill (course) overview with expandable modules and lesson links.
@@ -21,6 +22,7 @@ export default function SkillDetailPage() {
   })
 
   const [aboutExpanded, setAboutExpanded] = useState(false)
+  const [paywallOpen, setPaywallOpen] = useState(false)
 
   if (!Number.isFinite(id)) {
     return (
@@ -114,6 +116,12 @@ export default function SkillDetailPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    // Paywall short-circuit: paid skill + no active subscription
+                    // → open the upsell instead of routing into a 402.
+                    if (skill.premium_locked) {
+                      setPaywallOpen(true)
+                      return
+                    }
                     const firstUnlocked = skill.modules
                       .flatMap((m) => m.lessons)
                       .find((l) => !l.locked)
@@ -121,13 +129,25 @@ export default function SkillDetailPage() {
                       navigate(`/skills/${skill.id}/lessons/${firstUnlocked.id}`)
                     }
                   }}
-                  className="mt-4 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:px-8"
+                  className={cn(
+                    'mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] sm:w-auto sm:px-8',
+                    skill.premium_locked
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm hover:from-amber-500 hover:to-orange-600'
+                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  )}
                 >
-                  {skill.status === 'completed'
-                    ? 'Review course'
-                    : skill.status === 'in_progress'
-                      ? 'Continue'
-                      : 'Start course'}
+                  {skill.premium_locked ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Sparkles className="size-4" />
+                      Unlock with Premium
+                    </span>
+                  ) : skill.status === 'completed' ? (
+                    'Review course'
+                  ) : skill.status === 'in_progress' ? (
+                    'Continue'
+                  ) : (
+                    'Start course'
+                  )}
                 </button>
               </div>
             </div>
@@ -171,6 +191,12 @@ export default function SkillDetailPage() {
           </div>
         </div>
       </div>
+
+      <PaywallDialog
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        blockedContent={skill.title}
+      />
     </div>
   )
 }
@@ -183,6 +209,8 @@ function ModuleSection({
   skillId: number
 }) {
   const [open, setOpen] = useState(true)
+  // Paywall opened when the user clicks a Premium-locked lesson row.
+  const [paywallFor, setPaywallFor] = useState<string | null>(null)
 
   return (
     <div className="mb-3 rounded-2xl border bg-card shadow-sm last:mb-0">
@@ -207,6 +235,17 @@ function ModuleSection({
       {open && (
         <div className="flex flex-col gap-1 px-3 pb-3">
           {module.lessons.map((lesson) => {
+            const isPremiumLocked = lesson.locked && lesson.locked_reason === 'premium'
+            const sequenceLocked = lesson.locked && !isPremiumLocked
+            const indicator = isPremiumLocked ? (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                <Sparkles className="size-3" />
+                Premium
+              </span>
+            ) : sequenceLocked ? (
+              <Lock className="text-muted-foreground/40 size-4 shrink-0" />
+            ) : null
+
             const content = (
               <>
                 <EmojiOrImageBadge
@@ -219,13 +258,11 @@ function ModuleSection({
                     {lesson.title}
                   </p>
                 </div>
-                {lesson.locked && (
-                  <Lock className="text-muted-foreground/40 size-4 shrink-0" />
-                )}
+                {indicator}
               </>
             )
 
-            if (lesson.locked) {
+            if (sequenceLocked) {
               return (
                 <div
                   key={lesson.id}
@@ -233,6 +270,19 @@ function ModuleSection({
                 >
                   {content}
                 </div>
+              )
+            }
+
+            if (isPremiumLocked) {
+              return (
+                <button
+                  key={lesson.id}
+                  type="button"
+                  onClick={() => setPaywallFor(lesson.title)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-50/50 to-orange-50/50 p-3 text-left transition-all hover:from-amber-50 hover:to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40 dark:hover:to-orange-950/40"
+                >
+                  {content}
+                </button>
               )
             }
 
@@ -248,6 +298,14 @@ function ModuleSection({
           })}
         </div>
       )}
+
+      <PaywallDialog
+        open={paywallFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setPaywallFor(null)
+        }}
+        blockedContent={paywallFor ?? undefined}
+      />
     </div>
   )
 }
