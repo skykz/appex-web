@@ -9,10 +9,9 @@ const navLinks = [
 
 const sidebarLinks = [
   ...navLinks,
-  { label: "Login", href: "#" },
-  { label: "Privacy Policy", href: "#" },
-  { label: "Terms", href: "#" },
-  { label: "Subscription Policy", href: "#" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Terms", href: "/terms" },
+  { label: "Subscription Policy", href: "/subscription" },
 ];
 
 export default function Navbar() {
@@ -20,7 +19,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-[100] h-[56px] md:h-[60px] bg-background/90 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-10">
+      <nav className="fixed top-0 left-0 right-0 z-[100] h-[56px] md:h-[60px] bg-background/90 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-10" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         {/* Logo */}
         <a href="/" className="text-[20px] md:text-[22px] font-bold select-none tracking-tight">
           <span className="text-foreground">App</span>
@@ -38,7 +37,7 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-3 md:gap-4">
-          <a href="#" className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="mailto:support@appex.me" className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors">
             Login
           </a>
           <a

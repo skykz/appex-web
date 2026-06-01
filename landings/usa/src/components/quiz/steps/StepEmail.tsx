@@ -11,7 +11,7 @@ export default function StepEmail() {
     <div>
       <h2 className="text-[26px] font-extrabold mb-2 text-center" style={{ color: '#111' }}>
         Enter your email to get your personal{" "}
-        <span style={{ color: '#2563EB' }}>AI-Expert Plan</span>
+        <span style={{ color: '#F97316' }}>AI-Expert Plan</span>
       </h2>
       <div className="mt-8 mb-4">
         <input

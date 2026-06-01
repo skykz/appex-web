@@ -1,23 +1,28 @@
 const roles = [
-  "AI Automation Specialist",
-  "AI Agent Builder",
-  "AI Content Operator",
-  "AI Workflow Consultant",
-  "AI Operations Manager",
-  "AI Solutions Architect",
+  "ChatGPT",
+  "Claude",
+  "Gemini",
+  "Make",
+  "Zapier",
+  "n8n",
+  "Midjourney",
+  "Notion AI",
 ];
 
 const items = [...roles, ...roles];
 
 export default function RoleTicker() {
   return (
-    <div className="bg-card py-5 md:py-8 overflow-hidden group border-y border-border">
+    <div className="bg-card py-8 md:py-12 overflow-hidden group border-y border-border">
+      <p className="text-center text-primary uppercase text-[11px] tracking-[0.2em] font-semibold mb-5 md:mb-7 font-body">
+        Built around the AI tools professionals use
+      </p>
       <div className="flex whitespace-nowrap animate-marquee group-hover:[animation-play-state:paused]">
         {[0, 1].map((set) => (
           <div key={set} className="flex shrink-0 items-center">
             {items.map((role, i) => (
-              <span key={`${set}-${i}`} className="flex items-center text-sm md:text-base font-semibold uppercase tracking-wider text-foreground/80">
-                <span className="mx-3 md:mx-5 text-primary text-xs">◆</span>
+              <span key={`${set}-${i}`} className="flex items-center text-base md:text-lg font-semibold uppercase tracking-wider text-foreground/80">
+                <span className="mx-4 md:mx-7 text-primary text-xs">◆</span>
                 {role}
               </span>
             ))}

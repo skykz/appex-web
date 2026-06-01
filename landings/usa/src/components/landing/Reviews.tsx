@@ -7,40 +7,40 @@ import review6 from "@/assets/review-6.jpg";
 
 const reviews = [
   {
-    name: "Jesahavila Max",
-    date: "November 05, 2024",
+    name: "Daniel R.",
+    date: "Freelance marketer",
     img: review1,
-    text: "The company's reputation well respected. I think this company is really a well run business. By reading all its course's contents, I'm really impressed. I see a lot of successful business ideas and steps mentioned in the content.",
+    text: "I went from never touching automation to shipping a working AI support bot for my first client in under a month. The lessons are practical with zero fluff.",
   },
   {
-    name: "Briana",
-    date: "December 04, 2024",
+    name: "Aisha K.",
+    date: "Career changer",
     img: review2,
-    text: "Why is freelancing a good source of income? This company is great for people who are looking to find more income but aren't sure where to start. They have step by step lessons that guide you through the process from beginning to the end.",
+    text: "I was stuck in a job with no growth. Appex gave me a clear plan I could follow after work, and now I have real AI skills that keep me relevant.",
   },
   {
-    name: "Mahta Teimourian",
-    date: "November 07, 2024",
+    name: "Marcus T.",
+    date: "Small business owner",
     img: review3,
-    text: "Absolutely recommended. It's wonderful how you teach all the crucial steps for Freelancing work! You make sure every beginner learns and same time your content has new ideas and important tips for people whom already in business!",
+    text: "We replaced hours of manual follow-up with an AI agent I built myself. I didn't write a single line of code to do it.",
   },
   {
-    name: "Sarah Chen",
-    date: "January 12, 2025",
+    name: "Priya S.",
+    date: "Virtual assistant",
     img: review4,
-    text: "I was skeptical at first, but the hands-on approach won me over. Built my first AI workflow in under 20 minutes. Now I'm earning $800/month automating tasks for local businesses. The community support is amazing too.",
+    text: "Learning AI automation gave me a whole new set of skills and the confidence to use them. The certification gave me real credibility, and my work has leveled up.",
   },
   {
-    name: "Carlos Rivera",
-    date: "February 18, 2025",
+    name: "Tom B.",
+    date: "Sales professional",
     img: review5,
-    text: "Game changer for my career. I went from zero tech knowledge to building AI agents for clients in just 6 weeks. The step-by-step approach makes complex concepts feel simple. Highly recommend for anyone looking to pivot.",
+    text: "The outreach system I built from the course books meetings while I sleep. Easily the best skill investment I've made this year.",
   },
   {
-    name: "Priya Sharma",
-    date: "March 02, 2025",
+    name: "Elena V.",
+    date: "Student",
     img: review6,
-    text: "As a stay-at-home mom, I needed something flexible. Appex gave me the skills to earn from home on my own schedule. The projects are practical and clients actually pay for them. Best investment I've made.",
+    text: "I started with no experience at all. Now I have a portfolio of AI agents and skills employers actually want before I've even graduated.",
   },
 ];
 
@@ -61,14 +61,17 @@ export default function Reviews() {
     <section id="reviews" className="bg-background py-16 md:py-24 overflow-hidden">
       <div className="max-w-5xl mx-auto px-4 md:px-10 text-center mb-10 md:mb-14">
         <p className="text-primary uppercase text-[11px] tracking-[0.15em] font-semibold mb-3 font-body">
-          REVIEWS
+          Loved by learners
         </p>
         <h2
           className="text-foreground font-extrabold leading-tight tracking-tight"
           style={{ fontSize: "clamp(28px, 4vw, 52px)" }}
         >
-          They learned <span className="text-primary">AI</span>. You can too.
+          Results our community is <span className="text-primary">proud of</span>
         </h2>
+        <p className="text-muted-foreground text-[14px] md:text-[16px] mt-4 font-body max-w-xl mx-auto">
+          Over 100,000 learners are building practical AI skills with Appex.
+        </p>
       </div>
 
       {/* Auto-scrolling carousel */}
@@ -77,7 +80,7 @@ export default function Reviews() {
           {doubled.map((r, i) => (
             <div
               key={i}
-              className="flex-shrink-0 w-[280px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7"
+              className="flex-shrink-0 w-[300px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7"
             >
               <div className="flex items-center gap-3 mb-3 md:mb-4">
                 <img
@@ -104,14 +107,6 @@ export default function Reviews() {
         </div>
       </div>
 
-      <div className="text-center mt-8 md:mt-10 px-4">
-        <a
-          href="#"
-          className="inline-flex items-center gap-2 border border-border rounded-full px-6 py-2.5 text-sm text-foreground hover:bg-card transition-colors font-body"
-        >
-          Read more
-        </a>
-      </div>
     </section>
   );
 }

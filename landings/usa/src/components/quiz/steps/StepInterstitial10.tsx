@@ -16,7 +16,7 @@ export default function StepInterstitial10() {
               <line key={v} x1="30" y1={120 - v * 1.1} x2="290" y2={120 - v * 1.1} stroke="#E5E5E5" strokeWidth="0.5" />
             ))}
             {/* Appex User line */}
-            <path d="M 30 110 Q 100 100 160 70 Q 220 30 290 15" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" />
+            <path d="M 30 110 Q 100 100 160 70 Q 220 30 290 15" fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" />
             {/* Average user line */}
             <path d="M 30 110 Q 100 105 160 100 Q 220 95 290 90" fill="none" stroke="#CCC" strokeWidth="2" strokeDasharray="4 4" />
             {/* Labels */}
@@ -29,8 +29,8 @@ export default function StepInterstitial10() {
           {/* Legend */}
           <div className="flex justify-center gap-4 mt-1">
             <div className="flex items-center gap-1">
-              <div className="w-3 h-[2px] rounded" style={{ background: '#2563EB' }} />
-              <span className="text-[10px]" style={{ color: '#2563EB' }}>Appex User</span>
+              <div className="w-3 h-[2px] rounded" style={{ background: '#F97316' }} />
+              <span className="text-[10px]" style={{ color: '#F97316' }}>Appex User</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-3 h-[2px] rounded" style={{ background: '#CCC' }} />

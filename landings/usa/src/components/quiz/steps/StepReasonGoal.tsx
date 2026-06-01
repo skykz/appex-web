@@ -2,13 +2,13 @@ import { useQuiz } from "@/contexts/QuizContext";
 import OptionCard from "../OptionCard";
 
 const options = [
-  { label: "Get out of debts", emoji: "💵" },
+  { label: "Get out of debts", emoji: "💸" },
   { label: "Go on a vacation", emoji: "🏖️" },
   { label: "Have a perfect wedding", emoji: "💍" },
   { label: "Get a new car", emoji: "🚗" },
-  { label: "Buy an apartment", emoji: "🏢" },
+  { label: "Buy an apartment", emoji: "🏠" },
   { label: "Close student loan", emoji: "🎓" },
-  { label: "Other", emoji: "🤔" },
+  { label: "Other", emoji: "✨" },
 ];
 
 export default function StepReasonGoal() {

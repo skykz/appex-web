@@ -1,134 +1,153 @@
 const skills = [
-  ["AI Bots & Automations", "Monetize AI Agents"],
-  ["OpenClaw Framework", "N8N Workflows"],
-  ["Client Acquisition", "AI Agent Building"],
-  ["Sales & Outreach", ""],
+  {
+    title: "Shareable & verifiable",
+    desc: "add it to LinkedIn, your CV, and your portfolio in seconds.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M12 2a10 10 0 100 20 10 10 0 000-20z" />
+      </svg>
+    ),
+  },
+  {
+    title: "Recognized where it counts",
+    desc: "give clients and employers real proof of job-ready Claude skills.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+      </svg>
+    ),
+  },
+  {
+    title: "Earned through real work",
+    desc: "awarded for completing genuine projects — never multiple-choice quizzes.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Certificate() {
   return (
-    <section className="bg-card py-16 md:py-24 px-4 md:px-10">
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
-        {/* Left — certificate mockup (landscape) */}
-        <div className="flex-1 flex justify-center w-full">
-          <div className="relative w-full max-w-[560px]">
-            {/* Glow effect */}
-            <div className="absolute -inset-4 bg-gradient-to-br from-primary/20 via-transparent to-primary/10 rounded-2xl blur-xl" />
+    <section className="bg-background py-16 md:py-24 px-4 md:px-10">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        {/* Left — certificate mockup */}
+        <div className="relative">
+          {/* Soft ambient glow */}
+          <div className="absolute -inset-6 bg-gradient-to-br from-primary/15 via-transparent to-primary/5 rounded-3xl blur-2xl" />
 
-            <div className="relative bg-foreground rounded-xl w-full shadow-2xl shadow-black/40 overflow-hidden">
-              {/* Header bar */}
-              <div className="bg-background px-8 py-5 text-center">
-                <p className="text-foreground font-bold text-lg md:text-2xl tracking-wider">
-                  CERTIFICATE OF ACHIEVEMENT
-                </p>
+          <div
+            className="relative rounded-2xl p-4 md:p-7"
+            style={{
+              background: "#fff",
+              border: "2px solid hsl(var(--primary))",
+              boxShadow: "0 30px 60px -25px rgba(255,107,0,0.35)",
+            }}
+          >
+            {/* Bookmark ribbon */}
+            <div className="absolute top-0 right-5 md:right-10 w-10 md:w-16">
+              <div
+                className="w-full h-16 md:h-24"
+                style={{
+                  background: "hsl(var(--primary))",
+                  clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 75%, 0 100%)",
+                }}
+              />
+            </div>
+
+            <p className="text-[10px] md:text-[13px] text-[#666] mb-2 md:mb-3 font-body">
+              Certificate of completion
+            </p>
+
+            <h3
+              className="font-extrabold tracking-tight text-[#0A0A0A] leading-[0.95] mb-5 md:mb-14"
+              style={{ fontSize: "clamp(22px, 4.5vw, 48px)" }}
+            >
+              MASTER THE <span className="hidden sm:inline"><br /></span>CLAUDE
+            </h3>
+
+            <div className="mb-2">
+              <p className="text-[#0A0A0A] font-bold text-sm md:text-lg tracking-wide">
+                JAMES SMITH
+              </p>
+              <div className="border-b border-[#111] mt-1" />
+            </div>
+
+            <p className="text-[#555] text-[10px] md:text-[13px] leading-relaxed font-body mb-5 md:mb-10 max-w-md">
+              Achieved the highest distinction in the course, building expertise in prompting, automation, and end-to-end Claude workflows that real teams want to hire for.
+            </p>
+
+            <div className="flex items-end justify-between gap-2 md:gap-4">
+              <div className="text-[9px] md:text-[11px] text-[#666] font-body leading-tight">
+                <p>7 March 2026</p>
+                <p>ID: 342428523</p>
               </div>
 
-              <div className="px-8 md:px-12 py-6 md:py-8 text-center">
-                <p className="text-[#777] text-xs md:text-sm mb-2 font-body">
-                  The certificate was awarded to
-                </p>
+              <div className="flex items-center gap-1.5 md:gap-2">
+                <div className="w-5 h-5 md:w-6 md:h-6 rounded-md bg-primary flex items-center justify-center text-white text-[10px] md:text-[11px] font-bold">
+                  A
+                </div>
+                <span className="text-[#0A0A0A] font-bold text-xs md:text-sm tracking-tight">Appex</span>
+              </div>
 
-                <div className="border-b border-[#E8E4DC] pb-3 mb-3">
-                  <p className="text-2xl md:text-3xl font-bold text-background tracking-tight">
-                    DEAR USER
+              <div className="grid grid-cols-2 gap-2 md:gap-4 text-center">
+                <div>
+                  <p className="italic text-[10px] md:text-[14px] text-[#333] leading-none mb-1" style={{ fontFamily: "'Georgia', serif" }}>
+                    J. Smith
                   </p>
+                  <p className="text-[8px] md:text-[10px] text-[#888] font-body">Course instructor</p>
                 </div>
-
-                <p className="text-[#777] text-xs md:text-sm leading-relaxed mb-5 font-body max-w-[420px] mx-auto">
-                  Has successfully finished learning plan{" "}
-                  <strong className="text-background">
-                    'AI Automation Specialist'
-                  </strong>{" "}
-                  with the highest possible mark and demonstrates mastery of
-                  building, deploying, and monetizing AI agents.
-                </p>
-
-                {/* Ribbon Seal */}
-                <div className="flex items-center justify-center mb-5">
-                  <div className="relative">
-                    {/* Ribbon tails */}
-                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 flex gap-0">
-                      <div className="w-4 h-6 bg-primary/80 -rotate-[15deg] rounded-b-sm origin-top" />
-                      <div className="w-4 h-6 bg-primary/80 rotate-[15deg] rounded-b-sm origin-top" />
-                    </div>
-                    {/* Outer ring */}
-                    <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-primary to-amber-500 flex items-center justify-center shadow-lg relative z-10">
-                      <div className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-dashed border-white/50 flex items-center justify-center">
-                        <div className="flex flex-col items-center">
-                          <span className="text-white text-[10px] md:text-xs font-bold leading-none">
-                            ★
-                          </span>
-                          <span className="text-white font-bold text-sm md:text-base leading-none">
-                            APPEX
-                          </span>
-                          <span className="text-white text-[8px] md:text-[10px] leading-none">
-                            CERTIFIED
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Two signatures */}
-                <div className="border-t border-[#E8E4DC] pt-4 grid grid-cols-3 items-end text-[10px] md:text-[11px] text-[#999] font-body">
-                  <div className="text-left">
-                    <p className="italic text-[14px] md:text-[16px] text-[#555] mb-0.5" style={{ fontFamily: "'Georgia', serif" }}>
-                      J. Smith
-                    </p>
-                    <p className="font-medium">Course Instructor</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[10px]">7 March 2026</p>
-                    <p className="text-[10px]">ID: 342428523</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="italic text-[14px] md:text-[16px] text-[#555] mb-0.5" style={{ fontFamily: "'Georgia', serif" }}>
-                      A. Founder
-                    </p>
-                    <p className="font-medium">Founder, Appex</p>
-                  </div>
+                <div>
+                  <p className="italic text-[10px] md:text-[14px] text-[#333] leading-none mb-1" style={{ fontFamily: "'Georgia', serif" }}>
+                    A. Founder
+                  </p>
+                  <p className="text-[8px] md:text-[10px] text-[#888] font-body">Founder, Appex</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right */}
-        <div className="flex-1">
-          <p className="text-primary uppercase text-[11px] tracking-[0.15em] font-semibold mb-3 font-body">
-            FROM TRAINING TO CERTIFICATION
-          </p>
-          <h2 className="text-foreground text-[26px] md:text-[32px] font-extrabold leading-tight mb-3 md:mb-4 tracking-tight">
-            From Training to Trusted Certification
+        {/* Right — copy */}
+        <div>
+          <div className="inline-block mb-5 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase text-primary" style={{ background: "rgba(255,107,0,0.12)", border: "1px solid rgba(255,107,0,0.25)" }}>
+            Certification
+          </div>
+
+          <h2
+            className="text-foreground font-extrabold leading-[1.05] tracking-tight mb-5"
+            style={{ fontSize: "clamp(28px, 4.2vw, 48px)" }}
+          >
+            Finish with <span className="text-primary">proof</span>,<br className="hidden md:block" />
+            not just knowledge
           </h2>
-          <p className="text-muted-foreground text-[14px] md:text-[15px] leading-relaxed mb-5 md:mb-6 font-body">
-            Complete a structured program and earn a credential that verifies
-            your ability to build, deploy, and sell real AI agents.
+
+          <p className="text-muted-foreground text-[15px] md:text-[16px] leading-relaxed mb-8 md:mb-10 font-body max-w-lg">
+            Complete your path and earn the Appex AI Certification — a credential that turns "I learned Claude" into something clients and employers can actually trust.
           </p>
 
-          {/* 2-column skill grid */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2.5 mb-6 md:mb-8">
-            {skills.map((row, i) =>
-              row.map(
-                (skill, j) =>
-                  skill && (
-                    <div
-                      key={`${i}-${j}`}
-                      className="flex items-center gap-2 text-[14px] md:text-[15px] text-muted-foreground font-body"
-                    >
-                      <span className="text-primary">→</span> {skill}
-                    </div>
-                  )
-              )
-            )}
+          <div className="flex flex-col gap-5 md:gap-6 mb-8 md:mb-10">
+            {skills.map((s) => (
+              <div key={s.title} className="flex gap-4 items-start">
+                <div
+                  className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-primary"
+                  style={{ background: "rgba(255,107,0,0.12)", border: "1px solid rgba(255,107,0,0.25)" }}
+                >
+                  {s.icon}
+                </div>
+                <p className="text-muted-foreground text-[14px] md:text-[15px] leading-[1.55] font-body">
+                  <span className="text-foreground font-bold">{s.title}</span> — {s.desc}
+                </p>
+              </div>
+            ))}
           </div>
 
           <a
             href="/quiz"
-            className="w-full sm:w-auto text-center inline-flex justify-center bg-gradient-primary text-white rounded-full px-6 py-3 text-sm font-semibold hover:opacity-90 transition-opacity font-body"
+            className="inline-flex justify-center bg-gradient-primary text-white rounded-xl px-7 py-3.5 text-base font-semibold hover:opacity-90 hover:-translate-y-px transition-all"
           >
-            Get certified →
+            Start Free Quiz →
           </a>
         </div>
       </div>

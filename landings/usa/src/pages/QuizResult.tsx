@@ -39,7 +39,7 @@ function QuizResultInner() {
 
   const handleCTA = () => {
     const params = new URLSearchParams({ role, income: incomeTarget || "", timeline: timeline || "" });
-    navigate("/pricing?" + params.toString());
+    navigate("/paywall");
   };
 
   const pathItems = [

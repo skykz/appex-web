@@ -28,6 +28,8 @@ export interface QuizAnswers {
   reasonForMoney: string;
   goalAmount: string;
   goalTime: string;
+  career_goal: string;
+  time_horizon: string;
   email: string;
   userName: string;
   [key: string]: any;
@@ -72,13 +74,15 @@ const defaultAnswers: QuizAnswers = {
   reasonForMoney: "",
   goalAmount: "",
   goalTime: "",
+  career_goal: "",
+  time_horizon: "",
   email: "",
   userName: "",
 };
 
 const QuizContext = createContext<QuizContextType | null>(null);
 
-const TOTAL_STEPS = 43;
+const TOTAL_STEPS = 45;
 
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [answers, setAnswers] = useState<QuizAnswers>(() => {

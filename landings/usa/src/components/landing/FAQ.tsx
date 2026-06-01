@@ -2,28 +2,28 @@ import { useState } from "react";
 
 const faqs = [
   {
-    q: "What is Appex?",
-    a: "Appex is a hands-on learning platform that teaches you how to build, deploy, and sell AI automations — even with zero coding experience. You'll build real projects and learn how to earn from them.",
+    q: "What is Claude?",
+    a: "Claude is an advanced AI assistant built by Anthropic. It's known for thoughtful writing, strong reasoning, and reliably handling long, complex tasks — which makes it a powerful tool for real professional work.",
   },
   {
-    q: "How can I start?",
-    a: "Take our free 3-minute quiz to get a personalized learning plan. From there, you'll jump straight into building your first AI workflow — most students finish it in under 15 minutes.",
+    q: "Do I need any experience to learn Claude?",
+    a: "No. Appex teaches Claude from the ground up using plain language and no-code workflows. If you can use everyday web apps, you can follow the program from your first lesson.",
   },
   {
-    q: "Do I need coding experience?",
-    a: "Not at all. Our curriculum uses no-code tools like n8n, Google Sheets, and AI APIs. If you can use Gmail, you can build an AI agent.",
+    q: "How is this different from just using Claude on my own?",
+    a: "Most people only scratch the surface of what Claude can do. Appex teaches the prompting techniques, workflows, and real use cases that turn Claude from a casual tool into a genuine professional skill.",
   },
   {
-    q: "How much can I earn?",
-    a: "Students typically earn $500–$3,000/month depending on the services they offer. Some top performers earn over $5,000/month building AI automations for businesses.",
+    q: "Why are Claude skills worth learning now?",
+    a: "AI is reshaping nearly every role, and people who can apply Claude to real work — content, research, automation, and more — stay ahead. Those skills also open the door to paid opportunities.",
   },
   {
-    q: "How can I cancel my subscription?",
-    a: "You can cancel anytime from your account settings. No questions asked. We also offer a money-back guarantee if you're not satisfied within the first 14 days.",
+    q: "How long until I'm genuinely good with Claude?",
+    a: "Lessons are short and practical, so most learners are doing useful, real work with Claude within the first couple of weeks of their personalized plan.",
   },
   {
-    q: "Is there a certificate?",
-    a: "Yes! Upon completing the learning path, you'll receive an official Appex AI Automation Specialist certificate that you can add to your LinkedIn profile.",
+    q: "Do I need to pay for Claude to start?",
+    a: "No. Claude has a free tier that's enough to begin learning. The course points out where a paid plan adds value, but you can start at no extra cost.",
   },
 ];
 
@@ -41,10 +41,10 @@ export default function FAQ() {
             className="text-foreground font-extrabold leading-tight mb-3 md:mb-4 tracking-tight"
             style={{ fontSize: "clamp(28px, 4vw, 48px)" }}
           >
-            Frequently Asked Questions
+            Questions about <span className="text-primary">Claude</span>, answered
           </h2>
           <p className="text-muted-foreground text-sm md:text-base font-body">
-            Answers to frequently asked questions.
+            Everything you need to know before you start mastering Claude. Still curious? Reach our team any time.
           </p>
         </div>
 

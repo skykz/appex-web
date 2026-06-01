@@ -27,6 +27,8 @@ import StepFreeAccess from "./steps/StepFreeAccess";
 import StepInterstitial5 from "./steps/StepInterstitial5";
 import StepTryTechSkill from "./steps/StepTryTechSkill";
 import StepAIAutomation from "./steps/StepAIAutomation";
+import StepCareerGoal from "./steps/StepCareerGoal";
+import StepTimeHorizon from "./steps/StepTimeHorizon";
 import StepInterstitial6 from "./steps/StepInterstitial6";
 import StepInterstitial7 from "./steps/StepInterstitial7";
 import StepInterstitial8 from "./steps/StepInterstitial8";
@@ -47,47 +49,49 @@ import StepFinalPlan from "./steps/StepFinalPlan";
 const stepComponents = [
   StepAge,                    // 1
   StepGoal,                   // 2
-  StepDescribe,               // 3
-  StepChallenges,             // 4
-  StepInterstitial1,          // 5
-  StepExperience,             // 6
-  StepStoppingYou,            // 7
-  StepAiFeeling,              // 8
-  StepFrustration,            // 9
-  StepCoding,                 // 10
-  StepInterstitial2,          // 11
-  StepSocialProof,            // 12
-  StepFinancialSatisfaction,  // 13
-  StepExtraIncome,            // 14
-  StepIncomeGoal,             // 15
-  StepInterstitial3,          // 16
-  StepWorkEnvironment,        // 17
-  StepCurrentHours,           // 18
-  StepPreferredHours,         // 19
-  StepSocialMedia,            // 20
-  StepInterstitial4,          // 21
-  StepExcitingAI,             // 22
-  StepAIToolsFamiliar,        // 23
-  StepFreeAccess,             // 24
-  StepInterstitial5,          // 25
-  StepTryTechSkill,           // 26
-  StepAIAutomation,           // 27
-  StepInterstitial6,          // 28
-  StepInterstitial7,          // 29
-  StepInterstitial8,          // 30
-  StepInterstitial9,          // 31
-  StepFindingClients,         // 32
-  StepInterstitial10,         // 33
-  StepPriceInput,             // 34
-  StepIncomeProfile,          // 35
-  StepReasonGoal,             // 36
-  StepGoalAmount,             // 37
-  StepGoalTime,               // 38
-  StepGrowthChart,            // 39
-  StepLoading,                // 40
-  StepEmail,                  // 41
-  StepName,                   // 42
-  StepFinalPlan,              // 43
+  StepIncomeGoal,             // 3  (moved from 15)
+  StepReasonGoal,             // 4  (moved from 36)
+  StepDescribe,               // 5
+  StepChallenges,             // 6
+  StepInterstitial1,          // 7
+  StepExperience,             // 8
+  StepStoppingYou,            // 9
+  StepAiFeeling,              // 10
+  StepFrustration,            // 11
+  StepCoding,                 // 12
+  StepInterstitial2,          // 13
+  StepSocialProof,            // 14
+  StepFinancialSatisfaction,  // 15
+  StepExtraIncome,            // 16
+  StepInterstitial3,          // 17
+  StepWorkEnvironment,        // 18
+  StepCurrentHours,           // 19
+  StepPreferredHours,         // 20
+  StepSocialMedia,            // 21
+  StepInterstitial4,          // 22
+  StepExcitingAI,             // 23
+  StepAIToolsFamiliar,        // 24
+  StepFreeAccess,             // 25
+  StepInterstitial5,          // 26
+  StepTryTechSkill,           // 27
+  StepAIAutomation,           // 28
+  StepInterstitial6,          // 29
+  StepInterstitial7,          // 30
+  StepInterstitial8,          // 31
+  StepInterstitial9,          // 32
+  StepFindingClients,         // 33
+  StepInterstitial10,         // 34
+  StepPriceInput,             // 35
+  StepCareerGoal,             // 36 ← last of Personalization
+  StepTimeHorizon,            // 37 ← last of Personalization
+  StepIncomeProfile,          // 38
+  StepGoalAmount,             // 39
+  StepGoalTime,               // 40
+  StepGrowthChart,            // 41
+  StepLoading,                // 42
+  StepEmail,                  // 43
+  StepName,                   // 44
+  StepFinalPlan,              // 45
 ];
 
 export default function QuizFlow() {

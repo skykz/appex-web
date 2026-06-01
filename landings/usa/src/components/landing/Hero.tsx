@@ -1,187 +1,206 @@
-import { useState } from "react";
+type Step = {
+  title: string;
+  meta: string;
+  state: "done" | "working" | "queued";
+};
 
-const options = [
-  "Quit my 9-5 and work for myself",
-  "Start an AI Automation business",
-  "Build an additional income stream",
+const steps: Step[] = [
+  { title: "Reads incoming client brief", meta: "Done · Gmail", state: "done" },
+  { title: "Drafts a tailored proposal", meta: "Done · Claude", state: "done" },
+  { title: "Suggests three meeting slots", meta: "Working… · Calendar", state: "working" },
+  { title: "Sends invoice to your CRM", meta: "Queued · Notion", state: "queued" },
 ];
 
-/** Dashboard mockup figures (must match monthly goal row). */
-const DASHBOARD_EARNED = 1200;
-const DASHBOARD_GOAL = 2000;
-
-/**
- * Formats a USD amount for the hero dashboard mockup.
- */
-function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString("en-US")}`;
-}
-
-/**
- * Renders the Sarah dashboard card shown beside the hero CTA.
- */
-function DashboardMockup() {
+function ClaudeAgentMock() {
   return (
-    <div
-      className="w-full max-w-[420px] mx-auto rounded-[20px] p-7 opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]"
-      style={{
-        background: "#131313",
-        border: "1px solid rgba(255,255,255,0.08)",
-      }}
-    >
-      {/* Greeting */}
-      <div className="mb-5">
-        <p className="text-foreground text-[16px] font-bold">Welcome back, Sarah 👋</p>
-        <p className="text-[12px] font-body" style={{ color: "#666" }}>AI Automation Specialist</p>
+    <div className="relative opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">
+      <div
+        className="absolute -top-4 right-2 z-10 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-foreground"
+        style={{ background: "#1A1A1A", border: "1px solid rgba(249,115,22,0.3)" }}
+      >
+        Runs on autopilot
       </div>
 
-      {/* Stats row — middle column wider so "$1,200" fits */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_minmax(0,1fr)] gap-2 mb-5">
-        {[
-          { value: 3, label: "Agents active", live: true },
-          { value: DASHBOARD_EARNED, label: "Earned this month", prefix: "$", compact: true },
-          { value: 12, label: "Clients served" },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="min-w-0 rounded-xl px-2 py-3.5 text-center"
-            style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.06)" }}
-          >
-            <div
-              className={`text-primary font-black leading-none mb-1 relative tabular-nums tracking-tight ${
-                s.compact ? "text-[20px]" : "text-[24px]"
-              }`}
-            >
-              <span className="block whitespace-nowrap">
-                {s.prefix}
-                {s.value.toLocaleString("en-US")}
-              </span>
-              {s.live && (
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              )}
-            </div>
-            <div className="text-[9px] md:text-[10px] font-body leading-tight" style={{ color: "#888" }}>
-              {s.label}
-            </div>
+      <div
+        className="rounded-2xl p-6"
+        style={{
+          background: "#131313",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 30px 60px -20px rgba(249,115,22,0.25)",
+        }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#2a2a2a" }} />
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#2a2a2a" }} />
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: "#2a2a2a" }} />
+            <span className="ml-2 text-[13px] font-semibold text-foreground">Claude Agent</span>
           </div>
-        ))}
-      </div>
-
-      {/* Agent list */}
-      <p className="text-foreground text-[13px] font-bold mb-3">Your agents</p>
-      <div className="flex flex-col gap-2 mb-5">
-        {[
-          { name: "WhatsApp Booking Bot", badge: "24/7 active" },
-          { name: "AI Sales Agent", badge: "142 chats this week" },
-          { name: "Content Autopilot", badge: "30 posts scheduled" },
-        ].map((agent) => (
-          <div
-            key={agent.name}
-            className="flex items-center justify-between rounded-[10px] px-4 py-3"
-            style={{ background: "#111", border: "1px solid rgba(255,255,255,0.05)" }}
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
-              <span className="text-foreground text-[13px] font-semibold">{agent.name}</span>
-            </div>
-            <span className="text-[11px] rounded-md px-2 py-0.5 font-body" style={{ color: "#888", background: "#1A1A1A" }}>
-              {agent.badge}
-            </span>
+          <div className="flex items-center gap-1.5 text-[12px]" style={{ color: "#888" }}>
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Running
           </div>
-        ))}
+        </div>
+
+        <div
+          className="rounded-xl p-4 mb-5 flex items-start gap-3"
+          style={{ background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.05)" }}
+        >
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)" }}
+          >
+            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-[11px] tracking-[0.18em] uppercase font-bold text-primary mb-1">
+              Agent task
+            </p>
+            <p className="text-[15px] font-bold text-foreground leading-tight">
+              Turn a fresh inquiry into a signed client
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          {steps.map((step, i) => {
+            const isWorking = step.state === "working";
+            const isDone = step.state === "done";
+            return (
+              <div key={step.title} className="flex gap-3">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      isWorking ? "ring-4 ring-primary/15" : ""
+                    }`}
+                    style={{
+                      background: isDone || isWorking ? "#F97316" : "#1A1A1A",
+                      border: isDone || isWorking ? "none" : "1px solid rgba(255,255,255,0.1)",
+                    }}
+                  >
+                    {isDone && (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="#0D0D0D" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    {isWorking && (
+                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9" stroke="#0D0D0D" strokeWidth="3" strokeDasharray="14 40" strokeLinecap="round" />
+                      </svg>
+                    )}
+                    {step.state === "queued" && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#555" }} />
+                    )}
+                  </div>
+                  {i < steps.length - 1 && (
+                    <div
+                      className="w-px flex-1 my-1"
+                      style={{ background: isDone ? "#F97316" : "rgba(255,255,255,0.08)" }}
+                    />
+                  )}
+                </div>
+
+                <div
+                  className={`flex-1 pb-4 ${isWorking ? "rounded-lg px-3 py-2 -mt-1 mb-3" : ""}`}
+                  style={
+                    isWorking
+                      ? { background: "#0f0f0f", border: "1px solid rgba(249,115,22,0.35)" }
+                      : undefined
+                  }
+                >
+                  <p
+                    className={`text-[14px] font-semibold ${isDone || isWorking ? "text-foreground" : ""}`}
+                    style={!isDone && !isWorking ? { color: "#666" } : undefined}
+                  >
+                    {step.title}
+                  </p>
+                  <p className="text-[12px] mt-0.5 font-body">
+                    <span
+                      className={isWorking ? "text-primary font-semibold" : ""}
+                      style={!isWorking ? { color: "#777" } : undefined}
+                    >
+                      {step.meta}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Progress bar */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[11px] font-body" style={{ color: "#888" }}>Monthly goal</span>
-          <span className="text-[11px] text-foreground font-semibold">
-            {formatUsd(DASHBOARD_EARNED)} / {formatUsd(DASHBOARD_GOAL)}
-          </span>
-        </div>
-        <div className="w-full h-1.5 rounded-full" style={{ background: "#1A1A1A" }}>
-          <div
-            className="h-1.5 rounded-full"
-            style={{
-              width: `${(DASHBOARD_EARNED / DASHBOARD_GOAL) * 100}%`,
-              background: "linear-gradient(90deg, #FF6B00, #FFB800)",
-            }}
-          />
-        </div>
+      <div
+        className="absolute -bottom-4 left-2 rounded-full px-3.5 py-1.5 text-[12px] font-semibold text-foreground"
+        style={{ background: "#1A1A1A", border: "1px solid rgba(255,255,255,0.1)" }}
+      >
+        No coding needed
       </div>
     </div>
   );
 }
 
-/**
- * Landing hero with quiz-style intent checkboxes and dashboard preview.
- */
 export default function Hero() {
-  const [selected, setSelected] = useState<string[]>([]);
-
-  const toggle = (opt: string) =>
-    setSelected((prev) =>
-      prev.includes(opt) ? prev.filter((o) => o !== opt) : [...prev, opt]
-    );
 
   return (
     <section className="bg-background min-h-[85vh] md:min-h-[90vh] pt-[80px] md:pt-[140px] pb-12 md:pb-20 px-4 md:px-10">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-start gap-8 lg:gap-20">
         {/* Left */}
         <div className="flex-1 max-w-xl">
+          <div className="inline-block mb-4 md:mb-5 rounded-full px-4 py-1.5 text-[11px] md:text-[12px] font-bold tracking-[0.15em] uppercase text-primary" style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)" }}>
+            Claude AI Mastery
+          </div>
           <h1
             className="text-foreground font-extrabold leading-[1.05] mb-4 md:mb-6 tracking-tight"
             style={{ fontSize: "clamp(36px, 5vw, 72px)" }}
           >
-            Turn AI skills into{" "}
-            <span className="text-primary">real income.</span>
+            Become a{" "}
+            <span className="text-primary">Certified Claude Expert</span>
           </h1>
+          <p className="text-muted-foreground text-[15px] md:text-[17px] leading-relaxed mb-6 md:mb-8 font-body max-w-lg">
+            Appex gives you a personalized plan to master Claude — Anthropic's AI assistant — and build the future-ready skills every role now demands. No coding required.
+          </p>
 
-          {/* Quiz-style checkboxes */}
-          <div className="mb-5 md:mb-6">
-            <h3 className="text-foreground text-base md:text-lg font-semibold mb-3 font-body">
-              What brings you to Appex?
-            </h3>
-            <div className="flex flex-col gap-1.5">
-              {options.map((opt) => {
-                const isSelected = selected.includes(opt);
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => toggle(opt)}
-                    className={`flex items-center gap-3 text-left text-[14px] md:text-[15px] rounded-lg px-3 md:px-4 py-2.5 md:py-3 transition-colors font-body ${
-                      isSelected
-                        ? "bg-card text-foreground border border-primary/30"
-                        : "bg-card/50 text-muted-foreground hover:bg-card border border-transparent"
-                    }`}
-                  >
-                    <span
-                      className={`w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-colors ${
-                        isSelected
-                          ? "bg-primary border-primary"
-                          : "border-muted-foreground/40"
-                      }`}
-                    >
-                      {isSelected && (
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 md:gap-4 mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 md:gap-5 mb-6 md:mb-8">
             <a
               href="/quiz"
               className="w-full sm:w-auto text-center inline-flex justify-center bg-gradient-primary text-white rounded-xl px-7 py-3.5 text-base font-semibold hover:opacity-90 hover:-translate-y-px transition-all"
             >
               Get your free plan →
             </a>
+
+            {/* Social proof */}
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {[
+                  { letter: "A", bg: "#F97316" },
+                  { letter: "M", bg: "#FFB800" },
+                  { letter: "S", bg: "#F97316" },
+                  { letter: "J", bg: "#FFB800" },
+                ].map((a, i) => (
+                  <span
+                    key={i}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold text-background"
+                    style={{ background: a.bg, border: "2px solid #0D0D0D" }}
+                  >
+                    {a.letter}
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-foreground text-[14px] font-bold">100,000+ learners</span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <svg key={i} className="w-3 h-3 text-primary" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.446a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.365-2.446a1 1 0 00-1.176 0l-3.366 2.446c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.075 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
+                    </svg>
+                  ))}
+                  <span className="text-muted-foreground text-[11px] ml-1">4.5/5 rating</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Trust row */}
@@ -197,9 +216,9 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Right — dashboard mockup (desktop) */}
-        <div className="hidden lg:block flex-1 relative">
-          <DashboardMockup />
+        {/* Right — Claude agent workflow mockup */}
+        <div className="w-full lg:flex-1 relative mt-8 lg:mt-0">
+          <ClaudeAgentMock />
         </div>
       </div>
     </section>
