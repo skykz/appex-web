@@ -9,6 +9,8 @@ export interface AdminSubscriptionRow {
   status: string
   intro_price: number | null
   price: number
+  coupon_label: string | null
+  promo_code: string | null
   renewal_date: string
   paused_at: string | null
   created_at: string
@@ -20,6 +22,10 @@ export interface AdminBillingRow {
   email: string
   name: string | null
   amount: number
+  subtotal: number | null
+  discount_amount: number
+  coupon_label: string | null
+  promo_code: string | null
   description: string
   paid_at: string
   created_at: string

@@ -6,6 +6,7 @@ import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { ProgressCard } from '@shared/ui'
 import { skillsApi, type SkillDetail, type SkillListItem } from '@features/skills'
+import { HomeOffersNewsSection } from '@/widgets/home-offers-news-section'
 import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
 
 /**
@@ -39,6 +40,10 @@ export default function HomePage() {
   })
 
   const featuredId = useMemo(() => pickFeaturedSkillId(courses), [courses])
+  const featuredCourse = useMemo(
+    () => courses.find((course) => course.id === featuredId) ?? null,
+    [courses, featuredId]
+  )
 
   const activeCourseIds = useMemo(() => {
     const active = courses
@@ -80,8 +85,8 @@ export default function HomePage() {
         </div>
 
         <div className="relative mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,42rem)_minmax(19rem,22rem)] lg:items-start lg:justify-between lg:gap-x-12">
-            <div className="min-w-0 w-full max-w-2xl space-y-8 lg:max-w-[42rem] lg:justify-self-start">
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)] lg:items-start lg:gap-x-0">
+            <div className="min-w-0 w-full max-w-2xl space-y-8 lg:max-w-none lg:pr-10">
               <header className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="bg-sidebar-accent text-sidebar-accent-foreground rounded-full px-3 py-1 text-xs font-semibold tracking-wide">
@@ -256,9 +261,18 @@ export default function HomePage() {
               )}
             </div>
 
-            <aside className="flex w-full max-w-md shrink-0 flex-col gap-4 lg:sticky lg:top-4 lg:w-full lg:max-w-none lg:justify-self-end lg:self-start">
-              <ProgressCard progress={planProgress} />
+            <aside className="flex w-full max-w-md shrink-0 flex-col gap-3 lg:sticky lg:top-4 lg:w-full lg:max-w-none lg:self-start lg:border-l lg:border-border/80 lg:pl-10">
+              <ProgressCard
+                progress={planProgress}
+                featuredTitle={featuredCourse?.title}
+                featuredHref={
+                  featuredCourse
+                    ? `/academy/courses/${featuredCourse.id}`
+                    : undefined
+                }
+              />
               <HomeStreakPromoSection />
+              <HomeOffersNewsSection />
             </aside>
           </div>
         </div>

@@ -129,6 +129,25 @@ export function BillingPage() {
         ),
       },
       {
+        key: 'discounts',
+        header: 'Coupon / promo',
+        render: (r) => {
+          if (!r.coupon_label && !r.promo_code) {
+            return <span className="text-muted-foreground">—</span>
+          }
+          return (
+            <div className="text-sm">
+              {r.coupon_label ? (
+                <div className="font-medium">{r.coupon_label}</div>
+              ) : null}
+              {r.promo_code ? (
+                <div className="text-xs text-muted-foreground">code: {r.promo_code}</div>
+              ) : null}
+            </div>
+          )
+        },
+      },
+      {
         key: 'renewal',
         header: 'Renewal',
         render: (r) => (
@@ -165,7 +184,35 @@ export function BillingPage() {
       {
         key: 'amount',
         header: 'Amount',
-        render: (r) => <span className="tabular-nums font-medium">${r.amount.toFixed(2)}</span>,
+        render: (r) => (
+          <div className="tabular-nums">
+            <div className="font-medium">${r.amount.toFixed(2)}</div>
+            {r.subtotal != null && r.discount_amount > 0 ? (
+              <div className="text-xs text-muted-foreground">
+                was ${r.subtotal.toFixed(2)} (−${r.discount_amount.toFixed(2)})
+              </div>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: 'discounts',
+        header: 'Coupon / promo',
+        render: (r) => {
+          if (!r.coupon_label && !r.promo_code) {
+            return <span className="text-muted-foreground">—</span>
+          }
+          return (
+            <div className="text-sm">
+              {r.coupon_label ? (
+                <div className="font-medium">{r.coupon_label}</div>
+              ) : null}
+              {r.promo_code ? (
+                <div className="text-xs text-muted-foreground">code: {r.promo_code}</div>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         key: 'description',
@@ -204,6 +251,8 @@ export function BillingPage() {
         'status',
         'intro_price',
         'price',
+        'coupon_label',
+        'promo_code',
         'renewal_date',
         'paused_at',
         'created_at',
@@ -220,6 +269,8 @@ export function BillingPage() {
             escCsv(r.status),
             escCsv(r.intro_price != null ? String(r.intro_price) : ''),
             escCsv(String(r.price)),
+            escCsv(r.coupon_label ?? ''),
+            escCsv(r.promo_code ?? ''),
             escCsv(r.renewal_date),
             escCsv(r.paused_at ?? ''),
             escCsv(r.created_at),
@@ -239,6 +290,10 @@ export function BillingPage() {
         'email',
         'name',
         'amount',
+        'subtotal',
+        'discount_amount',
+        'coupon_label',
+        'promo_code',
         'description',
         'paid_at',
         'created_at',
@@ -252,6 +307,10 @@ export function BillingPage() {
             escCsv(r.email),
             escCsv(r.name ?? ''),
             escCsv(String(r.amount)),
+            escCsv(r.subtotal != null ? String(r.subtotal) : ''),
+            escCsv(String(r.discount_amount)),
+            escCsv(r.coupon_label ?? ''),
+            escCsv(r.promo_code ?? ''),
             escCsv(r.description),
             escCsv(r.paid_at),
             escCsv(r.created_at),
@@ -297,8 +356,8 @@ export function BillingPage() {
               className="h-10 border-border/80 pl-9 shadow-sm"
               placeholder={
                 tab === 'subscriptions'
-                  ? 'Search plan, user email, name, or user id…'
-                  : 'Search description, user email, name, or user id…'
+                  ? 'Search plan, coupon, promo, user email, name, or user id…'
+                  : 'Search description, coupon, promo, user email, name, or user id…'
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}

@@ -146,6 +146,79 @@ function toIso(seconds: number | null | undefined): string | null {
   return new Date(seconds * 1000).toISOString()
 }
 
+/** Human-readable coupon and promotion-code labels from Stripe discount objects. */
+export function discountLabelsFromStripe(
+  discounts: Stripe.Discount[] | null | undefined
+): { couponLabel: string | null; promoCode: string | null } {
+  if (!discounts?.length) {
+    return { couponLabel: null, promoCode: null }
+  }
+  const coupons: string[] = []
+  const promos: string[] = []
+  for (const d of discounts) {
+    const coupon = d.source?.coupon
+    if (coupon && typeof coupon === 'object') {
+      const c = coupon as Stripe.Coupon
+      coupons.push(c.name || c.id)
+    } else if (typeof coupon === 'string') {
+      coupons.push(coupon)
+    }
+    const promo = d.promotion_code
+    if (promo && typeof promo === 'object') {
+      const p = promo as Stripe.PromotionCode
+      if (p.code) promos.push(p.code)
+    }
+  }
+  return {
+    couponLabel: coupons.length ? [...new Set(coupons)].join(', ') : null,
+    promoCode: promos.length ? [...new Set(promos)].join(', ') : null,
+  }
+}
+
+/** Computes the first-cycle intro price in cents using STRIPE_INTRO_COUPON_ID. */
+async function introAmountCentsForPrice(unitAmount: number): Promise<number | null> {
+  if (!env.STRIPE_INTRO_COUPON_ID) return null
+  try {
+    const stripe = getStripe()
+    const coupon = await stripe.coupons.retrieve(env.STRIPE_INTRO_COUPON_ID)
+    if (coupon.amount_off) return Math.max(0, unitAmount - coupon.amount_off)
+    if (coupon.percent_off) {
+      return Math.round(unitAmount * (1 - coupon.percent_off / 100))
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** True when the invoice payload indicates coupons or promos were applied. */
+function invoiceHadDiscount(invoice: Stripe.Invoice): boolean {
+  return (
+    (invoice.total_discount_amounts?.length ?? 0) > 0 ||
+    (invoice.subtotal ?? 0) > (invoice.amount_paid ?? 0)
+  )
+}
+
+/** Re-fetches an invoice with discount expansions when webhooks send minimal objects. */
+async function invoiceWithDiscountDetails(
+  invoice: Stripe.Invoice
+): Promise<Stripe.Invoice> {
+  if (!invoice.id || !invoiceHadDiscount(invoice)) return invoice
+  return getStripe().invoices.retrieve(invoice.id, {
+    expand: ['discounts', 'discounts.source.coupon', 'discounts.promotion_code'],
+  })
+}
+
+/** Re-fetches a subscription with discount expansions for coupon/promo labels. */
+async function subscriptionWithDiscountDetails(
+  sub: Stripe.Subscription
+): Promise<Stripe.Subscription> {
+  if (!sub.discounts?.length) return sub
+  return getStripe().subscriptions.retrieve(sub.id, {
+    expand: ['discounts', 'discounts.source.coupon', 'discounts.promotion_code'],
+  })
+}
+
 /**
  * Upserts a row in `subscriptions` from the latest Stripe Subscription object.
  * Called from webhook handlers AND from the checkout-success path so the UI
@@ -154,6 +227,8 @@ function toIso(seconds: number | null | undefined): string | null {
 export async function upsertSubscriptionFromStripe(
   sub: Stripe.Subscription
 ): Promise<void> {
+  sub = await subscriptionWithDiscountDetails(sub)
+
   // The user_id is on subscription.metadata (set in createCheckoutSession);
   // fall back to the customer object's metadata if missing (very old subs).
   let userId = sub.metadata?.user_id
@@ -183,6 +258,16 @@ export async function upsertSubscriptionFromStripe(
   const renewalIso = toIso(item?.current_period_end)
   const renewalDate = renewalIso ? renewalIso.slice(0, 10) : null
 
+  const { couponLabel, promoCode } = discountLabelsFromStripe(
+    sub.discounts as Stripe.Discount[] | undefined
+  )
+
+  let introPrice: number | null = null
+  if (intervalFromPriceId(priceId) === 'week_4' && price?.unit_amount) {
+    const introCents = await introAmountCentsForPrice(price.unit_amount)
+    if (introCents != null) introPrice = introCents / 100
+  }
+
   const row = {
     user_id: userId,
     stripe_customer_id: sub.customer as string,
@@ -191,6 +276,9 @@ export async function upsertSubscriptionFromStripe(
     billing_interval: intervalFromPriceId(priceId),
     plan_name: planName,
     price: price ? (price.unit_amount ?? 0) / 100 : 0,
+    intro_price: introPrice,
+    coupon_label: couponLabel,
+    promo_code: promoCode,
     currency: price?.currency ?? 'usd',
     status: sub.status,
     cancel_at_period_end: sub.cancel_at_period_end,
@@ -254,12 +342,25 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
       ? ((invoice as { charge?: string | null }).charge ?? null)
       : null
 
+  const fullInvoice = await invoiceWithDiscountDetails(invoice)
+  const discountCents = (fullInvoice.total_discount_amounts ?? []).reduce(
+    (sum, d) => sum + (d.amount ?? 0),
+    0
+  )
+  const { couponLabel, promoCode } = discountLabelsFromStripe(
+    fullInvoice.discounts as Stripe.Discount[] | undefined
+  )
+
   const { error } = await supabaseAdmin.from('billing_history').upsert(
     {
       user_id: mapping.user_id,
       stripe_invoice_id: invoice.id,
       stripe_payment_intent_id: chargeRef,
       amount: (invoice.amount_paid ?? 0) / 100,
+      subtotal: (fullInvoice.subtotal ?? 0) / 100,
+      discount_amount: discountCents / 100,
+      coupon_label: couponLabel,
+      promo_code: promoCode,
       currency: invoice.currency ?? 'usd',
       description,
       paid_at: toIso(paidAt) ?? new Date().toISOString(),

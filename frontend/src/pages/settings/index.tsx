@@ -829,19 +829,20 @@ function ActiveSubView({
       </div>
 
       {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
-        <div>
-          <h3 className="mb-2 text-base font-bold">Need to cancel?</h3>
-          <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
-            You can cancel anytime. Your access stays active until the end of
-            the current billing period.
+        <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3.5">
+          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
+            Need to cancel? You can cancel anytime. Your access stays active
+            until the end of the current billing period.
           </p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setCancelOpen(true)}
-            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="border-border/70 bg-background/60 font-medium text-foreground/80 shadow-none hover:border-border hover:bg-background hover:text-foreground"
           >
             Cancel subscription
-          </button>
+          </Button>
         </div>
       )}
 

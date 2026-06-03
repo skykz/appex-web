@@ -60,7 +60,7 @@ export async function listAdminSubscriptions(
     let listQuery = supabaseAdmin
       .from('subscriptions')
       .select(
-        'id, user_id, plan_name, status, intro_price, price, renewal_date, paused_at, created_at',
+        'id, user_id, plan_name, status, intro_price, price, coupon_label, promo_code, renewal_date, paused_at, created_at',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -78,10 +78,14 @@ export async function listAdminSubscriptions(
         if (uErr) throw new AppError(500, uErr.message)
         const ids = (hitUsers ?? []).map((u) => u.id).slice(0, MAX_ID_FILTER)
         if (ids.length === 0) {
-          listQuery = listQuery.ilike('plan_name', pattern)
+          listQuery = listQuery.or(
+            `plan_name.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern}`
+          )
         } else {
           const inList = ids.join(',')
-          listQuery = listQuery.or(`plan_name.ilike.${pattern},user_id.in.(${inList})`)
+          listQuery = listQuery.or(
+            `plan_name.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern},user_id.in.(${inList})`
+          )
         }
       }
     }
@@ -109,6 +113,8 @@ export async function listAdminSubscriptions(
         status: r.status as string,
         intro_price: r.intro_price != null ? toNum(r.intro_price) : null,
         price: toNum(r.price),
+        coupon_label: (r.coupon_label as string | null) ?? null,
+        promo_code: (r.promo_code as string | null) ?? null,
         renewal_date: r.renewal_date as string,
         paused_at: (r.paused_at as string | null) ?? null,
         created_at: r.created_at as string,
@@ -136,7 +142,10 @@ export async function listAdminBillingHistory(
 
     let listQuery = supabaseAdmin
       .from('billing_history')
-      .select('id, user_id, amount, description, paid_at, created_at', { count: 'exact' })
+      .select(
+        'id, user_id, amount, subtotal, discount_amount, coupon_label, promo_code, description, paid_at, created_at',
+        { count: 'exact' }
+      )
       .order('paid_at', { ascending: false })
 
     if (search) {
@@ -152,10 +161,14 @@ export async function listAdminBillingHistory(
         if (uErr) throw new AppError(500, uErr.message)
         const ids = (hitUsers ?? []).map((u) => u.id).slice(0, MAX_ID_FILTER)
         if (ids.length === 0) {
-          listQuery = listQuery.ilike('description', pattern)
+          listQuery = listQuery.or(
+            `description.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern}`
+          )
         } else {
           const inList = ids.join(',')
-          listQuery = listQuery.or(`description.ilike.${pattern},user_id.in.(${inList})`)
+          listQuery = listQuery.or(
+            `description.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern},user_id.in.(${inList})`
+          )
         }
       }
     }
@@ -180,6 +193,10 @@ export async function listAdminBillingHistory(
         email: u?.email ?? '—',
         name: (u?.name as string | null) ?? null,
         amount: toNum(r.amount),
+        subtotal: r.subtotal != null ? toNum(r.subtotal) : null,
+        discount_amount: toNum(r.discount_amount),
+        coupon_label: (r.coupon_label as string | null) ?? null,
+        promo_code: (r.promo_code as string | null) ?? null,
         description: r.description as string,
         paid_at: r.paid_at as string,
         created_at: r.created_at as string,
