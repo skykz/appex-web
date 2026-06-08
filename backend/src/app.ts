@@ -13,6 +13,9 @@ import subscriptionRoutes from './api/subscription/subscription.route.js'
 import creditRoutes from './api/credit/credit.route.js'
 import contactRoutes from './api/contact/contact.route.js'
 import billingRoutes from './api/billing/billing.route.js'
+import landingRoutes from './api/landing/landing.route.js'
+import mailgunRoutes from './api/mailgun/mailgun.route.js'
+import cronRoutes from './api/cron/cron.route.js'
 import adminRoutes from './api/admin/admin.route.js'
 import { stripeWebhookHandler } from './api/stripe/stripe.webhook.js'
 
@@ -52,7 +55,16 @@ app.use(express.json({ limit: '25mb' }))
 
 // Health check
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' })
+  res.json({
+    status: 'ok',
+    email: env.mailgunEnabled
+      ? env.mailgunSandbox
+        ? 'mailgun-sandbox'
+        : 'mailgun'
+      : 'disabled',
+    emailWebhooks: env.mailgunWebhooksEnabled ? 'configured' : 'disabled',
+    stripe: env.stripeEnabled ? 'configured' : 'disabled',
+  })
 })
 
 // API routes
@@ -67,6 +79,9 @@ app.use('/api/subscription', subscriptionRoutes)
 app.use('/api/credits', creditRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/billing', billingRoutes)
+app.use('/api/landing', landingRoutes)
+app.use('/api/mailgun', mailgunRoutes)
+app.use('/api/cron', cronRoutes)
 app.use('/api/admin', adminRoutes)
 
 // Error handler (must be last)

@@ -9,6 +9,7 @@ import {
   ClipboardList, PenSquare, Flag,
 } from "lucide-react";
 import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
+import { submitLandingQuiz } from "@/lib/landing-api";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
 import womanIncomeImg from "@/assets/quiz-woman-income.jpg";
@@ -1201,7 +1202,11 @@ function S23() {
       </div>
       <PrimaryButton
         disabled={!valid}
-        onClick={() => { set("email", email); next(); }}
+        onClick={() => {
+          set("email", email);
+          void submitLandingQuiz({ email, answers: { ...answers, email } });
+          next();
+        }}
       >
         Continue
       </PrimaryButton>
@@ -1214,7 +1219,13 @@ function S24() {
   const [name, setName] = useState(answers.name || "");
   const valid = name.trim().length > 0;
   const finish = () => {
-    set("name", name.trim());
+    const trimmed = name.trim();
+    set("name", trimmed);
+    void submitLandingQuiz({
+      email: answers.email || "",
+      name: trimmed,
+      answers: { ...answers, name: trimmed },
+    });
     next();
   };
   return (

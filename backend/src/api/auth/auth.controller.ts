@@ -3,6 +3,7 @@ import { z } from 'zod'
 import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseAdmin } from '../../db/supabase.js'
 import { env } from '../../config/env.js'
+import { sendPostSignupEmailsAsync } from '../../services/lifecycle-email.service.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const loginSchema = z.object({
@@ -220,6 +221,12 @@ export async function signup(req: Request, res: Response, next: NextFunction) {
     )
 
     const user = await fetchAppUser(authData.user.id)
+
+    sendPostSignupEmailsAsync({
+      userId: authData.user.id,
+      email: body.email,
+      name: body.name,
+    })
 
     res.status(201).json({
       accessToken: session.access_token,

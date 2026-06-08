@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { planIndexToId, submitLandingQuiz, updateLandingQuizPlan } from "@/lib/landing-api";
 import paywallAfter from "@/assets/paywall-after.webp";
 import paywallAfterMale from "@/assets/paywall-after-male.webp";
 import paywallChloe from "@/assets/paywall-chloe.jpg";
@@ -289,6 +290,29 @@ export default function Paywall() {
   const [selected, setSelected] = useState(1);
   const timer = useCountdown(10);
   const data = getQuizData();
+  const quizEmail = (data.email as string | undefined)?.trim().toLowerCase();
+  const planSavedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!quizEmail) return;
+    const planId = planIndexToId(selected);
+    const key = `${quizEmail}:${planId}`;
+    if (planSavedRef.current === key) return;
+    planSavedRef.current = key;
+
+    void (async () => {
+      const saved = getQuizData();
+      const ok = await updateLandingQuizPlan(quizEmail, planId);
+      if (!ok) {
+        await submitLandingQuiz({
+          email: quizEmail,
+          name: saved.name as string | undefined,
+          answers: saved,
+          selected_plan: planId,
+        });
+      }
+    })();
+  }, [selected, quizEmail]);
   const isMale = data.gender?.toLowerCase() === "male";
   const heroImg = isMale ? paywallAfterMale : paywallAfter;
   const goal = data.goal || "Start my own business";

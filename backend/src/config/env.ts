@@ -55,6 +55,36 @@ const envSchema = z.object({
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe coupon for the first-cycle intro price; optional. */
   STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+
+  // --- Mailgun (transactional + marketing email) ---
+  /** Mailgun private API key (Dashboard → Settings → API keys). */
+  MAILGUN_API_KEY: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Verified sending domain, e.g. mg.appex.me (not sandbox.mailgun.org in production). */
+  MAILGUN_DOMAIN: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** From header, e.g. AppEx <noreply@mg.appex.me> — must use the verified domain. */
+  MAILGUN_FROM: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Reply-To for user-facing mail, e.g. support@appex.me */
+  MAILGUN_REPLY_TO: z.string().email().optional().transform((v) => (v ? v : undefined)),
+  /** Webhook signing key (Mailgun → Webhooks → HTTP webhook → signing key). */
+  MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** CAN-SPAM footer line in marketing mail. */
+  MAILGUN_COMPANY_NAME: z.string().optional().transform((v) => (v ? v : undefined)),
+  MAILGUN_PHYSICAL_ADDRESS: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** When true, use the EU Mailgun API host (api.eu.mailgun.net). */
+  MAILGUN_EU_REGION: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+  /**
+   * When true on Vercel/production, refuse to start if Mailgun still uses a sandbox domain.
+   * Leave false while testing sandbox locally.
+   */
+  MAILGUN_REQUIRE_PRODUCTION_DOMAIN: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+  /** Protects /api/cron/* (Vercel Cron sends Authorization: Bearer <secret>). */
+  CRON_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -108,4 +138,43 @@ const stripeEnabled = Boolean(
     parsed.STRIPE_PRICE_YEARLY
 )
 
-export const env = { ...parsed, corsOrigins, stripeEnabled }
+/** Mailgun is ready when API key, domain, and from address are all set. */
+const mailgunEnabled = Boolean(
+  parsed.MAILGUN_API_KEY && parsed.MAILGUN_DOMAIN && parsed.MAILGUN_FROM
+)
+
+/** True when the configured domain is Mailgun's sandbox (dev-only; hurts deliverability). */
+const mailgunSandbox = Boolean(
+  parsed.MAILGUN_DOMAIN?.includes('.mailgun.org')
+)
+
+const isProductionHost = Boolean(process.env.VERCEL || process.env.NODE_ENV === 'production')
+
+/**
+ * Warns or fails when production deploy still points at a Mailgun sandbox domain.
+ */
+function assertMailgunProductionReady() {
+  if (!mailgunEnabled || !mailgunSandbox) return
+
+  const msg =
+    '[email] Mailgun sandbox domain is configured. Use a verified custom domain (e.g. mg.appex.me) in production.'
+
+  if (isProductionHost && parsed.MAILGUN_REQUIRE_PRODUCTION_DOMAIN) {
+    throw new Error(`${msg} Set MAILGUN_REQUIRE_PRODUCTION_DOMAIN=false only for staging.`)
+  }
+
+  if (isProductionHost) {
+    console.warn(msg)
+  }
+}
+
+assertMailgunProductionReady()
+
+export const env = {
+  ...parsed,
+  corsOrigins,
+  stripeEnabled,
+  mailgunEnabled,
+  mailgunSandbox,
+  mailgunWebhooksEnabled: Boolean(parsed.MAILGUN_WEBHOOK_SIGNING_KEY),
+}
