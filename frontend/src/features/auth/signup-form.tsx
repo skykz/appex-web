@@ -31,15 +31,19 @@ export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [searchParams] = useSearchParams()
   const emailFromLanding = searchParams.get('email')
+  const nameFromLanding = searchParams.get('name')
 
   const defaultValues = useMemo(
     () => ({
-      name: '',
+      name:
+        nameFromLanding && nameFromLanding.trim().length >= 2
+          ? nameFromLanding.trim()
+          : '',
       email: emailFromLanding && emailFromLanding.includes('@') ? emailFromLanding : '',
       password: '',
       confirmPassword: '',
     }),
-    [emailFromLanding]
+    [emailFromLanding, nameFromLanding]
   )
 
   const {

@@ -3,7 +3,7 @@ import type { Answers } from "@/quiz/QuizContext";
 const SESSION_KEY = "appexLandingSession";
 const LANDING_ID = "usa";
 
-export type LandingPlanId = "week_1" | "week_4" | "week_12";
+export type LandingPlanId = "week_1" | "week_4" | "year";
 
 export type SubmitQuizPayload = {
   email: string;
@@ -108,11 +108,11 @@ export async function submitLandingQuiz(
 }
 
 /**
- * Maps paywall plan index (0 = 1 week, 1 = 4 weeks, 2 = 12 weeks) to backend plan ids.
+ * Maps paywall plan index (0 = 1 week, 1 = 4 weeks, 2 = annual) to backend plan ids.
  */
 export function planIndexToId(index: number): LandingPlanId {
   if (index === 0) return "week_1";
-  if (index === 2) return "week_12";
+  if (index === 2) return "year";
   return "week_4";
 }
 

@@ -9,6 +9,7 @@ show the yearly win-back offer before cancellation.
 
 ```bash
 psql "$SUPABASE_DB_URL" -f backend/supabase/migrations/003_stripe.sql
+psql "$SUPABASE_DB_URL" -f backend/supabase/migrations/015_stripe_week_1.sql
 ```
 
 This adds Stripe columns to `subscriptions` and `billing_history` and creates
@@ -22,22 +23,44 @@ In the Stripe Dashboard (https://dashboard.stripe.com):
 ### Product + prices
 
 1. **Products → Add product** → name "AppEx Premium".
-2. Add two recurring prices on the product:
-   - **4-week plan**: `Recurring`, interval `Weekly`, count `4`, `USD 38.95`.
-     Copy the price id (`price_…`) into `STRIPE_PRICE_4WEEK`.
-   - **Yearly plan**: `Recurring`, interval `Yearly`, `USD 99.99`.
-     Copy the price id into `STRIPE_PRICE_YEARLY`.
+2. Add three **renewal** recurring prices on the product (these are what renews after the intro):
 
-### Intro coupon
+   | Plan | Renewal price | Stripe interval |
+   |------|---------------|-----------------|
+   | 1 Week | **$17.77** | Weekly, count 1 → `STRIPE_PRICE_1WEEK` |
+   | 4 Weeks | **$38.95** | Weekly, count 4 → `STRIPE_PRICE_4WEEK` |
+   | Annual | **$127.00** | Yearly → `STRIPE_PRICE_YEARLY` |
 
-1. **Products → Coupons → New coupon** → name "Intro first cycle".
-2. Type: **Amount off** `23.76 USD` (so $38.95 − $23.76 = $15.19), or
-   **Percent off** ≈ `61%`, whichever is cleaner.
-3. Duration: **Once**.
-4. Copy the coupon id into `STRIPE_INTRO_COUPON_ID`.
+3. Create three **intro coupons** (duration = once, first invoice only):
 
-Only the 4-week plan attaches this coupon at Checkout (see
-`createCheckoutSession` in `src/services/stripe.service.ts`).
+   | Plan | Intro price | Amount off renewal |
+   |------|-------------|-------------------|
+   | 1 Week | $6.93 | **$10.84** → `STRIPE_INTRO_COUPON_1WEEK` |
+   | 4 Weeks | $15.19 | **$23.76** → `STRIPE_INTRO_COUPON_4WEEK` (or legacy `STRIPE_INTRO_COUPON_ID`) |
+   | Annual | $49.00 | **$78.00** → `STRIPE_INTRO_COUPON_YEAR` |
+
+   This matches the USA paywall FTC copy without separate one-time products.
+   Alternative (spec v2): six price IDs (intro one-time + renewal subscription) —
+   only needed if you want intro and renewal as distinct Stripe products.
+
+`STRIPE_PRICE_1WEEK` is optional — if unset, checkout accepts only `week_4` and `year`.
+Run migrations `015_stripe_week_1.sql` and `016_landing_plan_year.sql`.
+
+### Intro coupons (USA paywall)
+
+Create three coupons in **Products → Coupons** (duration **Once**):
+
+1. **1-week intro** — Amount off **$10.84** → `STRIPE_INTRO_COUPON_1WEEK`
+2. **4-week intro** — Amount off **$23.76** → `STRIPE_INTRO_COUPON_4WEEK`
+3. **Annual intro** — Amount off **$78.00** → `STRIPE_INTRO_COUPON_YEAR`
+
+`STRIPE_INTRO_COUPON_ID` still works as a fallback for the 4-week plan if
+`STRIPE_INTRO_COUPON_4WEEK` is unset.
+
+The matching intro coupon is attached on **first checkout only** (no prior
+Stripe subscription or billing history). Returning subscribers pay full renewal
+price. See `userEligibleForIntroCoupon` and `introCouponIdForInterval` in
+`src/services/stripe.service.ts`.
 
 ### Customer Portal
 
@@ -77,8 +100,13 @@ In `backend/.env`:
 APP_URL=https://app.appex.kz
 STRIPE_SECRET_KEY=sk_live_…
 STRIPE_WEBHOOK_SECRET=whsec_…
+STRIPE_PRICE_1WEEK=price_…
 STRIPE_PRICE_4WEEK=price_…
 STRIPE_PRICE_YEARLY=price_…
+STRIPE_INTRO_COUPON_1WEEK=…
+STRIPE_INTRO_COUPON_4WEEK=…
+STRIPE_INTRO_COUPON_YEAR=…
+# Legacy fallback for 4-week intro:
 STRIPE_INTRO_COUPON_ID=…
 ```
 

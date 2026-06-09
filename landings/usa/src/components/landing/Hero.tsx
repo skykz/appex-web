@@ -190,7 +190,7 @@ export default function Hero() {
                 ))}
               </div>
               <div className="flex flex-col leading-tight">
-                <span className="text-foreground text-[14px] font-bold">100,000+ learners</span>
+                <span className="text-foreground text-[14px] font-bold">50,000+ learners</span>
                 <div className="flex items-center gap-1 mt-0.5">
                   {[0, 1, 2, 3, 4].map((i) => (
                     <svg key={i} className="w-3 h-3 text-primary" viewBox="0 0 20 20" fill="currentColor">

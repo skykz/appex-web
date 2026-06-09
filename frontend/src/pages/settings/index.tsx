@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
@@ -29,7 +29,7 @@ import {
   DialogDescription,
 } from '@shared/ui'
 import { useAuthStore, userApi } from '@entities/user'
-import { settingsApi, type Subscription, type BillingRecord, type Plan } from './api'
+import { settingsApi, type BillingInterval, type Subscription, type BillingRecord, type Plan } from './api'
 
 type Section = 'account' | 'password' | 'billing' | 'plan' | 'contact'
 
@@ -48,7 +48,34 @@ function sectionFromParam(value: string | null): Section {
   return navItems.some((item) => item.id === value) ? (value as Section) : 'account'
 }
 
+/** Short plan title for the plan picker cards. */
+function planCardTitle(id: BillingInterval): string {
+  switch (id) {
+    case 'week_1':
+      return '1-week plan'
+    case 'week_4':
+      return '4-week plan'
+    case 'year':
+      return 'Yearly plan'
+  }
+}
+
+/** Renewal cadence label on the active subscription view. */
+function billingPeriodLabel(interval: BillingInterval | null): string {
+  switch (interval) {
+    case 'year':
+      return 'year'
+    case 'week_1':
+      return 'week'
+    case 'week_4':
+      return '4 weeks'
+    default:
+      return '4 weeks'
+  }
+}
+
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const section = sectionFromParam(searchParams.get('section'))
   const checkout = searchParams.get('checkout')
@@ -119,7 +146,11 @@ export default function SettingsPage() {
         </p>
 
         {checkout === 'success' && (
-          <CheckoutBanner kind="success" onDismiss={dismissBanner} />
+          <CheckoutBanner
+            kind="success"
+            onDismiss={dismissBanner}
+            onStartLearning={() => navigate('/home', { replace: true })}
+          />
         )}
         {checkout === 'cancel' && (
           <CheckoutBanner kind="cancel" onDismiss={dismissBanner} />
@@ -163,9 +194,11 @@ export default function SettingsPage() {
 function CheckoutBanner({
   kind,
   onDismiss,
+  onStartLearning,
 }: {
   kind: 'success' | 'cancel'
   onDismiss: () => void
+  onStartLearning?: () => void
 }) {
   const isSuccess = kind === 'success'
   return (
@@ -178,12 +211,19 @@ function CheckoutBanner({
       )}
     >
       <Sparkles className="mt-0.5 size-4 shrink-0" />
-      <div className="flex-1">
+      <div className="flex-1 space-y-2">
         {isSuccess ? (
-          <p>
-            Welcome to AppEx Premium — your subscription is now active. Your
-            first invoice will appear below shortly.
-          </p>
+          <>
+            <p>
+              Welcome to AppEx Premium — your subscription is now active. Your
+              first invoice will appear below shortly.
+            </p>
+            {onStartLearning && (
+              <Button type="button" size="sm" onClick={onStartLearning}>
+                Start learning
+              </Button>
+            )}
+          </>
         ) : (
           <p>Checkout cancelled. You haven't been charged.</p>
         )}
@@ -594,20 +634,43 @@ function PendingPaymentView() {
   )
 }
 
-/** Shown when the user has no active subscription — lists the two plans. */
+/** Shown when the user has no active subscription — lists available plans. */
 function ChoosePlanView({ subscription }: { subscription: Subscription | null }) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const autoCheckoutStarted = useRef(false)
   const { data: plans, isLoading, isError } = useQuery({
     queryKey: ['plans'],
     queryFn: () => settingsApi.listPlans(),
   })
 
   const checkout = useMutation({
-    mutationFn: (interval: 'week_4' | 'year') =>
+    mutationFn: (interval: BillingInterval) =>
       settingsApi.createCheckoutSession(interval),
     onSuccess: ({ url }) => {
       window.location.href = url
     },
   })
+
+  const intervalParam = searchParams.get('interval')
+  const autoInterval: BillingInterval | null =
+    intervalParam === 'week_1' || intervalParam === 'week_4' || intervalParam === 'year'
+      ? intervalParam
+      : null
+
+  const clearAutoCheckoutParams = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('interval')
+    next.delete('from')
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  /** USA landing sends users here after signup with ?interval=week_4&from=usa — start Stripe Checkout once. */
+  useEffect(() => {
+    if (!autoInterval || autoCheckoutStarted.current || checkout.isPending) return
+    autoCheckoutStarted.current = true
+    checkout.mutate(autoInterval)
+    clearAutoCheckoutParams()
+  }, [autoInterval, checkout.isPending, checkout.mutate, clearAutoCheckoutParams])
 
   return (
     <div className="space-y-6">
@@ -625,6 +688,9 @@ function ChoosePlanView({ subscription }: { subscription: Subscription | null })
       )}
 
       {isLoading && <p className="text-sm text-muted-foreground">Loading plans…</p>}
+      {autoInterval && checkout.isPending && (
+        <p className="text-sm text-muted-foreground">Redirecting to secure checkout…</p>
+      )}
       {isError && (
         <p className="text-sm text-red-500">
           Couldn't load plans. The store may be temporarily unavailable — try again
@@ -633,7 +699,12 @@ function ChoosePlanView({ subscription }: { subscription: Subscription | null })
       )}
 
       {plans && (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div
+          className={cn(
+            'grid gap-3',
+            plans.length >= 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2'
+          )}
+        >
           {plans.map((p) => (
             <PlanCard
               key={p.id}
@@ -664,16 +735,15 @@ function PlanCard({
   onSelect: () => void
 }) {
   const isYearly = plan.id === 'year'
+  const isFourWeek = plan.id === 'week_4'
   return (
     <div
       className={cn(
         'flex flex-col rounded-xl border p-5',
-        isYearly && 'ring-2 ring-primary/30'
+        isFourWeek && 'ring-2 ring-primary/30'
       )}
     >
-      <p className="text-sm font-semibold">
-        {isYearly ? 'Yearly plan' : '4-week plan'}
-      </p>
+      <p className="text-sm font-semibold">{planCardTitle(plan.id)}</p>
       {plan.intro_amount != null && plan.intro_amount < plan.amount ? (
         <div className="mt-2">
           <p className="text-2xl font-bold">
@@ -696,7 +766,7 @@ function PlanCard({
             </span>
           </p>
           {isYearly && (
-            <p className="text-xs text-green-600">Save vs. 4-week plan</p>
+            <p className="text-xs text-green-600">Save vs. shorter plans</p>
           )}
         </div>
       )}
@@ -720,8 +790,7 @@ function ActiveSubView({
 }) {
   const [cancelOpen, setCancelOpen] = useState(false)
   const status = statusLabel(subscription)
-  const periodLabel =
-    subscription.billing_interval === 'year' ? 'year' : '4 weeks'
+  const periodLabel = billingPeriodLabel(subscription.billing_interval)
 
   const pause = useMutation({
     mutationFn: () => settingsApi.pauseSubscription(),

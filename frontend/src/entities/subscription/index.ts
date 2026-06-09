@@ -56,7 +56,12 @@ export function useSubscriptionSummary(): SubscriptionSummary {
 
   let planLabel = 'Free plan'
   if (tier === 'premium') {
-    const cadence = sub?.billing_interval === 'year' ? 'Yearly' : '4-week'
+    const cadence =
+      sub?.billing_interval === 'year'
+        ? 'Yearly'
+        : sub?.billing_interval === 'week_1'
+          ? '1-week'
+          : '4-week'
     planLabel = endingSoon ? `Premium · ${cadence} (ending)` : `Premium · ${cadence}`
   } else if (tier === 'pending') {
     planLabel = 'Verifying payment…'

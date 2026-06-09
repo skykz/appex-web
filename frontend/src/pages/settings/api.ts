@@ -1,5 +1,8 @@
 import { httpClient } from '@shared/api'
 
+/** Billing cadence keys returned by GET /subscription/plans and accepted by checkout. */
+export type BillingInterval = 'week_1' | 'week_4' | 'year'
+
 /** Mirror of the backend `subscriptions` row, extended with Stripe lifecycle fields. */
 export interface Subscription {
   id: string
@@ -20,7 +23,7 @@ export interface Subscription {
   paused_at: string | null
   stripe_subscription_id: string | null
   stripe_price_id: string | null
-  billing_interval: 'week_4' | 'year' | null
+  billing_interval: BillingInterval | null
   cancel_at_period_end: boolean
   current_period_start: string | null
   current_period_end: string | null
@@ -41,7 +44,7 @@ export interface BillingRecord {
 
 /** Public plan summary returned by GET /api/subscription/plans. */
 export interface Plan {
-  id: 'week_4' | 'year'
+  id: BillingInterval
   stripe_price_id: string
   amount: number
   intro_amount: number | null
@@ -59,7 +62,7 @@ export const settingsApi = {
   },
 
   /** Creates a Stripe Checkout Session and returns the hosted URL the browser should be redirected to. */
-  async createCheckoutSession(interval: 'week_4' | 'year'): Promise<{ url: string }> {
+  async createCheckoutSession(interval: BillingInterval): Promise<{ url: string }> {
     return httpClient.post('/subscription/checkout', { interval })
   },
 

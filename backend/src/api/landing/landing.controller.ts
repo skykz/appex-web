@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const LANDING_IDS = ['usa'] as const
-const PLAN_IDS = ['week_1', 'week_4', 'week_12'] as const
+const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
 
 const submitQuizSchema = z.object({
   email: z.string().email().max(320),

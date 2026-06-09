@@ -50,11 +50,16 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe webhook signing secret. */
   STRIPE_WEBHOOK_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
-  /** Stripe price IDs for the two billing cadences. */
+  /** Stripe price IDs for billing cadences. */
+  STRIPE_PRICE_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
-  /** Stripe coupon for the first-cycle intro price; optional. */
+  /** Stripe coupon for the first-cycle intro price on the 4-week plan (legacy single-coupon fallback). */
   STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Per-plan intro coupons (USA paywall). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
+  STRIPE_INTRO_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_INTRO_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_INTRO_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
 
   // --- Mailgun (transactional + marketing email) ---
   /** Mailgun private API key (Dashboard → Settings → API keys). */

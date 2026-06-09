@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { QuizProvider, useQuiz } from "@/contexts/QuizContext";
 import QuizFlow from "@/components/quiz/QuizFlow";
+import { getQuizMenuLinks } from "@/lib/auth-links";
 import maleImg from "@/assets/quiz-male.jpg";
 import femaleImg from "@/assets/quiz-female.jpg";
 
@@ -23,15 +24,12 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           ✕
         </button>
         <div className="flex flex-col gap-1 pt-20 px-6">
-          {[
-              { label: "Privacy Policy", href: "/privacy" },
-              { label: "Money-back Policy", href: "mailto:support@appex.me" },
-              { label: "Subscription Privacy", href: "/subscription" },
-              { label: "I already have an account", href: "/login" },
-            ].map((item) => (
+          {getQuizMenuLinks().map((item) => (
             <a
               key={item.label}
               href={item.href}
+              target={item.newTab ? "_blank" : undefined}
+              rel={item.newTab ? "noopener noreferrer" : undefined}
               className="text-foreground text-[16px] py-3 hover:text-primary transition-colors"
             >
               {item.label}

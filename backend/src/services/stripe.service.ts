@@ -48,10 +48,17 @@ export async function getOrCreateCustomer(
   return customer.id
 }
 
+/** Supported subscription billing cadences (maps to Stripe price ids in env). */
+export type BillingInterval = 'week_1' | 'week_4' | 'year'
+
 /** Map our internal billing-interval key to the configured Stripe price id. */
-export function resolvePriceId(interval: 'week_4' | 'year'): string {
-  const id =
-    interval === 'year' ? env.STRIPE_PRICE_YEARLY : env.STRIPE_PRICE_4WEEK
+export function resolvePriceId(interval: BillingInterval): string {
+  const ids: Record<BillingInterval, string | undefined> = {
+    week_1: env.STRIPE_PRICE_1WEEK,
+    week_4: env.STRIPE_PRICE_4WEEK,
+    year: env.STRIPE_PRICE_YEARLY,
+  }
+  const id = ids[interval]
   if (!id) {
     throw new AppError(503, `Stripe price for "${interval}" is not configured`)
   }
@@ -61,19 +68,81 @@ export function resolvePriceId(interval: 'week_4' | 'year'): string {
 /** Inverse of resolvePriceId — used when syncing data back from Stripe. */
 export function intervalFromPriceId(
   priceId: string | null | undefined
-): 'week_4' | 'year' | null {
+): BillingInterval | null {
   if (!priceId) return null
   if (priceId === env.STRIPE_PRICE_YEARLY) return 'year'
   if (priceId === env.STRIPE_PRICE_4WEEK) return 'week_4'
+  if (priceId === env.STRIPE_PRICE_1WEEK) return 'week_1'
   return null
+}
+
+/** Human-readable plan name stored on the subscription row. */
+export function planNameFromInterval(interval: BillingInterval | null): string {
+  switch (interval) {
+    case 'year':
+      return 'Yearly plan'
+    case 'week_4':
+      return '4-week subscription'
+    case 'week_1':
+      return '1-week subscription'
+    default:
+      return 'Premium subscription'
+  }
+}
+
+/** Invoice line description keyed by billing interval. */
+export function invoiceDescriptionFromInterval(interval: BillingInterval | null): string {
+  switch (interval) {
+    case 'year':
+      return 'Yearly subscription'
+    case 'week_4':
+      return '4 week subscription plan'
+    case 'week_1':
+      return '1 week subscription plan'
+    default:
+      return 'Subscription plan'
+  }
+}
+
+/**
+ * True when the user has never completed a paid subscription — eligible for the
+ * shared first-time intro coupon on any plan interval.
+ */
+export async function userEligibleForIntroCoupon(userId: string): Promise<boolean> {
+  const { data: paid, error: billingError } = await supabaseAdmin
+    .from('billing_history')
+    .select('id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  if (billingError) throw new AppError(500, billingError.message)
+  if (paid) return false
+
+  const { data: sub, error: subError } = await supabaseAdmin
+    .from('subscriptions')
+    .select('stripe_subscription_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (subError) throw new AppError(500, subError.message)
+  return !sub?.stripe_subscription_id
+}
+
+/** Resolves the Stripe coupon id for a first-time intro checkout on the given plan. */
+export function introCouponIdForInterval(interval: BillingInterval): string | undefined {
+  const byPlan: Record<BillingInterval, string | undefined> = {
+    week_1: env.STRIPE_INTRO_COUPON_1WEEK,
+    week_4: env.STRIPE_INTRO_COUPON_4WEEK ?? env.STRIPE_INTRO_COUPON_ID,
+    year: env.STRIPE_INTRO_COUPON_YEAR,
+  }
+  return byPlan[interval]
 }
 
 interface CheckoutInput {
   userId: string
   userEmail: string
   userName?: string
-  interval: 'week_4' | 'year'
-  /** When true, attach the intro coupon (first-cycle $15.19). Yearly plans skip it. */
+  interval: BillingInterval
+  /** When true, attach the intro coupon on the first checkout cycle. */
   applyIntro: boolean
 }
 
@@ -94,8 +163,9 @@ export async function createCheckoutSession(
   const priceId = resolvePriceId(input.interval)
 
   const discounts: Array<{ coupon: string }> = []
-  if (input.applyIntro && env.STRIPE_INTRO_COUPON_ID) {
-    discounts.push({ coupon: env.STRIPE_INTRO_COUPON_ID })
+  if (input.applyIntro) {
+    const couponId = introCouponIdForInterval(input.interval)
+    if (couponId) discounts.push({ coupon: couponId })
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -248,10 +318,8 @@ export async function upsertSubscriptionFromStripe(
 
   const priceId = primaryPriceId(sub)
   const price = sub.items.data[0]?.price
-  const planName =
-    intervalFromPriceId(priceId) === 'year'
-      ? 'Yearly plan'
-      : '4-week subscription'
+  const billingInterval = intervalFromPriceId(priceId)
+  const planName = planNameFromInterval(billingInterval)
 
   // In API 2026-04-22 current_period_* moved off the subscription onto the item.
   const item = sub.items.data[0]
@@ -263,7 +331,7 @@ export async function upsertSubscriptionFromStripe(
   )
 
   let introPrice: number | null = null
-  if (intervalFromPriceId(priceId) === 'week_4' && price?.unit_amount) {
+  if (billingInterval && price?.unit_amount && (couponLabel || promoCode)) {
     const introCents = await introAmountCentsForPrice(price.unit_amount)
     if (introCents != null) introPrice = introCents / 100
   }
@@ -273,7 +341,7 @@ export async function upsertSubscriptionFromStripe(
     stripe_customer_id: sub.customer as string,
     stripe_subscription_id: sub.id,
     stripe_price_id: priceId,
-    billing_interval: intervalFromPriceId(priceId),
+    billing_interval: billingInterval,
     plan_name: planName,
     price: price ? (price.unit_amount ?? 0) / 100 : 0,
     intro_price: introPrice,
@@ -331,9 +399,7 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
 
   const description =
     firstLine?.description ??
-    (intervalFromPriceId(linePriceId) === 'year'
-      ? 'Yearly subscription'
-      : '4 week subscription plan')
+    invoiceDescriptionFromInterval(intervalFromPriceId(linePriceId))
 
   // `invoice.payment_intent` was removed in 2026-04-22; fall back to `charge`,
   // which is still a string id on the Invoice object.

@@ -7,10 +7,15 @@ import { getStripe } from '../../lib/stripe.js'
 import {
   createCheckoutSession as createCheckoutSessionSvc,
   createPortalSession as createPortalSessionSvc,
+  introCouponIdForInterval,
   resolvePriceId,
   syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
+  userEligibleForIntroCoupon,
+  type BillingInterval,
 } from '../../services/stripe.service.js'
+
+const BILLING_INTERVALS: BillingInterval[] = ['week_1', 'week_4', 'year']
 
 /** Returns the user's row from `users` (email + name) — needed for Stripe customer creation. */
 async function getUserProfile(userId: string) {
@@ -24,51 +29,61 @@ async function getUserProfile(userId: string) {
   return data as { email: string; name: string | null }
 }
 
-/** Public — no auth. Lists the two available plans so the marketing UI can render them. */
+/** Public — no auth. Lists configured plans so marketing and settings UI can render pricing. */
 export async function listPlans(_req: Request, res: Response, next: NextFunction) {
   try {
     if (!env.stripeEnabled) {
       throw new AppError(503, 'Stripe is not configured')
     }
     const stripe = getStripe()
-    const [fourWeek, yearly] = await Promise.all([
-      stripe.prices.retrieve(env.STRIPE_PRICE_4WEEK!, { expand: ['product'] }),
-      stripe.prices.retrieve(env.STRIPE_PRICE_YEARLY!, { expand: ['product'] }),
-    ])
+    const planDefs: Array<{
+      id: BillingInterval
+      priceId: string | undefined
+      interval_label: string
+    }> = [
+      { id: 'week_1', priceId: env.STRIPE_PRICE_1WEEK, interval_label: 'week' },
+      { id: 'week_4', priceId: env.STRIPE_PRICE_4WEEK, interval_label: '4 weeks' },
+      { id: 'year', priceId: env.STRIPE_PRICE_YEARLY, interval_label: 'year' },
+    ]
 
-    const introCents = env.STRIPE_INTRO_COUPON_ID
-      ? await computeIntroAmountCents(fourWeek)
-      : null
+    const configured = planDefs.filter((p) => p.priceId)
+    const prices = await Promise.all(
+      configured.map((p) =>
+        stripe.prices.retrieve(p.priceId!, { expand: ['product'] })
+      )
+    )
 
-    res.json([
-      {
-        id: 'week_4',
-        stripe_price_id: fourWeek.id,
-        amount: (fourWeek.unit_amount ?? 0) / 100,
-        intro_amount: introCents != null ? introCents / 100 : null,
-        currency: fourWeek.currency,
-        interval_label: '4 weeks',
-      },
-      {
-        id: 'year',
-        stripe_price_id: yearly.id,
-        amount: (yearly.unit_amount ?? 0) / 100,
-        intro_amount: null,
-        currency: yearly.currency,
-        interval_label: 'year',
-      },
-    ])
+    const plans = await Promise.all(
+      configured.map(async (def, i) => {
+        const price = prices[i]
+        const introCents = await computeIntroAmountCents(price, def.id)
+        return {
+          id: def.id,
+          stripe_price_id: price.id,
+          amount: (price.unit_amount ?? 0) / 100,
+          intro_amount: introCents != null ? introCents / 100 : null,
+          currency: price.currency,
+          interval_label: def.interval_label,
+        }
+      })
+    )
+
+    res.json(plans)
   } catch (err) {
     next(err)
   }
 }
 
-/** Compute intro price by applying the configured coupon to the base price. */
-async function computeIntroAmountCents(price: import('stripe').Stripe.Price): Promise<number | null> {
-  if (!env.STRIPE_INTRO_COUPON_ID || !price.unit_amount) return null
+/** Compute intro price by applying the plan's intro coupon to the renewal price. */
+async function computeIntroAmountCents(
+  price: import('stripe').Stripe.Price,
+  interval: BillingInterval
+): Promise<number | null> {
+  const couponId = introCouponIdForInterval(interval)
+  if (!couponId || !price.unit_amount) return null
   try {
     const stripe = getStripe()
-    const coupon = await stripe.coupons.retrieve(env.STRIPE_INTRO_COUPON_ID)
+    const coupon = await stripe.coupons.retrieve(couponId)
     if (coupon.amount_off) return Math.max(0, price.unit_amount - coupon.amount_off)
     if (coupon.percent_off) return Math.round(price.unit_amount * (1 - coupon.percent_off / 100))
     return null
@@ -107,9 +122,13 @@ export async function createCheckout(
 ) {
   try {
     const { userId, userEmail } = req as AuthenticatedRequest
-    const interval = req.body?.interval as 'week_4' | 'year' | undefined
-    if (interval !== 'week_4' && interval !== 'year') {
-      throw new AppError(400, 'interval must be "week_4" or "year"')
+    const interval = req.body?.interval as BillingInterval | undefined
+    if (!interval || !BILLING_INTERVALS.includes(interval)) {
+      throw new AppError(400, 'interval must be "week_1", "week_4", or "year"')
+    }
+
+    if (interval === 'week_1' && !env.STRIPE_PRICE_1WEEK) {
+      throw new AppError(503, '1-week plan is not configured')
     }
 
     // Block double-subscribing: if the user already has an active sub, send them to the portal instead.
@@ -129,13 +148,13 @@ export async function createCheckout(
     }
 
     const profile = await getUserProfile(userId)
+    const applyIntro = await userEligibleForIntroCoupon(userId)
     const url = await createCheckoutSessionSvc({
       userId,
       userEmail: profile.email ?? userEmail,
       userName: profile.name ?? undefined,
       interval,
-      // Intro applies only to the 4-week plan and only on the first subscription.
-      applyIntro: interval === 'week_4',
+      applyIntro,
     })
     res.json({ url })
   } catch (err) {
