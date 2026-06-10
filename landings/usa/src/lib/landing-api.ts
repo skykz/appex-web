@@ -117,6 +117,56 @@ export function planIndexToId(index: number): LandingPlanId {
 }
 
 /**
+ * Starts Stripe Checkout for a USA landing lead (payment-first, no signup required).
+ */
+export async function createLandingCheckout(args: {
+  email: string;
+  name?: string;
+  interval: LandingPlanId;
+}): Promise<{ url: string } | { error: string }> {
+  const base = getApiBaseUrl();
+  if (!base) {
+    return { error: "Checkout is not configured yet. Set VITE_API_URL on the USA landing deployment." };
+  }
+  if (!args.email) {
+    return { error: "Please complete the quiz with your email before choosing a plan." };
+  }
+
+  try {
+    const res = await fetch(`${base.replace(/\/$/, "")}/api/landing/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        landing: LANDING_ID,
+        email: args.email.trim().toLowerCase(),
+        name: args.name?.trim() || undefined,
+        interval: args.interval,
+      }),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const message =
+        typeof body?.error === "string"
+          ? body.error
+          : typeof body?.message === "string"
+            ? body.message
+            : "Could not start checkout. Please try again.";
+      return { error: message };
+    }
+
+    if (typeof body?.url !== "string" || !body.url) {
+      return { error: "Checkout did not return a payment URL." };
+    }
+
+    return { url: body.url };
+  } catch (err) {
+    console.warn("[landing-api] checkout error", err);
+    return { error: "Could not reach the payment server. Please try again." };
+  }
+}
+
+/**
  * Saves the plan selected on the paywall for an existing quiz lead.
  */
 export async function updateLandingQuizPlan(

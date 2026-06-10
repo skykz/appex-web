@@ -3,6 +3,14 @@ import { env } from '../config/env.js'
 import { supabaseAdmin } from '../db/supabase.js'
 import { AppError } from '../utils/error-handler.js'
 import { getStripe } from '../lib/stripe.js'
+import { findUserByEmail, normalizeEmail } from './provision-user.service.js'
+import { hasAccess } from './access.service.js'
+import {
+  sendAccessLockedEmailAsync,
+  sendPaymentFailedNoticeAsync,
+  sendSubscriptionExpiredAsync,
+} from './lifecycle-email.service.js'
+import { PAYMENT_GRACE_PERIOD_MS } from './subscription-access.js'
 
 /**
  * Returns the Stripe customer id for `userId`, creating one in Stripe and
@@ -187,6 +195,89 @@ export async function createCheckoutSession(
   return session.url
 }
 
+export interface LandingCheckoutInput {
+  email: string
+  name?: string
+  interval: BillingInterval
+  landing?: string
+}
+
+/**
+ * Creates a public Stripe Checkout Session for the USA landing (no account required yet).
+ * User provisioning and magic-link email happen in the checkout.session.completed webhook.
+ */
+export async function createLandingCheckoutSession(
+  input: LandingCheckoutInput
+): Promise<string> {
+  if (!env.stripeEnabled) {
+    throw new AppError(503, 'Stripe is not configured')
+  }
+
+  const email = normalizeEmail(input.email)
+  const landingUrl = (env.USA_LANDING_URL ?? env.APP_URL).replace(/\/+$/, '')
+  const stripe = getStripe()
+  const priceId = resolvePriceId(input.interval)
+
+  const existingUser = await findUserByEmail(email)
+  if (existingUser) {
+    const { data: sub } = await supabaseAdmin
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', existingUser.id)
+      .maybeSingle()
+
+    if (
+      sub &&
+      ['active', 'trialing', 'past_due', 'paused'].includes(sub.status as string)
+    ) {
+      throw new AppError(
+        409,
+        'You already have an active subscription. Check your email to sign in.'
+      )
+    }
+  }
+
+  let applyIntro = true
+  if (existingUser) {
+    applyIntro = await userEligibleForIntroCoupon(existingUser.id)
+  }
+
+  const discounts: Array<{ coupon: string }> = []
+  if (applyIntro) {
+    const couponId = introCouponIdForInterval(input.interval)
+    if (couponId) discounts.push({ coupon: couponId })
+  }
+
+  const landing = input.landing ?? 'usa'
+  const session = await stripe.checkout.sessions.create({
+    mode: 'subscription',
+    customer_email: email,
+    line_items: [{ price: priceId, quantity: 1 }],
+    metadata: {
+      source: 'usa_landing',
+      landing,
+      interval: input.interval,
+      email,
+      ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+    },
+    subscription_data: {
+      metadata: {
+        source: 'usa_landing',
+        landing,
+        interval: input.interval,
+        email,
+      },
+    },
+    discounts: discounts.length ? discounts : undefined,
+    allow_promotion_codes: discounts.length ? undefined : true,
+    success_url: `${landingUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${landingUrl}/paywall?checkout=cancel`,
+  })
+
+  if (!session.url) throw new AppError(500, 'Stripe did not return a session URL')
+  return session.url
+}
+
 /** Creates a hosted Customer Portal session for the user, returns its URL. */
 export async function createPortalSession(
   userId: string,
@@ -336,6 +427,26 @@ export async function upsertSubscriptionFromStripe(
     if (introCents != null) introPrice = introCents / 100
   }
 
+  const { data: existingSub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('status, cancel_at_period_end, payment_failed_at, payment_failed_count')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const scheduledCancelEnding =
+    sub.status === 'canceled' &&
+    existingSub?.cancel_at_period_end === true &&
+    (existingSub.status === 'active' || existingSub.status === 'trialing')
+
+  let paymentFailedAt: string | null = existingSub?.payment_failed_at ?? null
+  let paymentFailedCount = existingSub?.payment_failed_count ?? 0
+  if (sub.status === 'active' || sub.status === 'trialing') {
+    paymentFailedAt = null
+    paymentFailedCount = 0
+  } else if (sub.status === 'past_due' && !paymentFailedAt) {
+    paymentFailedAt = new Date().toISOString()
+  }
+
   const row = {
     user_id: userId,
     stripe_customer_id: sub.customer as string,
@@ -358,6 +469,8 @@ export async function upsertSubscriptionFromStripe(
       sub.pause_collection || sub.status === 'paused'
         ? new Date().toISOString()
         : null,
+    payment_failed_at: paymentFailedAt,
+    payment_failed_count: paymentFailedCount,
   }
 
   const { error } = await supabaseAdmin
@@ -368,6 +481,87 @@ export async function upsertSubscriptionFromStripe(
     console.error('Failed to upsert subscription', sub.id, error)
     throw error
   }
+
+  if (scheduledCancelEnding) {
+    sendSubscriptionExpiredAsync(userId, renewalIso)
+  }
+
+  await syncCreditsForUser(userId)
+}
+
+/**
+ * Resolves the AppEx user id for a Stripe customer id.
+ */
+async function userIdFromStripeCustomer(customerId: string): Promise<string | null> {
+  const { data: mapping } = await supabaseAdmin
+    .from('stripe_customers')
+    .select('user_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+  return mapping?.user_id ?? null
+}
+
+/**
+ * Handles invoice.payment_failed: first failure starts grace + notice; second locks access.
+ */
+export async function markPaymentFailedFromInvoice(
+  invoice: Stripe.Invoice
+): Promise<void> {
+  const customerId = invoice.customer as string
+  if (!customerId) return
+
+  const userId = await userIdFromStripeCustomer(customerId)
+  if (!userId) {
+    console.warn(
+      `Invoice ${invoice.id} payment failed for unknown customer ${customerId}; skipping grace mark`
+    )
+    return
+  }
+
+  const { data: sub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('payment_failed_at, payment_failed_count, current_period_end')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const periodEnd = (sub?.current_period_end as string | null) ?? null
+  const previousCount = sub?.payment_failed_count ?? 0
+  const newCount = previousCount + 1
+
+  if (newCount === 1) {
+    const paymentFailedAt = sub?.payment_failed_at ?? new Date().toISOString()
+    const { error } = await supabaseAdmin
+      .from('subscriptions')
+      .update({
+        payment_failed_count: newCount,
+        payment_failed_at: paymentFailedAt,
+      })
+      .eq('user_id', userId)
+
+    if (error) {
+      console.error('Failed to mark payment_failed_at', userId, error.message)
+    }
+
+    await syncCreditsForUser(userId)
+    sendPaymentFailedNoticeAsync(userId, periodEnd)
+    return
+  }
+
+  const forcedLockAt = new Date(Date.now() - PAYMENT_GRACE_PERIOD_MS - 1000).toISOString()
+  const { error } = await supabaseAdmin
+    .from('subscriptions')
+    .update({
+      payment_failed_count: newCount,
+      payment_failed_at: forcedLockAt,
+    })
+    .eq('user_id', userId)
+
+  if (error) {
+    console.error('Failed to force payment lock', userId, error.message)
+  }
+
+  await syncCreditsForUser(userId)
+  sendAccessLockedEmailAsync(userId, periodEnd)
 }
 
 /** Inserts a billing_history row from a Stripe invoice. Idempotent on stripe_invoice_id. */
@@ -441,6 +635,13 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
     console.error('Failed to upsert billing_history', invoice.id, error)
     throw error
   }
+
+  await supabaseAdmin
+    .from('subscriptions')
+    .update({ payment_failed_at: null, payment_failed_count: 0 })
+    .eq('user_id', mapping.user_id)
+
+  await syncCreditsForUser(mapping.user_id)
 }
 
 /**
@@ -453,28 +654,12 @@ const PREMIUM_CREDIT_BALANCE = 999_999
 const FREE_CREDIT_BALANCE = 5
 
 /**
- * After a subscription state change, sync the AI chat credit balance to match
- * the user's tier. Premium gets effectively unlimited; revoking access (e.g.
- * sub.deleted or canceled at period end) resets to the free allowance.
- *
- * Idempotent — running the same upsert twice produces the same balance.
+ * Syncs AI chat credits to match the user's current content-access tier.
  */
-export async function syncCreditsForSubscription(
-  sub: Stripe.Subscription
-): Promise<void> {
-  const userId = sub.metadata?.user_id
-  if (!userId) {
-    // Most subs created by our checkout always carry user_id metadata, so a
-    // missing one is unusual — skip rather than guess.
-    return
-  }
-
-  const accessStatuses = new Set(['active', 'trialing', 'past_due', 'paused'])
-  const grantsAccess = accessStatuses.has(sub.status)
+export async function syncCreditsForUser(userId: string): Promise<void> {
+  const grantsAccess = await hasAccess(userId)
   const targetBalance = grantsAccess ? PREMIUM_CREDIT_BALANCE : FREE_CREDIT_BALANCE
 
-  // upsert handles users who never had a credit row (rare but possible if
-  // signup ran before the credit-default trigger was wired).
   const { error } = await supabaseAdmin
     .from('user_credits')
     .upsert(
@@ -489,6 +674,18 @@ export async function syncCreditsForSubscription(
   if (error) {
     console.error('Failed to sync credits for', userId, error)
   }
+}
+
+/**
+ * After a subscription state change, sync the AI chat credit balance to match
+ * the user's tier (respects the 24h payment-failure grace window).
+ */
+export async function syncCreditsForSubscription(
+  sub: Stripe.Subscription
+): Promise<void> {
+  const userId = sub.metadata?.user_id
+  if (!userId) return
+  await syncCreditsForUser(userId)
 }
 
 /** True if this Stripe event id has already been processed. */

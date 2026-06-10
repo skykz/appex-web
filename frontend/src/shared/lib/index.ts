@@ -4,3 +4,10 @@
  */
 export { cn } from './cn'
 export { getSafeInternalPath } from './safe-next-path'
+export {
+  subscriptionGrantsAccess,
+  isInPaymentGracePeriod,
+  isPaymentGraceExpired,
+  formatGraceTimeRemaining,
+  gracePeriodEndsAt,
+} from './subscription-access'

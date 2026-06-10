@@ -35,6 +35,7 @@ import {
   listAdminSubscriptions,
   listAdminBillingHistory,
 } from './billing.controller.js'
+import { evaluateAdminRefund, processAdminRefund } from '../billing/refund.controller.js'
 import { getLessonEngagement } from './lesson-engagement.controller.js'
 
 const router = Router()
@@ -74,6 +75,8 @@ router.get('/users', ...guard, listAdminUsers)
 
 router.get('/subscriptions', ...guard, listAdminSubscriptions)
 router.get('/billing-history', ...guard, listAdminBillingHistory)
+router.post('/users/:userId/refund/evaluate', ...guard, evaluateAdminRefund)
+router.post('/users/:userId/refund/process', ...guard, processAdminRefund)
 
 router.get('/contact-messages', ...guard, listContactMessages)
 router.patch('/contact-messages/:id', ...guard, patchContactMessage)

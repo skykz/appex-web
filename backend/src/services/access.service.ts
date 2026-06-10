@@ -1,27 +1,22 @@
 import { supabaseAdmin } from '../db/supabase.js'
-
-/**
- * Subscription statuses that grant the user access to paid content.
- * `paused` is included intentionally — Stripe's pause_collection keeps the
- * subscription "active for entitlement purposes" while temporarily skipping
- * invoicing. `past_due` is included too: the user is still on the hook for
- * the latest invoice and Stripe is retrying it; we don't immediately revoke.
- */
-const ACCESS_STATUSES = new Set(['active', 'trialing', 'past_due', 'paused'])
+import { subscriptionGrantsAccess } from './subscription-access.js'
 
 /**
  * Returns true when the user has any subscription status that should unlock
- * Premium content. Defensive: callers can use this for both lesson gating
- * and credit-gating decisions.
+ * Premium content, including the 24h grace window after a failed payment.
  */
 export async function hasAccess(userId: string): Promise<boolean> {
   const { data } = await supabaseAdmin
     .from('subscriptions')
-    .select('status')
+    .select('status, payment_failed_at')
     .eq('user_id', userId)
     .maybeSingle()
+
   if (!data?.status) return false
-  return ACCESS_STATUSES.has(data.status)
+  return subscriptionGrantsAccess({
+    status: data.status,
+    payment_failed_at: data.payment_failed_at,
+  })
 }
 
 /**
@@ -34,6 +29,9 @@ let cachedFreeSkillId: { value: number | null; expires: number } = {
   expires: 0,
 }
 
+/**
+ * Returns the id of the free onboarding skill (lowest order), cached briefly.
+ */
 export async function getFreeSkillId(): Promise<number | null> {
   if (cachedFreeSkillId.expires > Date.now()) return cachedFreeSkillId.value
   const { data } = await supabaseAdmin
@@ -44,8 +42,6 @@ export async function getFreeSkillId(): Promise<number | null> {
     .maybeSingle()
   cachedFreeSkillId = {
     value: data?.id ?? null,
-    // 60s cache — skills don't reorder often, and a stale free skill just
-    // means one Premium lesson is briefly free, which is harmless.
     expires: Date.now() + 60_000,
   }
   return cachedFreeSkillId.value
@@ -76,7 +72,6 @@ export async function getLessonSkillId(
     .select('module:modules(skill_id)')
     .eq('id', lessonId)
     .maybeSingle()
-  // PostgREST embeds the relation as either an object or null.
   const skillId = (data as { module?: { skill_id?: number } } | null)?.module?.skill_id
   return typeof skillId === 'number' ? skillId : null
 }

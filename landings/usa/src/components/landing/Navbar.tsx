@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buildSigninUrl } from "@/lib/checkout-redirect";
 
 const navLinks = [
   { label: "How it Works", href: "#how-it-works" },
@@ -16,6 +17,7 @@ const sidebarLinks = [
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const loginUrl = buildSigninUrl();
 
   return (
     <>
@@ -37,7 +39,18 @@ export default function Navbar() {
 
         {/* Right side */}
         <div className="flex items-center gap-3 md:gap-4">
-          <a href="mailto:support@appex.me" className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a
+            href={loginUrl ?? "#"}
+            onClick={
+              loginUrl
+                ? undefined
+                : (e) => {
+                    e.preventDefault();
+                    window.alert("Sign-in is not configured yet. Set VITE_APP_URL on the USA landing deployment.");
+                  }
+            }
+            className="hidden md:inline text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
             Login
           </a>
           <a

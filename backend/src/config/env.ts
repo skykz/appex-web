@@ -44,6 +44,11 @@ const envSchema = z.object({
   // --- Stripe (subscription billing) ---
   /** Public URL of the React app (used for Stripe success/cancel/return URLs). */
   APP_URL: z.string().url().default('http://localhost:5173'),
+  /**
+   * Public URL of the USA marketing landing (Stripe success/cancel for payment-first checkout).
+   * Defaults to localhost:5175 for local dev.
+   */
+  USA_LANDING_URL: z.string().url().optional(),
   // Empty strings in .env mean "not configured" — coerce to undefined so callers
   // can do `if (env.STRIPE_INTRO_COUPON_ID)` without empty-string surprises.
   /** Stripe API secret key. */
@@ -177,6 +182,7 @@ assertMailgunProductionReady()
 
 export const env = {
   ...parsed,
+  USA_LANDING_URL: parsed.USA_LANDING_URL ?? 'http://localhost:5175',
   corsOrigins,
   stripeEnabled,
   mailgunEnabled,

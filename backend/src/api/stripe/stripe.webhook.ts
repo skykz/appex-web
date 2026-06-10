@@ -5,10 +5,15 @@ import { getStripe } from '../../lib/stripe.js'
 import {
   isEventProcessed,
   markEventProcessed,
+  markPaymentFailedFromInvoice,
   recordInvoicePayment,
   syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
 } from '../../services/stripe.service.js'
+import {
+  isLandingCheckoutSession,
+  provisionFromLandingCheckoutSession,
+} from '../../services/landing-checkout-provision.service.js'
 
 /**
  * Stripe webhook entry point.
@@ -79,6 +84,18 @@ async function dispatch(event: Stripe.Event): Promise<void> {
           ? session.subscription
           : session.subscription.id
       )
+
+      if (session.metadata?.user_id) {
+        await upsertSubscriptionFromStripe(sub)
+        await syncCreditsForSubscription(sub)
+        return
+      }
+
+      if (isLandingCheckoutSession(session)) {
+        await provisionFromLandingCheckoutSession(session, sub)
+        return
+      }
+
       await upsertSubscriptionFromStripe(sub)
       await syncCreditsForSubscription(sub)
       return
@@ -106,13 +123,10 @@ async function dispatch(event: Stripe.Event): Promise<void> {
       return
     }
 
-    // Payment failed — Stripe will also emit `customer.subscription.updated`
-    // with status=past_due, so we just log here.
+    // Payment failed — start the 24h grace window and sync credits when it ends.
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
-      console.warn(
-        `Invoice ${invoice.id} payment failed for customer ${invoice.customer}`
-      )
+      await markPaymentFailedFromInvoice(invoice)
       return
     }
 

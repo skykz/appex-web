@@ -28,6 +28,8 @@ export interface Subscription {
   current_period_start: string | null
   current_period_end: string | null
   trial_end: string | null
+  /** Set when a renewal payment fails; starts the 24h content-access grace window. */
+  payment_failed_at: string | null
 }
 
 /** Mirror of the backend `billing_history` row. */
@@ -88,7 +90,7 @@ export const settingsApi = {
   },
 
   /** Cancels at end of period — access stays until current_period_end. */
-  async cancelSubscription(): Promise<{ success: boolean }> {
+  async cancelSubscription(): Promise<{ success: boolean; access_until?: string | null }> {
     return httpClient.patch('/subscription/cancel')
   },
 

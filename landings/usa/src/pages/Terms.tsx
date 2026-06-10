@@ -32,6 +32,7 @@ export default function Terms() {
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>5. User Accounts</h2>
             <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to notify us immediately at support@appex.me of any unauthorized use of your account.</p>
+            <p className="mt-3"><strong>Account deletion does not cancel your subscription.</strong> Deleting or closing your Appex account does not automatically stop recurring subscription charges. To avoid future billing, you must cancel your subscription from Subscription management in your account settings before deleting your account.</p>
           </section>
 
           <section>

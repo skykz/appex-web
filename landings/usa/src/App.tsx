@@ -13,6 +13,7 @@ import Terms from "./pages/Terms.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import Subscription from "./pages/Subscription.tsx";
 import SettingsCheckoutReturn from "./pages/SettingsCheckoutReturn.tsx";
+import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/quiz" element={<Quiz />} />
             <Route path="/quiz/result" element={<QuizResult />} />
             <Route path="/paywall" element={<Paywall />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
             <Route path="/ai-skills-for/:slug" element={<RoleDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />

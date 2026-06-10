@@ -8,6 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@shared/ui'
+import { useSubscriptionSummary } from '@entities/subscription'
 
 interface PaywallDialogProps {
   open: boolean
@@ -17,13 +18,12 @@ interface PaywallDialogProps {
 }
 
 /**
- * Generic "this is Premium" dialog shown whenever a free user tries to open
- * gated content. CTA routes to /settings?section=plan; the actual checkout
- * (with intro coupon) lives there. We don't trigger Stripe Checkout directly
- * from this modal to keep one source of truth for plan selection.
+ * Generic paywall dialog when premium content is locked.
+ * Routes to plan settings; copy adapts when payment grace has expired.
  */
 export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDialogProps) {
   const navigate = useNavigate()
+  const { paymentGraceExpired } = useSubscriptionSummary()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,7 +33,7 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
             <Lock className="size-6" strokeWidth={2.5} />
           </div>
           <DialogTitle className="text-center text-2xl">
-            Premium content
+            {paymentGraceExpired ? 'Access locked' : 'Premium content'}
           </DialogTitle>
           <DialogDescription className="text-center">
             {blockedContent ? (
@@ -42,8 +42,17 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
                 <br />
               </>
             ) : null}
-            is part of AppEx Premium. Unlock every skill, every lesson, and
-            unlimited AI chat for one low price.
+            {paymentGraceExpired ? (
+              <>
+                Your last payment failed and the 24-hour grace period has ended.
+                Renew your plan to unlock every skill, lesson, and unlimited AI chat.
+              </>
+            ) : (
+              <>
+                is part of AppEx Premium. Unlock every skill, every lesson, and
+                unlimited AI chat for one low price.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -72,7 +81,7 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
             className="w-full"
           >
             <Sparkles className="size-4" />
-            See plans
+            {paymentGraceExpired ? 'Renew subscription' : 'See plans'}
           </Button>
           <button
             type="button"

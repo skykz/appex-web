@@ -10,6 +10,11 @@
  */
 import { useQuery } from '@tanstack/react-query'
 import { settingsApi, type Subscription } from '@pages/settings/api'
+import {
+  subscriptionGrantsAccess,
+  isInPaymentGracePeriod,
+  isPaymentGraceExpired,
+} from '@shared/lib'
 
 export type { Subscription }
 
@@ -22,15 +27,17 @@ export interface SubscriptionSummary {
   isLoading: boolean
   /** Coarse tier — most UI just cares about this. */
   tier: SubscriptionTier
-  /** True for any status that grants access (active / trialing / past_due / paused). */
+  /** True when the user can access premium content right now. */
   hasAccess: boolean
+  /** True when payment failed but the 24h grace window is still active. */
+  inPaymentGrace: boolean
+  /** True when payment failed and grace has elapsed — content is locked. */
+  paymentGraceExpired: boolean
   /** True when subscription is scheduled to end at period end (UI shows "Canceled" badge). */
   endingSoon: boolean
   /** Short human-readable plan label for sidebar ("Premium · 4-week", "Free", "Premium · Yearly"). */
   planLabel: string
 }
-
-const PAID_STATUSES = ['active', 'trialing', 'past_due', 'paused'] as const
 
 /**
  * Single source of truth for "what tier is the current user?" Reused by
@@ -42,13 +49,13 @@ export function useSubscriptionSummary(): SubscriptionSummary {
   const { data, isLoading } = useQuery({
     queryKey: ['subscription'],
     queryFn: () => settingsApi.getSubscription(),
-    // The summary follows the user around the app — don't refetch on every
-    // route change, only when something explicitly invalidates it.
     staleTime: 60_000,
   })
 
   const sub = data ?? null
-  const hasAccess = !!sub && (PAID_STATUSES as readonly string[]).includes(sub.status)
+  const hasAccess = !!sub && subscriptionGrantsAccess(sub)
+  const inPaymentGrace = !!sub && isInPaymentGracePeriod(sub)
+  const paymentGraceExpired = !!sub && isPaymentGraceExpired(sub)
   const isPending = sub?.status === 'incomplete'
   const endingSoon = !!sub && sub.status === 'active' && sub.cancel_at_period_end
 
@@ -62,8 +69,14 @@ export function useSubscriptionSummary(): SubscriptionSummary {
         : sub?.billing_interval === 'week_1'
           ? '1-week'
           : '4-week'
-    planLabel = endingSoon ? `Premium · ${cadence} (ending)` : `Premium · ${cadence}`
-  } else if (tier === 'pending') {
+    if (inPaymentGrace) {
+      planLabel = `Premium · ${cadence} (payment issue)`
+    } else {
+      planLabel = endingSoon ? `Premium · ${cadence} (ending)` : `Premium · ${cadence}`
+    }
+  } else if (paymentGraceExpired) {
+    planLabel = 'Access locked — payment failed'
+  } else if (isPending) {
     planLabel = 'Verifying payment…'
   }
 
@@ -72,6 +85,8 @@ export function useSubscriptionSummary(): SubscriptionSummary {
     isLoading,
     tier,
     hasAccess,
+    inPaymentGrace,
+    paymentGraceExpired,
     endingSoon,
     planLabel,
   }

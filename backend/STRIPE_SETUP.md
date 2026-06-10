@@ -92,6 +92,25 @@ price. See `userEligibleForIntroCoupon` and `introCouponIdForInterval` in
 - After creating, click **Reveal signing secret** and copy it into
   `STRIPE_WEBHOOK_SECRET`.
 
+### Failed payment retries (required for billing policy)
+
+**Settings → Billing → Subscriptions and emails → Manage failed payments**:
+
+- Enable **Smart Retries** with **1 retry** only (matches app logic: first
+  failure → 24h grace + email; second failure → lock access + email).
+- Disable extended multi-day retry schedules — the app locks access after the
+  single retry fails or after the 24h grace window expires.
+
+### Renewal reminder cron
+
+The backend cron (`/api/cron/renewal-emails`) runs **hourly** and sends:
+
+- **3 days** before `current_period_end` (full renewal price)
+- **24 hours** before `current_period_end` (full renewal price)
+- **Access locked** emails when the payment grace window expires
+
+Set `CRON_SECRET` in Vercel and configure the cron in `backend/vercel.json`.
+
 ## 3. Environment variables
 
 In `backend/.env`:

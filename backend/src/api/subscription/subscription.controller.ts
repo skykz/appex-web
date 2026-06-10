@@ -14,6 +14,8 @@ import {
   userEligibleForIntroCoupon,
   type BillingInterval,
 } from '../../services/stripe.service.js'
+import { CANCEL_DEADLINE_MS } from '../../services/subscription-billing.constants.js'
+import { sendCancellationConfirmedAsync } from '../../services/lifecycle-email.service.js'
 
 const BILLING_INTERVALS: BillingInterval[] = ['week_1', 'week_4', 'year']
 
@@ -300,13 +302,38 @@ export async function cancelSubscription(
 ) {
   try {
     const { userId } = req as AuthenticatedRequest
+
+    const { data: localSub, error: localErr } = await supabaseAdmin
+      .from('subscriptions')
+      .select('current_period_end')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (localErr) throw new AppError(500, localErr.message)
+
+    if (localSub?.current_period_end) {
+      const periodEndMs = new Date(localSub.current_period_end).getTime()
+      if (periodEndMs - Date.now() < CANCEL_DEADLINE_MS) {
+        throw new AppError(
+          409,
+          'Cancellation must be requested at least 24 hours before your renewal date.'
+        )
+      }
+    }
+
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
     const updated = await stripe.subscriptions.update(subId, {
       cancel_at_period_end: true,
     })
     await upsertSubscriptionFromStripe(updated)
-    res.json({ success: true })
+
+    const accessUntil = localSub?.current_period_end ?? null
+    if (accessUntil) {
+      sendCancellationConfirmedAsync(userId, accessUntil)
+    }
+
+    res.json({ success: true, access_until: accessUntil })
   } catch (err) {
     next(err)
   }

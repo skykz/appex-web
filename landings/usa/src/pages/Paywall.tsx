@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { planIndexToId, submitLandingQuiz, updateLandingQuizPlan } from "@/lib/landing-api";
-import { redirectToSigninCheckout, redirectToSignupCheckout } from "@/lib/checkout-redirect";
+import { planIndexToId, submitLandingQuiz, updateLandingQuizPlan, createLandingCheckout } from "@/lib/landing-api";
+import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
@@ -197,6 +197,7 @@ function PricingBlock({
 export default function Paywall() {
   const [showStickyCta, setShowStickyCta] = useState(false);
   const [selected, setSelected] = useState(PAYWALL_DEFAULT_INDEX);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const timer = useCountdown(10);
   const data = getQuizData();
   const quizEmail = (data.email as string | undefined)?.trim().toLowerCase();
@@ -230,16 +231,23 @@ export default function Paywall() {
   const hours = data.daily_time_commitment || data.preferredHours || data.currentHours || "30 min/day";
   const barrier = data.primary_fear || data.stoppingYou || data.frustration || "Lack of free time";
 
-  const handleGetPlan = () => {
+  const handleGetPlan = async () => {
+    if (checkoutLoading) return;
     const interval = PAYWALL_PLANS[selected].id;
-    const ok = redirectToSignupCheckout({
-      email: quizEmail,
+    setCheckoutLoading(true);
+    const result = await createLandingCheckout({
+      email: quizEmail ?? "",
       name: quizName,
       interval,
     });
-    if (!ok) {
-      window.alert("Checkout is not configured yet. Set VITE_APP_URL on the USA landing deployment.");
+    setCheckoutLoading(false);
+
+    if ("error" in result) {
+      window.alert(result.error);
+      return;
     }
+
+    window.location.href = result.url;
   };
 
   const handleSignIn = () => {

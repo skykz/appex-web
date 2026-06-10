@@ -2,6 +2,10 @@ import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import {
+  createLandingCheckoutSession,
+  type BillingInterval,
+} from '../../services/stripe.service.js'
 
 const LANDING_IDS = ['usa'] as const
 const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
@@ -159,6 +163,40 @@ export async function updateLandingQuizPlan(
     }
 
     res.json(data)
+  } catch (err) {
+    next(err)
+  }
+}
+
+const landingCheckoutSchema = z.object({
+  email: z.string().email().max(320),
+  name: z.string().max(200).optional(),
+  landing: z.enum(LANDING_IDS).default('usa'),
+  interval: z.enum(PLAN_IDS),
+})
+
+/**
+ * Starts Stripe Checkout for a USA landing lead without requiring an account first.
+ * User provisioning and magic-link email are handled by the Stripe webhook.
+ */
+export async function createLandingCheckout(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = landingCheckoutSchema.parse(req.body)
+    const email = normalizeEmail(body.email)
+    const interval = body.interval as BillingInterval
+
+    const url = await createLandingCheckoutSession({
+      email,
+      name: body.name,
+      interval,
+      landing: body.landing,
+    })
+
+    res.json({ url })
   } catch (err) {
     next(err)
   }

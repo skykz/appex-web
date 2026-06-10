@@ -29,10 +29,11 @@ export default function Subscription() {
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>3. How to Cancel</h2>
             <p>You may cancel your subscription at any time by:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Visiting your Account Settings → Subscription → Cancel</li>
+              <li>Visiting Profile → Subscription management → Cancel subscription</li>
               <li>Emailing <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a> with subject line "Cancel Subscription"</li>
             </ul>
             <p className="mt-3">Cancellation is effective at the end of the current billing period. You will retain access to the Service until then. No partial refunds are issued for unused days within a billing period unless required by applicable law.</p>
+            <p className="mt-3"><strong>Deleting your account does not cancel your subscription.</strong> You must cancel your subscription separately to stop future charges.</p>
           </section>
 
           <section>

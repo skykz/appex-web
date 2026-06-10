@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express'
 import { env } from '../../config/env.js'
-import { processDueRenewalReminders } from '../../services/lifecycle-email.service.js'
+import { processSubscriptionLifecycleCron } from '../../services/lifecycle-email.service.js'
 import { AppError } from '../../utils/error-handler.js'
 
 /**
@@ -22,7 +22,7 @@ function assertCronAuthorized(req: Request): void {
 }
 
 /**
- * Daily job: sends E3 renewal reminders 3 days before current_period_end.
+ * Hourly job: 3-day and 24h renewal reminders, plus grace-expiry access locks.
  */
 export async function runRenewalEmailCron(
   req: Request,
@@ -31,7 +31,7 @@ export async function runRenewalEmailCron(
 ) {
   try {
     assertCronAuthorized(req)
-    const result = await processDueRenewalReminders()
+    const result = await processSubscriptionLifecycleCron()
     res.json({ ok: true, ...result })
   } catch (err) {
     next(err)

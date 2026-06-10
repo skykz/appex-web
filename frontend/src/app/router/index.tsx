@@ -8,6 +8,7 @@ const HomePage = lazy(() => import('@pages/home'))
 const AuthPage = lazy(() => import('@pages/auth'))
 const ForgotPasswordPage = lazy(() => import('@pages/auth/forgot-password'))
 const ResetPasswordPage = lazy(() => import('@pages/auth/reset-password'))
+const AuthCallbackPage = lazy(() => import('@pages/auth/callback'))
 const SettingsPage = lazy(() => import('@pages/settings'))
 const MySubmissionsPage = lazy(() => import('@pages/submissions'))
 const SkillsPage = lazy(() => import('@pages/skills'))
@@ -154,6 +155,14 @@ export const router = createBrowserRouter(
         element: (
           <Suspense fallback={authRouteFallback}>
             <ResetPasswordPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'callback',
+        element: (
+          <Suspense fallback={authRouteFallback}>
+            <AuthCallbackPage />
           </Suspense>
         ),
       },

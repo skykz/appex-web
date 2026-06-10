@@ -5,5 +5,6 @@ const router = Router()
 
 router.post('/quiz', landingController.submitLandingQuiz)
 router.patch('/quiz/plan', landingController.updateLandingQuizPlan)
+router.post('/checkout', landingController.createLandingCheckout)
 
 export default router

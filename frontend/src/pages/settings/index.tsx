@@ -21,6 +21,12 @@ import {
 } from 'lucide-react'
 import { cn } from '@shared/lib'
 import {
+  subscriptionGrantsAccess,
+  isInPaymentGracePeriod,
+  isPaymentGraceExpired,
+  formatGraceTimeRemaining,
+} from '@shared/lib'
+import {
   Button,
   Dialog,
   DialogContent,
@@ -37,7 +43,7 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: 'account', label: 'Account', icon: BadgeCheck },
   { id: 'password', label: 'Password', icon: Lock },
   { id: 'billing', label: 'Billing history', icon: Receipt },
-  { id: 'plan', label: 'Plan management', icon: CreditCard },
+  { id: 'plan', label: 'Subscription management', icon: CreditCard },
   { id: 'contact', label: 'Contact us', icon: HelpCircle },
 ]
 
@@ -319,6 +325,27 @@ function AccountSection() {
           <LogOut className="size-4" />
         </Button>
       </div>
+
+      <div className="rounded-xl border border-amber-200/80 bg-amber-50/80 p-4 dark:border-amber-900/40 dark:bg-amber-950/30">
+        <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+          Deleting your account does not cancel your subscription
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-amber-900/90 dark:text-amber-100/90">
+          If you want to stop future charges, cancel your subscription under{' '}
+          <button
+            type="button"
+            onClick={() => navigate('/settings?section=plan')}
+            className="font-medium underline underline-offset-2 hover:text-foreground"
+          >
+            Subscription management
+          </button>{' '}
+          before removing your account. Contact{' '}
+          <a href="mailto:support@appex.me" className="font-medium underline underline-offset-2">
+            support@appex.me
+          </a>{' '}
+          if you need help.
+        </p>
+      </div>
     </div>
   )
 }
@@ -540,7 +567,10 @@ function BillingSection() {
 /** Human-readable label for the Stripe subscription status. */
 function statusLabel(sub: Subscription): { text: string; tone: 'green' | 'red' | 'amber' | 'gray' } {
   if (sub.cancel_at_period_end && sub.status === 'active') {
-    return { text: 'Canceled', tone: 'red' }
+    return { text: 'Cancelled', tone: 'red' }
+  }
+  if (isPaymentGraceExpired(sub)) {
+    return { text: 'Access locked', tone: 'red' }
   }
   switch (sub.status) {
     case 'active':
@@ -548,13 +578,15 @@ function statusLabel(sub: Subscription): { text: string; tone: 'green' | 'red' |
     case 'trialing':
       return { text: 'Trial', tone: 'green' }
     case 'past_due':
-      return { text: 'Past due', tone: 'red' }
+      return isInPaymentGracePeriod(sub)
+        ? { text: 'Payment failed · grace period', tone: 'amber' }
+        : { text: 'Past due', tone: 'red' }
     case 'paused':
       return { text: 'Paused', tone: 'amber' }
     case 'canceled':
     case 'incomplete_expired':
     case 'unpaid':
-      return { text: 'Canceled', tone: 'red' }
+      return { text: 'Expired', tone: 'red' }
     case 'incomplete':
       return { text: 'Incomplete', tone: 'amber' }
     default:
@@ -572,23 +604,17 @@ function PlanSection() {
   // The plans endpoint hits Stripe; only fetch it when the user actually
   // needs to subscribe (no active sub) so a happy-path active user doesn't
   // pay for a Stripe Prices read on every page open.
-  const hasActiveSub =
-    !!subscription &&
-    ['active', 'trialing', 'past_due', 'paused'].includes(subscription.status)
+  const grantsAccess = !!subscription && subscriptionGrantsAccess(subscription)
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>
   }
 
-  // `incomplete` means Stripe is waiting for additional payment authentication
-  // (3D Secure) — the subscription exists but isn't usable yet. Showing the
-  // plan picker here would invite the user to pay again; instead point them
-  // to the Customer Portal to finish authentication.
   if (subscription?.status === 'incomplete') {
     return <PendingPaymentView />
   }
 
-  if (!hasActiveSub) {
+  if (!grantsAccess) {
     return <ChoosePlanView subscription={subscription ?? null} />
   }
 
@@ -680,6 +706,13 @@ function ChoosePlanView({ subscription }: { subscription: Subscription | null })
           Unlock the full AppEx experience. Cancel anytime.
         </p>
       </div>
+
+      {subscription && isPaymentGraceExpired(subscription) && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
+          Your last payment failed and the 24-hour grace period has ended. Choose a
+          plan or update your payment method in billing to continue learning.
+        </div>
+      )}
 
       {subscription?.status === 'canceled' && (
         <div className="rounded-xl border bg-muted/30 p-3 text-sm text-muted-foreground">
@@ -813,7 +846,41 @@ function ActiveSubView({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold">Manage subscription</h2>
+      <h2 className="text-xl font-bold">Subscription management</h2>
+
+      {subscription.cancel_at_period_end && (
+        <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5 text-sm leading-relaxed text-muted-foreground">
+          <p className="font-medium text-foreground">Cancellation confirmed</p>
+          <p className="mt-1">
+            You'll keep full access until{' '}
+            <span className="font-medium text-foreground">
+              {formatDate(subscription.current_period_end)}
+            </span>
+            . A confirmation email has been sent to your inbox.
+          </p>
+        </div>
+      )}
+
+      {isInPaymentGracePeriod(subscription) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">
+          <p className="font-medium">Payment failed</p>
+          <p className="mt-1">
+            You still have full access for{' '}
+            {formatGraceTimeRemaining(subscription.payment_failed_at)}. Update your
+            payment method to avoid losing access.
+          </p>
+          <Button
+            className="mt-3"
+            variant="outline"
+            size="sm"
+            onClick={() => portal.mutate()}
+            disabled={portal.isPending}
+          >
+            <ExternalLink className="size-4" />
+            {portal.isPending ? 'Opening…' : 'Update payment method'}
+          </Button>
+        </div>
+      )}
 
       <div>
         <h3 className="mb-3 text-base font-bold">Your subscription plan</h3>
@@ -900,8 +967,8 @@ function ActiveSubView({
       {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
         <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3.5">
           <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
-            Need to cancel? You can cancel anytime. Your access stays active
-            until the end of the current billing period.
+            Need to cancel? You must cancel at least 24 hours before your renewal
+            date. Your access stays active until the end of the current billing period.
           </p>
           <Button
             type="button"
@@ -919,7 +986,9 @@ function ActiveSubView({
         open={cancelOpen}
         onOpenChange={setCancelOpen}
         subscription={subscription}
-        onDone={onChanged}
+        onDone={() => {
+          onChanged()
+        }}
       />
     </div>
   )
@@ -984,10 +1053,10 @@ function CancelDialog({
             </>
           ) : (
             <>
-              <DialogTitle>Cancel subscription?</DialogTitle>
+              <DialogTitle>Are you sure?</DialogTitle>
               <DialogDescription>
-                Your access stays active until{' '}
-                {formatDate(subscription.current_period_end)}.
+                You'll keep access until {formatDate(subscription.current_period_end)}.
+                After that date your subscription will end and premium content will be locked.
               </DialogDescription>
             </>
           )}
@@ -1022,7 +1091,7 @@ function CancelDialog({
             size="xl"
             className="w-full"
           >
-            {cancel.isPending ? 'Cancelling…' : 'Cancel anyway'}
+            {cancel.isPending ? 'Cancelling…' : 'Confirm cancellation'}
           </Button>
           <button
             type="button"
@@ -1035,7 +1104,11 @@ function CancelDialog({
 
         {(switchPlan.isError || cancel.isError) && (
           <p className="text-center text-sm text-red-500">
-            Something went wrong. Please try again.
+            {cancel.error instanceof Error
+              ? cancel.error.message
+              : switchPlan.error instanceof Error
+                ? switchPlan.error.message
+                : 'Something went wrong. Please try again.'}
           </p>
         )}
       </DialogContent>

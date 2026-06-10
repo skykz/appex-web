@@ -590,7 +590,7 @@ function ProfileDropdown() {
           {subscription.tier === 'premium' ? (
             <>
               <CreditCard className="size-4 text-muted-foreground" />
-              <span>Manage plan</span>
+              <span>Subscription management</span>
             </>
           ) : (
             <>

@@ -6,6 +6,7 @@ import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
 import { canAccessSkill, getLessonSkillId } from '../../services/access.service.js'
+import { recordLessonOpenAsync } from '../../services/lesson-open.service.js'
 
 const progressSchema = z.object({
   stepIndex: z.number().int().min(0),
@@ -78,6 +79,8 @@ export async function getLesson(
         throw new AppError(402, 'This lesson requires an active subscription')
       }
     }
+
+    recordLessonOpenAsync(userId, lessonId)
 
     // Fetch user progress
     const { data: progress } = await supabaseAdmin
