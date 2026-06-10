@@ -3,7 +3,7 @@ export default function Terms() {
     <div className="min-h-screen" style={{ background: "#fff" }}>
       <div className="mx-auto px-5 py-12" style={{ maxWidth: 720 }}>
         <a href="/" className="inline-flex items-center gap-1 mb-8 font-extrabold text-[20px] no-underline">
-          <span style={{ color: "#111" }}>App</span><span style={{ color: "#FF6B35" }}>ex</span>
+          <span style={{ color: "#111" }}>App</span><span style={{ color: "#F97316" }}>ex</span>
         </a>
         <h1 className="text-[32px] font-extrabold mb-2" style={{ color: "#111" }}>Terms and Conditions</h1>
         <p className="text-[14px] mb-8" style={{ color: "#6B7280" }}>Last updated: May 29, 2026</p>
@@ -26,13 +26,12 @@ export default function Terms() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>4. Refund Policy</h2>
-            <p>If you are not satisfied with your course after completing the required coursework in good faith, you may request a full refund within 30 days of your purchase by contacting support@appex.me. Refunds are processed within 5–10 business days to your original payment method.</p>
+            <p>If you are not satisfied with your course after completing the required coursework in good faith, you may request a full refund within 30 days of your purchase by contacting hello@appex.me. Refunds are processed within 5–10 business days to your original payment method.</p>
           </section>
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>5. User Accounts</h2>
-            <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to notify us immediately at support@appex.me of any unauthorized use of your account.</p>
-            <p className="mt-3"><strong>Account deletion does not cancel your subscription.</strong> Deleting or closing your Appex account does not automatically stop recurring subscription charges. To avoid future billing, you must cancel your subscription from Subscription management in your account settings before deleting your account.</p>
+            <p>You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You agree to notify us immediately at hello@appex.me of any unauthorized use of your account.</p>
           </section>
 
           <section>
@@ -57,7 +56,7 @@ export default function Terms() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>10. Contact</h2>
-            <p>If you have any questions about these Terms, please contact us at <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a>.</p>
+            <p>If you have any questions about these Terms, please contact us at <a href="mailto:hello@appex.me" style={{ color: "#F97316" }}>hello@appex.me</a>.</p>
           </section>
         </div>
       </div>

@@ -5,9 +5,9 @@ import avatar4 from "@/assets/avatar-4.jpg";
 
 const stats = [
   {
-    number: "100K+",
-    title: "Learners building AI skills",
-    text: "A growing community using Claude to take on real, future-ready work every day.",
+    number: "30–60",
+    title: "Days from zero to your first AI income",
+    text: "Most learners land their first paid AI project within 30–60 days of starting Appex.",
   },
   {
     number: "92%",
@@ -15,7 +15,7 @@ const stats = [
     text: "Most learners ship a working Claude workflow within their first sessions on Appex.",
   },
   {
-    number: "4.5/5",
+    number: "4.8/5",
     title: "Average student rating",
     text: "Learners consistently rate Appex among the best places to learn Claude in practice.",
   },
@@ -27,7 +27,7 @@ export default function Stats() {
       <div className="max-w-6xl mx-auto">
         <h2 className="text-center font-extrabold tracking-tight text-foreground text-[36px] sm:text-[56px] md:text-[76px] leading-[1.05] mb-12 md:mb-20">
           <span className="inline-flex items-center flex-wrap justify-center gap-x-3 md:gap-x-5 gap-y-2">
-            <span>100,000+</span>
+            <span>Global</span>
             <img
               src={avatar1}
               alt="Appex student"
@@ -72,11 +72,11 @@ export default function Stats() {
           </span>
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 items-stretch">
           {stats.map((s, i) => (
             <div
               key={i}
-              className="rounded-3xl p-7 md:p-9 bg-gradient-to-br from-[hsl(20_100%_55%)] to-[hsl(35_100%_55%)] shadow-[0_20px_60px_-20px_hsl(20_100%_50%/0.45)]"
+              className="rounded-3xl p-7 md:p-9 bg-gradient-to-br from-[hsl(20_100%_55%)] to-[hsl(35_100%_55%)] shadow-[0_20px_60px_-20px_hsl(20_100%_50%/0.45)] flex flex-col"
             >
               <p className="font-extrabold text-white text-[44px] md:text-[60px] leading-none mb-8 md:mb-10">
                 {s.number}

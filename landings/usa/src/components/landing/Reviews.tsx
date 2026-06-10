@@ -70,17 +70,19 @@ export default function Reviews() {
           Results our community is <span className="text-primary">proud of</span>
         </h2>
         <p className="text-muted-foreground text-[14px] md:text-[16px] mt-4 font-body max-w-xl mx-auto">
-          Over 100,000 learners are building practical AI skills with Appex.
+          Real stories from learners who are putting Claude to work every day.
         </p>
       </div>
 
-      {/* Auto-scrolling carousel */}
+      {/* Mobile: swipeable scroll | Desktop: faster auto-marquee */}
       <div className="group">
-        <div className="flex gap-4 md:gap-5 animate-marquee-slow group-hover:[animation-play-state:paused] pl-4 md:pl-5">
+        <div
+          className="flex gap-4 md:gap-5 pl-4 md:pl-5 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:animate-marquee md:group-hover:[animation-play-state:paused] pb-4 md:pb-0"
+        >
           {doubled.map((r, i) => (
             <div
               key={i}
-              className="flex-shrink-0 w-[300px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7"
+              className="flex-shrink-0 w-[300px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7 snap-center md:snap-none"
             >
               <div className="flex items-center gap-3 mb-3 md:mb-4">
                 <img

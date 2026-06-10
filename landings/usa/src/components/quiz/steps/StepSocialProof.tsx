@@ -45,7 +45,7 @@ export default function StepSocialProof() {
               <span key={i} className="text-[14px]" style={{ color: '#00B67A' }}>★</span>
             ))}
           </div>
-          <span className="text-[14px] font-semibold" style={{ color: '#111' }}>4.5</span>
+          <span className="text-[14px] font-semibold" style={{ color: '#111' }}>4.8</span>
           <span className="text-[13px]" style={{ color: '#888' }}>· 3,500+ reviews</span>
         </div>
       </div>

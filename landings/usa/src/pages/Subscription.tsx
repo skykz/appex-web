@@ -3,7 +3,7 @@ export default function Subscription() {
     <div className="min-h-screen" style={{ background: "#fff" }}>
       <div className="mx-auto px-5 py-12" style={{ maxWidth: 720 }}>
         <a href="/" className="inline-flex items-center gap-1 mb-8 font-extrabold text-[20px] no-underline">
-          <span style={{ color: "#111" }}>App</span><span style={{ color: "#FF6B35" }}>ex</span>
+          <span style={{ color: "#111" }}>App</span><span style={{ color: "#F97316" }}>ex</span>
         </a>
         <h1 className="text-[32px] font-extrabold mb-2" style={{ color: "#111" }}>Subscription Terms</h1>
         <p className="text-[14px] mb-8" style={{ color: "#6B7280" }}>Last updated: May 29, 2026</p>
@@ -13,7 +13,7 @@ export default function Subscription() {
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>1. Subscription Plans</h2>
             <p>Appex offers the following introductory subscription plans:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li><strong>1 Week:</strong> $5.15 introductory, then $17.77/week</li>
+              <li><strong>1 Week:</strong> $6.93 introductory, then $17.77/week</li>
               <li><strong>4 Weeks:</strong> $11.29 introductory, then $38.95/4 weeks</li>
               <li><strong>12 Weeks:</strong> $19.29 introductory, then $66.65/12 weeks</li>
             </ul>
@@ -29,16 +29,15 @@ export default function Subscription() {
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>3. How to Cancel</h2>
             <p>You may cancel your subscription at any time by:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Visiting Profile → Subscription management → Cancel subscription</li>
-              <li>Emailing <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a> with subject line "Cancel Subscription"</li>
+              <li>Visiting your Account Settings → Subscription → Cancel</li>
+              <li>Emailing <a href="mailto:hello@appex.me" style={{ color: "#F97316" }}>hello@appex.me</a> with subject line "Cancel Subscription"</li>
             </ul>
             <p className="mt-3">Cancellation is effective at the end of the current billing period. You will retain access to the Service until then. No partial refunds are issued for unused days within a billing period unless required by applicable law.</p>
-            <p className="mt-3"><strong>Deleting your account does not cancel your subscription.</strong> You must cancel your subscription separately to stop future charges.</p>
           </section>
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>4. Money-Back Guarantee</h2>
-            <p>If you complete the required coursework and are not satisfied with your results, you may request a full refund within 30 days of your initial purchase. Contact <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a> with proof of course engagement. Refunds are processed within 5–10 business days.</p>
+            <p>If you complete the required coursework and are not satisfied with your results, you may request a full refund within 30 days of your initial purchase. Contact <a href="mailto:hello@appex.me" style={{ color: "#F97316" }}>hello@appex.me</a> with proof of course engagement. Refunds are processed within 5–10 business days.</p>
           </section>
 
           <section>
@@ -58,7 +57,7 @@ export default function Subscription() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>8. Contact</h2>
-            <p>For billing questions, contact <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a> or visit your Account Settings.</p>
+            <p>For billing questions, contact <a href="mailto:hello@appex.me" style={{ color: "#F97316" }}>hello@appex.me</a> or visit your Account Settings.</p>
           </section>
         </div>
       </div>

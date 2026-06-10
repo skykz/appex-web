@@ -3,7 +3,7 @@ export default function Privacy() {
     <div className="min-h-screen" style={{ background: "#fff" }}>
       <div className="mx-auto px-5 py-12" style={{ maxWidth: 720 }}>
         <a href="/" className="inline-flex items-center gap-1 mb-8 font-extrabold text-[20px] no-underline">
-          <span style={{ color: "#111" }}>App</span><span style={{ color: "#FF6B35" }}>ex</span>
+          <span style={{ color: "#111" }}>App</span><span style={{ color: "#F97316" }}>ex</span>
         </a>
         <h1 className="text-[32px] font-extrabold mb-2" style={{ color: "#111" }}>Privacy Policy</h1>
         <p className="text-[14px] mb-8" style={{ color: "#6B7280" }}>Last updated: May 29, 2026</p>
@@ -31,12 +31,12 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>5. Data Retention</h2>
-            <p>We retain your personal data for as long as your account is active or as needed to provide you with the Service. You may request deletion of your account and associated data at any time by contacting support@appex.me.</p>
+            <p>We retain your personal data for as long as your account is active or as needed to provide you with the Service. You may request deletion of your account and associated data at any time by contacting hello@appex.me.</p>
           </section>
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>6. Your Rights (CCPA / US)</h2>
-            <p>If you are a California resident, you have the right to know what personal information we collect, request deletion of your data, and opt out of any sale of personal information (we do not sell personal data). To exercise these rights, contact us at support@appex.me.</p>
+            <p>If you are a California resident, you have the right to know what personal information we collect, request deletion of your data, and opt out of any sale of personal information (we do not sell personal data). To exercise these rights, contact us at hello@appex.me.</p>
           </section>
 
           <section>
@@ -46,7 +46,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>8. Children's Privacy</h2>
-            <p>The Service is not directed to individuals under the age of 18. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us at support@appex.me.</p>
+            <p>The Service is not directed to individuals under the age of 18. We do not knowingly collect personal information from children. If you believe a child has provided us with personal information, please contact us at hello@appex.me.</p>
           </section>
 
           <section>
@@ -56,7 +56,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-[20px] font-bold mb-3" style={{ color: "#111" }}>10. Contact</h2>
-            <p>For privacy-related questions or requests, contact us at <a href="mailto:support@appex.me" style={{ color: "#FF6B35" }}>support@appex.me</a>.</p>
+            <p>For privacy-related questions or requests, contact us at <a href="mailto:hello@appex.me" style={{ color: "#F97316" }}>hello@appex.me</a>.</p>
           </section>
         </div>
       </div>

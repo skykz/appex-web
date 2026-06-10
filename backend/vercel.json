@@ -1,10 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd .. && npm install",
+  "buildCommand": "cd .. && npm run build --workspace=@appex/lesson-schema && npm run build --workspace=@appex/backend",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "crons": [
     {
       "path": "/api/cron/renewal-emails",
-      "schedule": "0 * * * *"
+      "schedule": "0 9 * * *"
     }
   ]
 }

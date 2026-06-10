@@ -1,40 +1,65 @@
 import { useState } from "react";
 import { QuizProvider, useQuiz } from "@/contexts/QuizContext";
 import QuizFlow from "@/components/quiz/QuizFlow";
-import { getQuizMenuLinks } from "@/lib/auth-links";
 import maleImg from "@/assets/quiz-male.jpg";
 import femaleImg from "@/assets/quiz-female.jpg";
 
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const docs = [
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Money-back Policy", href: "/subscription" },
+    { label: "Subscription Policy", href: "/subscription" },
+    { label: "I already have an account", href: "/login" },
+  ];
   return (
     <>
       {open && (
         <div className="fixed inset-0 bg-black/60 z-[200]" onClick={onClose} />
       )}
       <div
-        className="fixed top-0 right-0 h-full z-[201] transition-transform duration-300 w-[280px] bg-card border-l border-border"
+        className="fixed top-0 right-0 h-full z-[201] transition-transform duration-300 bg-card border-l border-border flex flex-col"
         style={{
+          width: 'min(320px, 85vw)',
           transform: open ? "translateX(0)" : "translateX(100%)",
         }}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center border border-border rounded-md text-foreground text-xl bg-transparent cursor-pointer"
-        >
-          ✕
-        </button>
-        <div className="flex flex-col gap-1 pt-20 px-6">
-          {getQuizMenuLinks().map((item) => (
+        {/* Header with Docs title + close */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <h2 className="text-foreground text-[22px] font-extrabold tracking-tight">Docs</h2>
+          <button
+            onClick={onClose}
+            className="w-9 h-9 flex items-center justify-center border border-border rounded-md text-foreground text-lg bg-transparent cursor-pointer"
+            aria-label="Close menu"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Docs links */}
+        <div className="flex flex-col gap-1 px-6 flex-1">
+          {docs.map((item) => (
             <a
               key={item.label}
               href={item.href}
-              target={item.newTab ? "_blank" : undefined}
-              rel={item.newTab ? "noopener noreferrer" : undefined}
-              className="text-foreground text-[16px] py-3 hover:text-primary transition-colors"
+              onClick={onClose}
+              className="text-foreground text-[15px] py-2.5 hover:text-primary transition-colors"
             >
               {item.label}
             </a>
           ))}
+        </div>
+
+        {/* Footer support note */}
+        <div className="px-6 pb-8 pt-4 border-t border-border">
+          <p className="text-muted-foreground text-[13px] leading-relaxed">
+            We will be glad to assist you via email. Please send your questions and feedback to{" "}
+            <a
+              href="mailto:hello@appex.me"
+              className="text-foreground font-semibold underline underline-offset-2 hover:text-primary transition-colors"
+            >
+              hello@appex.me
+            </a>
+          </p>
         </div>
       </div>
     </>
@@ -67,26 +92,72 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
       <SideMenu open={menuOpen} onClose={() => setMenuOpen(false)} />
 
       <div className="flex-1 flex flex-col items-center justify-start px-5 pb-10 pt-2 overflow-y-auto">
-        {/* Hero illustration */}
-        <div className="relative mx-auto mb-6 rounded-3xl flex items-center justify-center overflow-hidden" style={{ background: '#FFF7ED', width: '100%', maxWidth: 240, height: 200 }}>
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 w-14 h-14 rounded-xl bg-white/80 flex items-center justify-center text-[22px] shadow-sm">⛵</div>
-          <div className="absolute right-3 top-1/2 -translate-y-1/2 w-14 h-14 rounded-xl bg-white/80 flex items-center justify-center text-[22px] shadow-sm">🐋</div>
-          <span className="absolute top-6 left-16 text-[18px]">✦</span>
-          <span className="absolute bottom-6 right-16 text-[18px]">✦</span>
+        {/* Hero illustration — compact laptop mockup running Claude (responsive) */}
+        <div className="relative mx-auto mb-4 md:mb-6 w-full max-w-[200px] md:max-w-[360px]">
+          {/* Floating sparkles */}
+          <span className="absolute -top-1 -left-2 text-[14px] opacity-60">✦</span>
+          <span className="absolute -top-2 right-2 text-[12px] opacity-50">✦</span>
 
-          <div className="relative w-[55%] aspect-square rounded-2xl flex items-center justify-center shadow-xl" style={{ background: 'linear-gradient(180deg, #F97316 0%, #E85D2A 100%)' }}>
-            <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-white flex items-center justify-center text-[20px] shadow-md">💡</div>
-            <svg viewBox="0 0 100 100" className="w-3/5 h-3/5" fill="white" aria-hidden>
-              {Array.from({ length: 12 }).map((_, i) => {
-                const a = (i * Math.PI * 2) / 12;
-                const x1 = 50 + Math.cos(a) * 12;
-                const y1 = 50 + Math.sin(a) * 12;
-                const x2 = 50 + Math.cos(a) * 42;
-                const y2 = 50 + Math.sin(a) * 42;
-                return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="white" strokeWidth="7" strokeLinecap="round" />;
-              })}
-              <circle cx="50" cy="50" r="6" />
-            </svg>
+          {/* Laptop body */}
+          <div className="relative">
+            {/* Screen */}
+            <div
+              className="rounded-t-xl p-1.5"
+              style={{
+                background: 'linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%)',
+                boxShadow: '0 12px 28px -10px rgba(249,115,22,0.35)',
+              }}
+            >
+              <div
+                className="rounded-md p-2.5"
+                style={{
+                  background: '#FFF7ED',
+                  aspectRatio: '16 / 10',
+                }}
+              >
+                {/* Browser top bar */}
+                <div className="flex items-center gap-1 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5F57]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#FEBC2E]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#28C840]" />
+                </div>
+
+                {/* Claude logo in center */}
+                <div className="flex items-center justify-center h-[calc(100%-16px)]">
+                  <svg viewBox="0 0 100 100" className="w-12 h-12 md:w-20 md:h-20" aria-hidden>
+                    {Array.from({ length: 10 }, (_, i) => (
+                      <rect
+                        key={i}
+                        x="46"
+                        y="10"
+                        width="8"
+                        height="34"
+                        rx="4"
+                        fill="#F97316"
+                        transform={`rotate(${i * 36} 50 50)`}
+                      />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Laptop base */}
+            <div
+              className="h-2 rounded-b-xl"
+              style={{
+                background: 'linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%)',
+                width: '110%',
+                marginLeft: '-5%',
+              }}
+            />
+            {/* Notch / trackpad */}
+            <div className="h-0.5 mx-auto rounded-full" style={{ width: '20%', background: '#444', marginTop: '-1px' }} />
+          </div>
+
+          {/* Floating spark badge */}
+          <div className="absolute -top-2 -right-3 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-[14px]">
+            💡
           </div>
         </div>
 
@@ -97,7 +168,7 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
           Have you ever used Claude?
         </p>
 
-        <div className="w-full max-w-[520px] grid grid-cols-2 gap-3 mb-8">
+        <div className="w-full max-w-[520px] grid grid-cols-1 min-[380px]:grid-cols-2 gap-3 mb-8">
           {(["Yes", "No"] as const).map((label) => (
             <button
               key={label}

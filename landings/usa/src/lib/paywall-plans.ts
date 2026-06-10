@@ -7,6 +7,8 @@ export type PaywallPlan = {
   introPrice: string;
   renewalPrice: string;
   renewalCadence: string;
+  /** Short unit shown in "renews at $X/<unit>" copy. */
+  renewUnit: string;
   perDay: string;
   perDayWas: string;
   popular?: boolean;
@@ -22,6 +24,7 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     introPrice: "6.93",
     renewalPrice: "17.77",
     renewalCadence: "every week",
+    renewUnit: "week",
     perDayWas: "2.54",
     perDay: "0.99",
   },
@@ -31,6 +34,7 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     introPrice: "15.19",
     renewalPrice: "38.95",
     renewalCadence: "every 4 weeks",
+    renewUnit: "month",
     perDayWas: "1.39",
     perDay: "0.54",
     popular: true,
@@ -41,7 +45,8 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     introPrice: "49",
     renewalPrice: "127",
     renewalCadence: "every year",
-    perDayWas: "0.35",
+    renewUnit: "year",
+    perDayWas: "0.79",
     perDay: "0.27",
   },
 ];
@@ -49,10 +54,10 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
 export const PAYWALL_DEFAULT_INDEX = 1;
 
 export const PAYWALL_FEATURES = [
-  "50+ bite-sized lessons",
-  "Step-by-step personal plan",
-  "AI career coach 24/7",
-  "Certificate of completion",
+  "Build real projects — websites, apps, and more",
+  "50+ bite-sized lessons & step-by-step personal plan",
+  "Personal AI mentors and 24/7 support chat",
+  "+7 AI tools: CV & Portfolio builder and more",
 ] as const;
 
 /**

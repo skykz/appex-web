@@ -1,7 +1,7 @@
 const skills = [
   {
-    title: "Shareable & verifiable",
-    desc: "add it to LinkedIn, your CV, and your portfolio in seconds.",
+    title: "Verifiable and shareable",
+    desc: "publish to your LinkedIn, CV, and portfolio with a unique credential ID anyone can verify.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M12 2a10 10 0 100 20 10 10 0 000-20z" />
@@ -9,8 +9,8 @@ const skills = [
     ),
   },
   {
-    title: "Recognized where it counts",
-    desc: "give clients and employers real proof of job-ready Claude skills.",
+    title: "Recognized by employers",
+    desc: "a clear signal to hiring teams and clients that you have applied, job-ready Claude expertise.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
         <path strokeLinecap="round" strokeLinejoin="round" d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
@@ -18,8 +18,8 @@ const skills = [
     ),
   },
   {
-    title: "Earned through real work",
-    desc: "awarded for completing genuine projects — never multiple-choice quizzes.",
+    title: "Project-based assessment",
+    desc: "awarded after completing real, hands-on projects — not multiple-choice quizzes or attendance.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
         <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
@@ -119,12 +119,12 @@ export default function Certificate() {
             className="text-foreground font-extrabold leading-[1.05] tracking-tight mb-5"
             style={{ fontSize: "clamp(28px, 4.2vw, 48px)" }}
           >
-            Finish with <span className="text-primary">proof</span>,<br className="hidden md:block" />
-            not just knowledge
+            Certification that <br className="hidden md:block" />
+            <span className="text-primary">carries weight</span>
           </h2>
 
           <p className="text-muted-foreground text-[15px] md:text-[16px] leading-relaxed mb-8 md:mb-10 font-body max-w-lg">
-            Complete your path and earn the Appex AI Certification — a credential that turns "I learned Claude" into something clients and employers can actually trust.
+            Complete the program and earn the Appex AI Certificate — a verified credential built to demonstrate genuine, job-ready Claude expertise to employers and clients.
           </p>
 
           <div className="flex flex-col gap-5 md:gap-6 mb-8 md:mb-10">

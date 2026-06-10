@@ -16,14 +16,14 @@ body.overlay-open {
 
 @layer base {
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 100%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 6%;
 
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 100%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 6%;
 
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 6%;
 
     --primary: 25 100% 50%;
     --primary-foreground: 0 0% 100%;
@@ -31,27 +31,27 @@ body.overlay-open {
     --secondary: 25 100% 50%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 50%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 25 80% 12%;
-    --accent-foreground: 25 100% 50%;
+    --accent: 25 100% 96%;
+    --accent-foreground: 25 100% 45%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 12%;
-    --input: 0 0% 12%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
     --ring: 25 100% 50%;
 
     --radius: 0.75rem;
 
-    --cream: 0 0% 7%;
-    --cream-foreground: 0 0% 100%;
-    --cream-border: 0 0% 14%;
+    --cream: 0 0% 97%;
+    --cream-foreground: 0 0% 10%;
+    --cream-border: 0 0% 88%;
 
-    --green-light: 25 60% 15%;
-    --green-dark-bg: 25 80% 12%;
+    --green-light: 25 100% 95%;
+    --green-dark-bg: 25 100% 96%;
     --green-hover: 25 100% 42%;
 
     --gradient-primary: linear-gradient(135deg, hsl(25, 100%, 50%), hsl(42, 100%, 55%));
@@ -97,6 +97,11 @@ body.overlay-open {
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-16px); }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 html {

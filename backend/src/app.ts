@@ -64,6 +64,8 @@ app.get('/api/health', (_req, res) => {
       : 'disabled',
     emailWebhooks: env.mailgunWebhooksEnabled ? 'configured' : 'disabled',
     stripe: env.stripeEnabled ? 'configured' : 'disabled',
+    /** Set to true after deploys that include POST /api/landing/checkout. */
+    landingCheckout: true,
   })
 })
 

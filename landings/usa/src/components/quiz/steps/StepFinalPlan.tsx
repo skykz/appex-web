@@ -9,7 +9,7 @@ const weeks = [
 ];
 
 const bullets = [
-  "100,000+ students already enrolled",
+  "Recognized credential trusted by hiring teams",
   "Recognized credential for your resume and LinkedIn",
   "Validates real, practical AI skills — not just theory",
   "Complete in 4 weeks — 15 minutes per day",

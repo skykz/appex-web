@@ -12,6 +12,8 @@ import RoleDetail from "./pages/RoleDetail.tsx";
 import Terms from "./pages/Terms.tsx";
 import Privacy from "./pages/Privacy.tsx";
 import Subscription from "./pages/Subscription.tsx";
+import Login from "./pages/Login.tsx";
+import ForgotPassword from "./pages/ForgotPassword.tsx";
 import SettingsCheckoutReturn from "./pages/SettingsCheckoutReturn.tsx";
 import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
@@ -36,6 +38,8 @@ const App = () => (
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/subscription" element={<Subscription />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/settings" element={<SettingsCheckoutReturn />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

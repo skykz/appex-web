@@ -19,6 +19,15 @@ export default {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        // Appex brand tokens — use bg-brand-orange, text-brand-orange, etc.
+        brand: {
+          orange: "#F97316",
+          "orange-hover": "#EA580C",
+          "orange-light": "#FFF7ED",
+          "orange-border": "#FED7AA",
+          black: "#111111",
+          ink: "#0D0D0D",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
@@ -70,6 +79,18 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      // Unified shadow scale for the Appex design system.
+      // shadow-card-sm — buttons, small chips
+      // shadow-card    — default card resting state
+      // shadow-card-lg — featured / hovered card
+      // shadow-orange  — orange-tinted glow under brand CTAs
+      boxShadow: {
+        "card-sm": "0 4px 12px -4px rgba(0,0,0,0.08)",
+        card: "0 10px 30px -10px rgba(0,0,0,0.08)",
+        "card-lg": "0 25px 50px -20px rgba(0,0,0,0.15)",
+        orange: "0 15px 40px -10px rgba(249,115,22,0.35)",
+        "orange-lg": "0 25px 50px -20px rgba(249,115,22,0.55)",
       },
       keyframes: {
         "accordion-down": {

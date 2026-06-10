@@ -54,35 +54,45 @@ function QuizMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
         <div className="fixed inset-0 bg-black/40 z-[10001]" onClick={onClose} />
       )}
       <div
-        className="fixed top-0 right-0 h-full z-[10002] bg-white shadow-2xl transition-transform duration-300"
-        style={{ width: 280, transform: open ? 'translateX(0)' : 'translateX(100%)' }}
+        className="fixed top-0 right-0 h-full z-[10002] bg-white shadow-2xl transition-transform duration-300 flex flex-col"
+        style={{ width: 'min(320px, 85vw)', transform: open ? 'translateX(0)' : 'translateX(100%)' }}
       >
-        <div className="flex items-center justify-between px-5 h-14 border-b" style={{ borderColor: C.border }}>
-          <span className="font-extrabold text-[18px]">
-            <span style={{ color: '#111' }}>App</span><span style={{ color: '#F97316' }}>ex</span>
-          </span>
-          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full bg-transparent border-none cursor-pointer" style={{ color: C.text }}>
-            <X size={20} color={C.text} />
+        {/* Header with Docs title + close */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4">
+          <h2 className="text-[22px] font-extrabold tracking-tight" style={{ color: C.text }}>Docs</h2>
+          <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-md border bg-transparent cursor-pointer" style={{ borderColor: C.border, color: C.text }} aria-label="Close menu">
+            <X size={18} color={C.text} />
           </button>
         </div>
-        <div className="flex flex-col pt-4 px-5">
+
+        {/* Docs links */}
+        <div className="flex flex-col gap-1 px-6 flex-1">
           {menuLinks.map((item) => (
             <a
               key={item.label}
               href={item.href}
               target={item.newTab ? "_blank" : undefined}
               rel={item.newTab ? "noopener noreferrer" : undefined}
-              className="py-3.5 text-[15px] border-b no-underline transition-colors"
-              style={{ color: C.text, borderColor: C.border }}
+              onClick={onClose}
+              className="py-2.5 text-[15px] no-underline transition-colors hover:opacity-70"
+              style={{ color: C.text }}
             >
               {item.label}
             </a>
           ))}
         </div>
-        <div className="absolute bottom-8 left-5 right-5">
-          <p className="text-[12px]" style={{ color: C.muted }}>
-            Questions? Email us at{' '}
-            <a href="mailto:support@appex.me" style={{ color: '#F97316' }}>support@appex.me</a>
+
+        {/* Footer support note */}
+        <div className="px-6 pb-8 pt-4 border-t" style={{ borderColor: C.border }}>
+          <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
+            We will be glad to assist you via email. Please send your questions and feedback to{' '}
+            <a
+              href="mailto:hello@appex.me"
+              className="font-semibold underline underline-offset-2"
+              style={{ color: C.text }}
+            >
+              hello@appex.me
+            </a>
           </p>
         </div>
       </div>
@@ -358,25 +368,46 @@ function S1() {
   const choose = (v: "yes" | "no") => { set("experience_with_claude", v); next(); };
   return (
     <StepShell>
-      <div className="relative mx-auto mb-8 rounded-3xl flex items-center justify-center overflow-hidden" style={{ background: '#FFF7ED', width: '100%', maxWidth: 380, aspectRatio: '1 / 1' }}>
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 w-14 h-14 rounded-xl bg-white/80 flex items-center justify-center text-[22px] shadow-sm">⛵</div>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-14 h-14 rounded-xl bg-white/80 flex items-center justify-center text-[22px] shadow-sm">🐋</div>
-        <span className="absolute top-6 left-16 text-[18px]">✦</span>
-        <span className="absolute bottom-6 right-16 text-[18px]">✦</span>
-        <div className="relative w-[55%] aspect-square rounded-2xl flex items-center justify-center shadow-xl" style={{ background: 'linear-gradient(180deg, #F97316 0%, #E85D2A 100%)' }}>
-          <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-white flex items-center justify-center text-[20px] shadow-md">💡</div>
-          <svg viewBox="0 0 100 100" className="w-3/5 h-3/5" fill="white" aria-hidden>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const a = (i * Math.PI * 2) / 12;
-              const x1 = 50 + Math.cos(a) * 12;
-              const y1 = 50 + Math.sin(a) * 12;
-              const x2 = 50 + Math.cos(a) * 42;
-              const y2 = 50 + Math.sin(a) * 42;
-              return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="white" strokeWidth="7" strokeLinecap="round" />;
-            })}
-            <circle cx="50" cy="50" r="6" />
-          </svg>
+      <div className="relative mx-auto mb-6 w-full max-w-[200px] md:max-w-[360px]">
+        {/* Floating sparkles */}
+        <span className="absolute -top-1 -left-2 text-[14px] opacity-60">✦</span>
+        <span className="absolute -top-2 right-2 text-[12px] opacity-50">✦</span>
+        {/* Laptop body */}
+        <div className="relative">
+          {/* Screen */}
+          <div
+            className="rounded-t-xl p-1.5"
+            style={{
+              background: 'linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%)',
+              boxShadow: '0 12px 28px -10px rgba(249,115,22,0.35)',
+            }}
+          >
+            <div
+              className="rounded-md p-2.5"
+              style={{ background: '#FFF7ED', aspectRatio: '16 / 10' }}
+            >
+              {/* Browser dots */}
+              <div className="flex items-center gap-1 mb-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FF5F57]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#FEBC2E]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#28C840]" />
+              </div>
+              {/* Claude logo centered */}
+              <div className="flex items-center justify-center h-[calc(100%-16px)]">
+                <svg viewBox="0 0 100 100" className="w-12 h-12 md:w-20 md:h-20" aria-hidden>
+                  {Array.from({ length: 10 }, (_, i) => (
+                    <rect key={i} x="46" y="10" width="8" height="34" rx="4" fill="#F97316" transform={`rotate(${i * 36} 50 50)`} />
+                  ))}
+                </svg>
+              </div>
+            </div>
+          </div>
+          {/* Laptop base */}
+          <div className="h-2 rounded-b-xl" style={{ background: 'linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%)', width: '110%', marginLeft: '-5%' }} />
+          <div className="h-0.5 mx-auto rounded-full" style={{ width: '20%', background: '#444', marginTop: '-1px' }} />
         </div>
+        {/* Floating lightbulb */}
+        <div className="absolute -top-2 -right-3 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-[14px]">💡</div>
       </div>
       <h1 className="text-[28px] md:text-[32px] leading-tight font-extrabold mb-3 tracking-tight text-center" style={{ color: C.text }}>
         Become the Certified Master of Claude
@@ -397,8 +428,8 @@ function S1() {
       </div>
       <div className="text-center text-[11px] leading-relaxed" style={{ color: C.muted }}>
         <div className="flex justify-center gap-2 flex-wrap mb-2">
-          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">Terms and Conditions</a>·
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline">Privacy Policy</a>·
+          <a href="/terms" className="underline">Terms and Conditions</a>·
+          <a href="/privacy" className="underline">Privacy Policy</a>·
           <a href="/subscription" className="underline">Subscription Terms</a>
         </div>
       </div>
@@ -1197,7 +1228,7 @@ function S23() {
       </div>
       <p className="flex items-start gap-2 text-[12px] mb-4" style={{ color: C.muted }}>
         <Lock size={14} className="mt-0.5 flex-shrink-0" />
-        We respect your privacy. See our <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline ml-1">Privacy Policy</a>.
+        We respect your privacy. See our <a href="/privacy" className="underline ml-1">Privacy Policy</a>.
       </p>
       <div className="rounded-2xl p-3 mb-6 text-[13px]" style={{ background: "rgba(47,79,224,0.08)", color: C.text }}>
         Make sure your email is valid — get the <strong>AI Agents Guidebook</strong> from us.
@@ -1260,7 +1291,7 @@ function S25() {
     { label: "Week 4", text: "Real Projects & Automation — apply Claude to real tasks and build things you can actually use" },
   ];
   const bullets = [
-    "100,000+ students already enrolled",
+    "Recognized credential trusted by hiring teams",
     "Recognized credential for your resume and LinkedIn",
     "Validates real, practical AI skills — not just theory",
     "Complete in 4 weeks — 15 minutes per day",

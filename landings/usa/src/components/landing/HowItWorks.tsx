@@ -2,71 +2,107 @@ import { ClipboardList, Route, Hammer, Wallet } from "lucide-react";
 
 const steps = [
   {
-    num: 1,
+    num: "01",
     Icon: ClipboardList,
-    title: "Take the free quiz",
-    desc: "Answer a few questions about your goals, schedule, and experience. We build your personalized learning path.",
+    title: "Quick quiz",
+    desc: "Tell us your goals — we build your path.",
   },
   {
-    num: 2,
+    num: "02",
     Icon: Route,
-    title: "Follow your plan",
-    desc: "Work through step-by-step lessons that take you from your first prompt to advanced Claude workflows.",
+    title: "Daily lessons",
+    desc: "Short, focused, in your own time.",
   },
   {
-    num: 3,
+    num: "03",
     Icon: Hammer,
-    title: "Build real projects",
-    desc: "Apply every lesson to genuine, hands-on work you can show off and reuse.",
+    title: "Real projects",
+    desc: "Apply what you learn from day one.",
   },
   {
-    num: 4,
+    num: "04",
     Icon: Wallet,
-    title: "Stay ahead with your skills",
-    desc: "Get certified, grow a portfolio, and stay relevant as AI reshapes your field.",
+    title: "Get certified",
+    desc: "Earn proof you can put to work.",
   },
 ];
 
+/**
+ * "Playing card" style — vertical portrait cards with a huge number filling
+ * the top half and content stacked below. Cards have a subtle tilt that
+ * straightens on hover, like flicking through a deck.
+ */
 export default function HowItWorks() {
   return (
-    <section className="bg-background py-20 md:py-28 px-4 md:px-10">
-      <div className="max-w-7xl mx-auto">
+    <section className="bg-background py-16 md:py-24 px-4 md:px-10 overflow-hidden">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-16 md:mb-24">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold tracking-wider uppercase mb-6">
+        <div className="text-center mb-12 md:mb-16">
+          <span className="inline-block px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-[11px] font-bold tracking-[0.15em] uppercase mb-4">
             How it works
           </span>
-          <h2 className="text-foreground font-extrabold tracking-tight leading-[1.05] mb-5" style={{ fontSize: "clamp(32px, 5vw, 56px)" }}>
-            From your first quiz to future-ready skills
+          <h2 className="text-foreground font-extrabold tracking-tight leading-[1.05] mb-4" style={{ fontSize: "clamp(28px, 4vw, 48px)" }}>
+            Your path from <span className="text-primary">beginner to expert</span>
           </h2>
-          <p className="text-muted-foreground text-base md:text-lg max-w-2xl mx-auto leading-relaxed">
-            A guided path — each step builds on the last until Claude is a skill that keeps you ahead.
+          <p className="text-muted-foreground text-[14px] md:text-[16px] max-w-xl mx-auto leading-relaxed">
+            Four clear steps. Each one builds on the last — until working with Claude feels second nature.
           </p>
         </div>
 
-        {/* Timeline */}
-        <div className="relative grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-6">
-          {steps.map((s, i) => (
-            <div key={s.num} className="relative flex flex-col items-center text-center px-2">
-              {/* connector line */}
-              {i < steps.length - 1 && (
-                <div className="hidden md:block absolute top-10 left-[calc(50%+3rem)] right-[calc(-50%+3rem)] h-px bg-gradient-to-r from-primary/40 to-primary/10" />
-              )}
+        {/* Compact playing-card deck */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 max-w-4xl mx-auto">
+          {steps.map((s, i) => {
+            const tilts = ["-rotate-2", "rotate-1", "-rotate-1", "rotate-2"];
+            return (
+              <div
+                key={s.num}
+                className={`group relative rounded-xl overflow-hidden bg-white transition-all duration-300 ${tilts[i]} hover:rotate-0 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(249,115,22,0.4)]`}
+                style={{
+                  border: "1px solid hsl(var(--border))",
+                  boxShadow: "0 6px 18px -8px rgba(0,0,0,0.08)",
+                }}
+              >
+                {/* Top — orange gradient with number */}
+                <div
+                  className="relative h-[100px] md:h-[110px] flex items-center justify-center"
+                  style={{
+                    background: "linear-gradient(135deg, #F97316 0%, #FFB800 100%)",
+                  }}
+                >
+                  {/* Massive number */}
+                  <span
+                    className="font-extrabold text-white leading-none tracking-tighter"
+                    style={{
+                      fontSize: "clamp(56px, 9vw, 80px)",
+                      textShadow: "0 4px 16px rgba(0,0,0,0.12)",
+                    }}
+                  >
+                    {s.num}
+                  </span>
 
-              {/* icon circle with badge */}
-              <div className="relative mb-6">
-                <div className="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                  <s.Icon className="w-8 h-8 text-primary" strokeWidth={2} />
+                  {/* STEP label */}
+                  <div className="absolute top-2 left-2.5 text-white/90 text-[9px] font-bold tracking-widest">
+                    STEP
+                  </div>
+
+                  {/* Icon badge in corner */}
+                  <div className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/95 flex items-center justify-center shadow-md">
+                    <s.Icon className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
+                  </div>
                 </div>
-                <div className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shadow-lg shadow-primary/30">
-                  {s.num}
+
+                {/* Bottom — title + short description */}
+                <div className="p-3 md:p-4">
+                  <h3 className="text-foreground font-bold text-[13px] md:text-[14.5px] tracking-tight mb-1">
+                    {s.title}
+                  </h3>
+                  <p className="text-muted-foreground text-[11.5px] md:text-[12.5px] leading-[1.5]">
+                    {s.desc}
+                  </p>
                 </div>
               </div>
-
-              <h3 className="text-foreground font-bold text-lg md:text-xl mb-3">{s.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed max-w-[260px]">{s.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
