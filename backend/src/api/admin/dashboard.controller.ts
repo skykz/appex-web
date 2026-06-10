@@ -1,6 +1,11 @@
 import type { Request, Response, NextFunction } from 'express'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import {
+  adminExclusionInList,
+  excludeAdminUsers,
+  getAdminUserIds,
+} from '../../utils/admin-insights.js'
 
 type CountableQuery = ReturnType<
   ReturnType<typeof supabaseAdmin.from>['select']
@@ -29,8 +34,51 @@ function daysAgoUTC(days: number): string {
 }
 
 /**
+ * Counts chat messages excluding sessions owned by admin accounts.
+ */
+async function countChatMessagesExcludingAdmins(adminIds: string[]): Promise<number> {
+  const adminList = adminExclusionInList(adminIds)
+  if (!adminList) return count('chat_messages')
+
+  const { data: adminSessions, error: sessionErr } = await supabaseAdmin
+    .from('chat_sessions')
+    .select('id')
+    .in('user_id', adminIds)
+  if (sessionErr) throw new AppError(500, `chat_sessions admin filter: ${sessionErr.message}`)
+
+  const sessionIds = (adminSessions ?? []).map((row) => row.id as string)
+  if (sessionIds.length === 0) return count('chat_messages')
+
+  return count('chat_messages', (q) =>
+    q.not('session_id', 'in', `(${sessionIds.join(',')})`)
+  )
+}
+
+/**
+ * Sums remaining user credit balances, excluding admin accounts.
+ */
+async function sumCreditsExcludingAdmins(adminIds: string[]): Promise<number> {
+  let query = supabaseAdmin.from('user_credits').select('balance')
+  query = excludeAdminUsers(query, adminIds)
+  const { data, error } = await query
+  if (error) throw new AppError(500, `user_credits sum: ${error.message}`)
+  return (data ?? []).reduce((acc, row) => acc + (row.balance ?? 0), 0)
+}
+
+/**
+ * Sums billing revenue, excluding payments from admin accounts.
+ */
+async function sumRevenueExcludingAdmins(adminIds: string[]): Promise<number> {
+  let query = supabaseAdmin.from('billing_history').select('amount')
+  query = excludeAdminUsers(query, adminIds)
+  const { data, error } = await query
+  if (error) throw new AppError(500, `billing_history sum: ${error.message}`)
+  return (data ?? []).reduce((acc, row) => acc + Number(row.amount ?? 0), 0)
+}
+
+/**
  * Aggregates live counts + recent activity for the admin dashboard in one call.
- * Uses exact counts for accuracy over speed; volumes are small.
+ * Admin accounts are excluded from user-facing metrics so internal activity does not skew insights.
  */
 export async function getDashboardStats(
   _req: Request,
@@ -40,6 +88,7 @@ export async function getDashboardStats(
   try {
     const today = startOfTodayUTC()
     const fourteenDaysAgo = daysAgoUTC(13)
+    const adminIds = await getAdminUserIds()
 
     const [
       usersTotal,
@@ -51,60 +100,54 @@ export async function getDashboardStats(
       lessonsCompletedTotal,
       activeSubs,
       contactsTotal,
+      creditsRemaining,
+      revenue,
     ] = await Promise.all([
-      count('users'),
+      count('users', (q) => q.neq('role', 'admin')),
       count('skills'),
       count('modules'),
       count('lessons'),
-      count('chat_sessions'),
-      count('chat_messages'),
-      count('lesson_progress', (q) => q.eq('completed', true)),
-      count('subscriptions', (q) => q.eq('status', 'active')),
+      count('chat_sessions', (q) => excludeAdminUsers(q, adminIds)),
+      countChatMessagesExcludingAdmins(adminIds),
+      count('lesson_progress', (q) =>
+        excludeAdminUsers(q.eq('completed', true), adminIds)
+      ),
+      count('subscriptions', (q) =>
+        excludeAdminUsers(q.eq('status', 'active'), adminIds)
+      ),
       count('contact_messages'),
+      sumCreditsExcludingAdmins(adminIds),
+      sumRevenueExcludingAdmins(adminIds),
     ])
 
-    // Users active today = distinct streak_days rows for today
-    const { count: activeTodayCount, error: activeErr } = await supabaseAdmin
+    // Users active today = streak_days rows for today, excluding admins
+    let activeTodayQuery = supabaseAdmin
       .from('streak_days')
       .select('*', { count: 'exact', head: true })
       .eq('date', today.slice(0, 10))
+    activeTodayQuery = excludeAdminUsers(activeTodayQuery, adminIds)
+    const { count: activeTodayCount, error: activeErr } = await activeTodayQuery
     if (activeErr) throw new AppError(500, activeErr.message)
 
-    // Credits pool = sum of user_credits.balance
-    const { data: creditsRows, error: creditsErr } = await supabaseAdmin
-      .from('user_credits')
-      .select('balance')
-    if (creditsErr) throw new AppError(500, creditsErr.message)
-    const creditsRemaining = (creditsRows ?? []).reduce(
-      (acc, r) => acc + (r.balance ?? 0),
-      0
-    )
-
-    // Total revenue = sum of billing_history.amount
-    const { data: billingRows, error: billingErr } = await supabaseAdmin
-      .from('billing_history')
-      .select('amount')
-    if (billingErr) throw new AppError(500, billingErr.message)
-    const revenue = (billingRows ?? []).reduce(
-      (acc, r) => acc + Number(r.amount ?? 0),
-      0
-    )
-
-    // Recent users
+    // Recent non-admin signups
     const { data: recentUsers } = await supabaseAdmin
       .from('users')
       .select('id, email, name, created_at')
+      .neq('role', 'admin')
       .order('created_at', { ascending: false })
       .limit(5)
 
-    // Recent lesson completions (joined with user + lesson for display)
-    const { data: recentCompletions, error: recentErr } = await supabaseAdmin
+    // Recent lesson completions from non-admin users
+    let recentCompletionsQuery = supabaseAdmin
       .from('lesson_progress')
-      .select('completed_at, lesson_id, user_id, users(email), lessons(title)')
+      .select('completed_at, lesson_id, user_id, users!inner(email, role), lessons(title)')
       .eq('completed', true)
       .not('completed_at', 'is', null)
+      .neq('users.role', 'admin')
       .order('completed_at', { ascending: false })
       .limit(5)
+    recentCompletionsQuery = excludeAdminUsers(recentCompletionsQuery, adminIds)
+    const { data: recentCompletions, error: recentErr } = await recentCompletionsQuery
     if (recentErr) throw new AppError(500, recentErr.message)
 
     const recentLessonsCompleted = (recentCompletions ?? []).map((r: Record<string, unknown>) => ({
@@ -114,10 +157,11 @@ export async function getDashboardStats(
       completed_at: r.completed_at as string,
     }))
 
-    // Signups per day over the last 14 days
+    // Signups per day over the last 14 days (non-admin only)
     const { data: signupRows, error: signupErr } = await supabaseAdmin
       .from('users')
       .select('created_at')
+      .neq('role', 'admin')
       .gte('created_at', fourteenDaysAgo)
     if (signupErr) throw new AppError(500, signupErr.message)
 

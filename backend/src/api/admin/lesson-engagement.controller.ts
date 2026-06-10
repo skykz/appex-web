@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { excludeAdminUsers, getAdminUserIds } from '../../utils/admin-insights.js'
 
 const MAX_ATTEMPTS_FETCH = 8000
 const MAX_OPEN_RESPONSES = 120
@@ -26,6 +27,7 @@ type AttemptRow = {
 
 /**
  * Returns per-block quiz stats, open-ended responses, and submission counts for authoring insights.
+ * Admin account activity is excluded so internal testing does not skew lesson metrics.
  */
 export async function getLessonEngagement(
   req: Request,
@@ -35,6 +37,7 @@ export async function getLessonEngagement(
   try {
     const rawId = req.params.id
     const lessonId = lessonIdParam(Array.isArray(rawId) ? rawId[0] : rawId)
+    const adminIds = await getAdminUserIds()
 
     const { data: lesson, error: le } = await supabaseAdmin
       .from('lessons')
@@ -44,16 +47,18 @@ export async function getLessonEngagement(
     if (le) throw new AppError(500, le.message)
     if (!lesson) throw new AppError(404, 'Lesson not found')
 
-    const { count: attemptCount, error: ce } = await supabaseAdmin
+    let attemptCountQuery = supabaseAdmin
       .from('lesson_quiz_attempts')
       .select('*', { count: 'exact', head: true })
       .eq('lesson_id', lessonId)
+    attemptCountQuery = excludeAdminUsers(attemptCountQuery, adminIds)
+    const { count: attemptCount, error: ce } = await attemptCountQuery
     if (ce) throw new AppError(500, ce.message)
 
     const total = attemptCount ?? 0
     const statsApproximate = total > MAX_ATTEMPTS_FETCH
 
-    const { data: attemptsRaw, error: ae } = await supabaseAdmin
+    let attemptsQuery = supabaseAdmin
       .from('lesson_quiz_attempts')
       .select(
         'step_index, block_index, is_correct, open_response, created_at, user_id'
@@ -61,6 +66,8 @@ export async function getLessonEngagement(
       .eq('lesson_id', lessonId)
       .order('created_at', { ascending: false })
       .limit(MAX_ATTEMPTS_FETCH)
+    attemptsQuery = excludeAdminUsers(attemptsQuery, adminIds)
+    const { data: attemptsRaw, error: ae } = await attemptsQuery
 
     if (ae) throw new AppError(500, ae.message)
 
@@ -117,20 +124,25 @@ export async function getLessonEngagement(
       }
     })
 
-    const { count: submissionTotal, error: se } = await supabaseAdmin
+    let submissionCountQuery = supabaseAdmin
       .from('lesson_submissions')
       .select('*', { count: 'exact', head: true })
       .eq('lesson_id', lessonId)
+    submissionCountQuery = excludeAdminUsers(submissionCountQuery, adminIds)
+    const { count: submissionTotal, error: se } = await submissionCountQuery
     if (se) throw new AppError(500, se.message)
 
-    const { data: subRows, error: sre } = await supabaseAdmin
+    let recentSubmissionsQuery = supabaseAdmin
       .from('lesson_submissions')
       .select(
-        'id, message, attachment_url, status, created_at, user_id, users(email, name)'
+        'id, message, attachment_url, status, created_at, user_id, users!inner(email, name, role)'
       )
       .eq('lesson_id', lessonId)
+      .neq('users.role', 'admin')
       .order('created_at', { ascending: false })
       .limit(10)
+    recentSubmissionsQuery = excludeAdminUsers(recentSubmissionsQuery, adminIds)
+    const { data: subRows, error: sre } = await recentSubmissionsQuery
     if (sre) throw new AppError(500, sre.message)
 
     const recentSubmissions = (subRows ?? []).map((r: Record<string, unknown>) => ({

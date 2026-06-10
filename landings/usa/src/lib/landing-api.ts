@@ -22,11 +22,30 @@ export type SubmitQuizResult = {
 };
 
 /**
+ * Normalizes VITE_API_URL to the Express `/api` mount (handles origin-only or …/api).
+ */
+function normalizeApiBase(trimmed: string): string {
+  const base = trimmed.replace(/\/+$/, "");
+  if (base.endsWith("/api")) return base;
+  try {
+    const withScheme = /^https?:\/\//i.test(base) ? base : `https://${base}`;
+    const u = new URL(withScheme);
+    const path = (u.pathname || "/").replace(/\/$/, "") || "/";
+    if (path === "/") return `${u.origin}/api`;
+  } catch {
+    /* keep base if URL is invalid */
+  }
+  return base;
+}
+
+/**
  * Returns the backend API base URL configured at build time for the USA landing.
  */
 export function getApiBaseUrl(): string | null {
   const url = import.meta.env.VITE_API_URL?.trim();
-  return url || null;
+  if (url) return normalizeApiBase(url);
+  if (import.meta.env.DEV) return normalizeApiBase("http://localhost:3000");
+  return null;
 }
 
 /**
@@ -82,7 +101,7 @@ export async function submitLandingQuiz(
   }
 
   try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/api/landing/quiz`, {
+    const res = await fetch(`${base}/landing/quiz`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -133,7 +152,7 @@ export async function createLandingCheckout(args: {
   }
 
   try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/api/landing/checkout`, {
+    const res = await fetch(`${base}/landing/checkout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -177,7 +196,7 @@ export async function updateLandingQuizPlan(
   if (!base || !email) return false;
 
   try {
-    const res = await fetch(`${base.replace(/\/$/, "")}/api/landing/quiz/plan`, {
+    const res = await fetch(`${base}/landing/quiz/plan`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
