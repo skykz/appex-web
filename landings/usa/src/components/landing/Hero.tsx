@@ -81,7 +81,7 @@ export default function Hero() {
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg -rotate-[8deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[230px] md:h-[250px]"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfter} alt="Appex learner" className="w-full h-full object-cover" />
+            <img src={paywallAfter} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={460} height={500} />
           </div>
         </div>
 
@@ -96,7 +96,7 @@ export default function Hero() {
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg rotate-[6deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[260px] md:h-[230px]"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfterMale} alt="Appex learner" className="w-full h-full object-cover" />
+            <img src={paywallAfterMale} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={520} height={460} />
           </div>
         </div>
 
