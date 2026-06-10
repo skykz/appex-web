@@ -132,13 +132,13 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Bottom-center: Gemini logo bubble */}
-        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 bottom-6 lg:bottom-0 z-20 items-center justify-center w-[72px] h-[72px] rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] animate-[float_4.5s_ease-in-out_infinite]" style={{ border: "1px solid hsl(var(--border))" }}>
+        {/* Bottom-left: Gemini logo bubble — kept off the centered rating row */}
+        <div className="hidden md:flex absolute left-[6%] md:left-[10%] lg:left-[14%] bottom-0 md:bottom-2 lg:bottom-6 z-10 items-center justify-center w-[60px] h-[60px] md:w-[72px] md:h-[72px] rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] animate-[float_4.5s_ease-in-out_infinite]" style={{ border: "1px solid hsl(var(--border))" }}>
           <GeminiLogo size={36} />
         </div>
 
-        {/* Bottom-right: animated arrow */}
-        <div className="hidden lg:block absolute right-72 bottom-2 z-20 animate-[float_3s_ease-in-out_infinite]">
+        {/* Bottom-right: animated arrow — aligned with Gemini, away from rating text */}
+        <div className="hidden md:block absolute right-[6%] md:right-[10%] lg:right-[14%] bottom-0 md:bottom-2 lg:bottom-6 z-10 animate-[float_3s_ease-in-out_infinite]">
           <svg width="56" height="56" viewBox="0 0 60 60" fill="none">
             <path
               d="M10 30 L45 30 M30 15 L45 30 L30 45"
@@ -151,7 +151,7 @@ export default function Hero() {
         </div>
 
         {/* Center content — extra pt on mobile so it doesn't overlap floating photos */}
-        <div className="relative z-10 text-center max-w-3xl mx-auto pt-32 sm:pt-24 md:pt-12 pb-8 md:pb-16">
+        <div className="relative z-10 text-center max-w-3xl mx-auto pt-32 sm:pt-24 md:pt-12 pb-16 md:pb-24">
           {/* Claude logo above headline */}
           <div className="inline-flex items-center justify-center mb-6 md:mb-8 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(218,119,86,0.4)]" style={{ border: "1px solid hsl(var(--border))" }}>
             <ClaudeLogo size={42} />
@@ -182,7 +182,7 @@ export default function Hero() {
           </a>
 
           {/* Star rating only */}
-          <div className="mt-8 md:mt-10 flex items-center justify-center gap-2">
+          <div className="relative z-20 mt-10 md:mt-12 flex items-center justify-center gap-2">
             <div className="flex items-center gap-0.5">
               {[0, 1, 2, 3, 4].map((i) => (
                 <svg key={i} className="w-5 h-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
