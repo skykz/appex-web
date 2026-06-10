@@ -140,10 +140,11 @@ if (process.env.VERCEL && corsOrigins?.length) {
   console.info('[cors] allowed origins:', corsOrigins.join(' | '))
 }
 
-/** Stripe is fully configured when the secret key, webhook secret, and both prices are set. */
+/** Stripe is fully configured when keys, webhook secret, and all landing plan prices are set. */
 const stripeEnabled = Boolean(
   parsed.STRIPE_SECRET_KEY &&
     parsed.STRIPE_WEBHOOK_SECRET &&
+    parsed.STRIPE_PRICE_1WEEK &&
     parsed.STRIPE_PRICE_4WEEK &&
     parsed.STRIPE_PRICE_YEARLY
 )

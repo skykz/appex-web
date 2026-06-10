@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { planIndexToId, submitLandingQuiz, updateLandingQuizPlan, createLandingCheckout } from "@/lib/landing-api";
+import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import {
   PAYWALL_PLANS,
@@ -213,15 +213,12 @@ export default function Paywall() {
 
     void (async () => {
       const saved = getQuizData();
-      const ok = await updateLandingQuizPlan(quizEmail, planId);
-      if (!ok) {
-        await submitLandingQuiz({
-          email: quizEmail,
-          name: saved.name as string | undefined,
-          answers: saved,
-          selected_plan: planId,
-        });
-      }
+      await submitLandingQuiz({
+        email: quizEmail,
+        name: saved.name as string | undefined,
+        answers: saved,
+        selected_plan: planId,
+      });
     })();
   }, [selected, quizEmail]);
 

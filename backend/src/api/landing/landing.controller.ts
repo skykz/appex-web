@@ -30,14 +30,25 @@ function normalizeEmail(email: string): string {
 }
 
 /**
+ * Coerces stored quiz answers to a plain object before merge/update.
+ */
+function coerceAnswers(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
+  }
+  return {}
+}
+
+/**
  * Merges incoming quiz answers with any answers already stored for this lead.
  */
 function mergeAnswers(
   existing: Record<string, unknown> | null | undefined,
   incoming: Record<string, unknown> | undefined
 ): Record<string, unknown> {
-  if (!incoming) return existing ?? {}
-  return { ...(existing ?? {}), ...incoming }
+  const base = coerceAnswers(existing)
+  if (!incoming) return base
+  return { ...base, ...coerceAnswers(incoming) }
 }
 
 /**

@@ -87,6 +87,24 @@ export function getUtmParams(): {
 }
 
 /**
+ * Parses a failed API response body (JSON or plain/HTML text) into a short message.
+ */
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  const text = await res.text().catch(() => "");
+  if (!text) return fallback;
+  try {
+    const body = JSON.parse(text) as { error?: string; message?: string };
+    if (typeof body.error === "string" && body.error) return body.error;
+    if (typeof body.message === "string" && body.message) return body.message;
+  } catch {
+    if (res.status === 404 && /cannot (post|patch)/i.test(text)) {
+      return "This payment feature is not deployed on the server yet. Redeploy the backend, then try again.";
+    }
+  }
+  return fallback;
+}
+
+/**
  * Persists quiz answers to the backend. Fire-and-forget safe — never throws to callers.
  */
 export async function submitLandingQuiz(
@@ -100,6 +118,12 @@ export async function submitLandingQuiz(
     return null;
   }
 
+  const email = payload.email?.trim().toLowerCase();
+  if (!email) {
+    console.warn("[landing-api] quiz submit skipped — missing email");
+    return null;
+  }
+
   try {
     const res = await fetch(`${base}/landing/quiz`, {
       method: "POST",
@@ -109,13 +133,13 @@ export async function submitLandingQuiz(
         session_id: getOrCreateSessionId(),
         ...getUtmParams(),
         ...payload,
-        email: payload.email.trim().toLowerCase(),
+        email,
       }),
     });
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.warn("[landing-api] quiz submit failed", res.status, err);
+      const message = await readApiError(res, "Quiz could not be saved");
+      console.warn("[landing-api] quiz submit failed", res.status, message);
       return null;
     }
 
@@ -163,17 +187,12 @@ export async function createLandingCheckout(args: {
       }),
     });
 
-    const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const message =
-        typeof body?.error === "string"
-          ? body.error
-          : typeof body?.message === "string"
-            ? body.message
-            : "Could not start checkout. Please try again.";
+      const message = await readApiError(res, "Could not start checkout. Please try again.");
       return { error: message };
     }
 
+    const body = (await res.json().catch(() => ({}))) as { url?: string };
     if (typeof body?.url !== "string" || !body.url) {
       return { error: "Checkout did not return a payment URL." };
     }
