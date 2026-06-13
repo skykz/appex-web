@@ -1,8 +1,14 @@
 import { supabaseAdmin } from '../db/supabase.js'
+import type Stripe from 'stripe'
 import { renderAccessLockedEmail } from './email-templates/access-locked.js'
 import { renderCancellationConfirmedEmail } from './email-templates/cancellation-confirmed.js'
+import {
+  planLabelFromBillingInterval,
+  renderPaymentConfirmedEmail,
+} from './email-templates/payment-confirmed.js'
 import { renderPaymentFailedNoticeEmail } from './email-templates/payment-failed-notice.js'
 import { renderPaymentSuccessEmail } from './email-templates/payment-success.js'
+import { renderReengagementEmail } from './email-templates/reengagement.js'
 import { renderRenewalReminderEmail } from './email-templates/renewal-reminder.js'
 import { renderSubscriptionExpiredEmail } from './email-templates/subscription-expired.js'
 import { renderWelcomeEmail } from './email-templates/welcome.js'
@@ -11,6 +17,8 @@ import { sendEmail } from './email.service.js'
 import { generateMagicLinkUrl } from './magic-link.service.js'
 import { PAYMENT_GRACE_PERIOD_MS } from './subscription-access.js'
 import {
+  REENGAGEMENT_COOLDOWN_DAYS,
+  REENGAGEMENT_INACTIVE_DAYS,
   RENEWAL_24H_CRON_WINDOW_MS,
   RENEWAL_REMINDER_24H_MS,
   RENEWAL_REMINDER_3_DAYS,
@@ -27,6 +35,8 @@ type LifecycleEmailType =
   | 'access_locked'
   | 'cancellation_confirmed'
   | 'subscription_expired'
+  | 'reengagement'
+  | 'payment_confirmed'
 
 /**
  * Returns true when this lifecycle email was already logged for the user.
@@ -34,7 +44,8 @@ type LifecycleEmailType =
 async function hasSentEmail(
   userId: string,
   emailType: LifecycleEmailType,
-  periodEnd?: string | null
+  periodEnd?: string | null,
+  referenceId?: string | null
 ): Promise<boolean> {
   let query = supabaseAdmin
     .from('user_email_log')
@@ -61,10 +72,37 @@ async function hasSentEmail(
   if (emailType === 'subscription_expired' && periodEnd) {
     query = query.eq('period_end', periodEnd)
   }
+  if (emailType === 'payment_confirmed' && referenceId) {
+    query = query.eq('reference_id', referenceId)
+  }
 
   const { data, error } = await query.maybeSingle()
   if (error) {
     console.error('[lifecycle-email] log lookup failed', userId, emailType, error.message)
+    return false
+  }
+  return Boolean(data)
+}
+
+/**
+ * Returns true when an E6 reengagement email was sent within the cooldown window.
+ */
+async function hasRecentReengagement(userId: string): Promise<boolean> {
+  const cutoff = new Date(
+    Date.now() - REENGAGEMENT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
+  ).toISOString()
+
+  const { data, error } = await supabaseAdmin
+    .from('user_email_log')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('email_type', 'reengagement')
+    .gte('sent_at', cutoff)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error('[lifecycle-email] reengagement lookup failed', userId, error.message)
     return false
   }
   return Boolean(data)
@@ -79,6 +117,7 @@ async function logEmailSent(args: {
   mailgunId: string | null
   scheduledFor?: Date | null
   periodEnd?: string | null
+  referenceId?: string | null
 }): Promise<void> {
   const { error } = await supabaseAdmin.from('user_email_log').insert({
     user_id: args.userId,
@@ -86,6 +125,7 @@ async function logEmailSent(args: {
     mailgun_id: args.mailgunId,
     scheduled_for: args.scheduledFor?.toISOString() ?? null,
     period_end: args.periodEnd ?? null,
+    reference_id: args.referenceId ?? null,
   })
 
   if (error) {
@@ -242,23 +282,21 @@ export async function processDueRenewalReminders(): Promise<{ sent: number }> {
     leadTimeMs: RENEWAL_REMINDER_3_DAYS * 24 * 60 * 60 * 1000,
     windowMs: 24 * 60 * 60 * 1000,
     emailType: 'renewal_reminder',
-    leadTimeLabel: '3 days',
     sentColumn: 'renewal_reminder_sent_for_period_end',
     mailgunTag: 'e3-renewal-reminder-3d',
   })
 }
 
 /**
- * Sends E4 renewal reminders ~24 hours before current_period_end (hourly cron).
+ * Sends E5 renewal reminders ~24 hours before current_period_end (hourly cron).
  */
 export async function processDueRenewalReminders24h(): Promise<{ sent: number }> {
   return sendRenewalRemindersForLeadTime({
     leadTimeMs: RENEWAL_REMINDER_24H_MS,
     windowMs: RENEWAL_24H_CRON_WINDOW_MS,
     emailType: 'renewal_reminder_24h',
-    leadTimeLabel: '24 hours',
     sentColumn: 'renewal_reminder_24h_sent_for_period_end',
-    mailgunTag: 'e4-renewal-reminder-24h',
+    mailgunTag: 'e5-renewal-reminder-24h',
   })
 }
 
@@ -269,7 +307,6 @@ async function sendRenewalRemindersForLeadTime(args: {
   leadTimeMs: number
   windowMs: number
   emailType: Extract<LifecycleEmailType, 'renewal_reminder' | 'renewal_reminder_24h'>
-  leadTimeLabel: string
   sentColumn: 'renewal_reminder_sent_for_period_end' | 'renewal_reminder_24h_sent_for_period_end'
   mailgunTag: string
 }): Promise<{ sent: number }> {
@@ -315,7 +352,7 @@ async function sendRenewalRemindersForLeadTime(args: {
       renewalDateIso: periodEnd,
       amount,
       currency: (row.currency as string) ?? 'usd',
-      leadTimeLabel: args.leadTimeLabel,
+      variant: args.emailType === 'renewal_reminder' ? '3d' : '24h',
     })
 
     const result = await sendEmail({
@@ -659,6 +696,180 @@ export async function processExpiredSubscriptionEmails(): Promise<{ sent: number
 }
 
 /**
+ * Sends E7 payment-confirmed receipt after a subscription renewal invoice is paid.
+ */
+export async function sendPaymentConfirmedForInvoice(
+  invoice: Stripe.Invoice
+): Promise<boolean> {
+  if (invoice.billing_reason !== 'subscription_cycle') {
+    return false
+  }
+
+  const customerId =
+    typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id
+  if (!customerId) return false
+
+  const { data: mapping } = await supabaseAdmin
+    .from('stripe_customers')
+    .select('user_id')
+    .eq('stripe_customer_id', customerId)
+    .maybeSingle()
+
+  if (!mapping?.user_id) return false
+
+  const userId = mapping.user_id
+  const invoiceId = invoice.id
+  if (await hasSentEmail(userId, 'payment_confirmed', null, invoiceId)) {
+    return false
+  }
+
+  const { data: profile } = await supabaseAdmin
+    .from('users')
+    .select('email, name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (!profile?.email) return false
+
+  const { data: sub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('billing_interval, plan_name, current_period_end, currency')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const paidAt =
+    invoice.status_transitions?.paid_at ?? invoice.created ?? Math.floor(Date.now() / 1000)
+  const paidDateIso = new Date(paidAt * 1000).toISOString()
+
+  const linePeriodEnd = invoice.lines.data[0]?.period?.end
+  const nextRenewalIso = sub?.current_period_end
+    ? String(sub.current_period_end)
+    : linePeriodEnd
+      ? new Date(linePeriodEnd * 1000).toISOString()
+      : paidDateIso
+
+  const email = renderPaymentConfirmedEmail({
+    firstName: firstNameFrom(profile.name ?? ''),
+    planLabel: planLabelFromBillingInterval(
+      sub?.billing_interval as 'week_1' | 'week_4' | 'year' | null,
+      sub?.plan_name as string | null
+    ),
+    paidDateIso,
+    nextRenewalIso,
+    amount: (invoice.amount_paid ?? 0) / 100,
+    currency: (sub?.currency as string | undefined) ?? invoice.currency ?? 'usd',
+  })
+
+  const result = await sendEmail({
+    to: profile.email,
+    subject: email.subject,
+    html: email.html,
+    text: email.text,
+    tag: 'e7-payment-confirmed',
+  })
+
+  if (!result) return false
+
+  await logEmailSent({
+    userId,
+    emailType: 'payment_confirmed',
+    mailgunId: result.id,
+    referenceId: invoiceId,
+  })
+
+  return true
+}
+
+/**
+ * Fire-and-forget E7 payment-confirmed email after a renewal invoice is paid.
+ */
+export function sendPaymentConfirmedAsync(invoice: Stripe.Invoice): void {
+  void (async () => {
+    try {
+      await sendPaymentConfirmedForInvoice(invoice)
+    } catch (err) {
+      console.error('[lifecycle-email] payment confirmed error', invoice.id, err)
+    }
+  })()
+}
+
+/**
+ * Sends E6 reengagement emails to active subscribers inactive for REENGAGEMENT_INACTIVE_DAYS.
+ */
+export async function processReengagementEmails(): Promise<{ sent: number }> {
+  const inactiveBefore = new Date()
+  inactiveBefore.setUTCDate(inactiveBefore.getUTCDate() - REENGAGEMENT_INACTIVE_DAYS)
+  const inactiveBeforeDate = inactiveBefore.toISOString().slice(0, 10)
+
+  const { data: subs, error: subsError } = await supabaseAdmin
+    .from('subscriptions')
+    .select('user_id')
+    .in('status', ['active', 'trialing'])
+    .eq('cancel_at_period_end', false)
+
+  if (subsError) {
+    throw new Error(subsError.message)
+  }
+
+  const userIds = [...new Set((subs ?? []).map((row) => row.user_id as string))]
+  if (userIds.length === 0) {
+    return { sent: 0 }
+  }
+
+  const { data: streakRows, error: streakError } = await supabaseAdmin
+    .from('streaks')
+    .select('user_id, last_active_date')
+    .in('user_id', userIds)
+
+  if (streakError) {
+    throw new Error(streakError.message)
+  }
+
+  const lastActiveByUser = new Map(
+    (streakRows ?? []).map((row) => [row.user_id as string, row.last_active_date as string | null])
+  )
+
+  let sent = 0
+
+  for (const userId of userIds) {
+    const lastActive = lastActiveByUser.get(userId) ?? null
+    if (lastActive && lastActive >= inactiveBeforeDate) continue
+    if (await hasRecentReengagement(userId)) continue
+
+    const { data: profile } = await supabaseAdmin
+      .from('users')
+      .select('email, name')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!profile?.email) continue
+
+    const firstName = firstNameFrom(profile.name ?? '')
+    const email = renderReengagementEmail({ firstName })
+
+    const result = await sendEmail({
+      to: profile.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+      tag: 'e6-reengagement',
+    })
+
+    if (!result) continue
+
+    await logEmailSent({
+      userId,
+      emailType: 'reengagement',
+      mailgunId: result.id,
+    })
+
+    sent++
+  }
+
+  return { sent }
+}
+
+/**
  * Runs all subscription lifecycle cron tasks (renewal reminders + grace expiry locks).
  */
 export async function processSubscriptionLifecycleCron(): Promise<{
@@ -666,18 +877,22 @@ export async function processSubscriptionLifecycleCron(): Promise<{
   renewal24h: number
   graceLocks: number
   subscriptionExpired: number
+  reengagement: number
 }> {
-  const [renewal3d, renewal24h, graceLocks, subscriptionExpired] = await Promise.all([
-    processDueRenewalReminders(),
-    processDueRenewalReminders24h(),
-    processGraceExpiredAccessLocks(),
-    processExpiredSubscriptionEmails(),
-  ])
+  const [renewal3d, renewal24h, graceLocks, subscriptionExpired, reengagement] =
+    await Promise.all([
+      processDueRenewalReminders(),
+      processDueRenewalReminders24h(),
+      processGraceExpiredAccessLocks(),
+      processExpiredSubscriptionEmails(),
+      processReengagementEmails(),
+    ])
 
   return {
     renewal3d: renewal3d.sent,
     renewal24h: renewal24h.sent,
     graceLocks: graceLocks.sent,
     subscriptionExpired: subscriptionExpired.sent,
+    reengagement: reengagement.sent,
   }
 }

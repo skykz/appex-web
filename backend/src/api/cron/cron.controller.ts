@@ -22,7 +22,7 @@ function assertCronAuthorized(req: Request): void {
 }
 
 /**
- * Hourly job: 3-day and 24h renewal reminders, plus grace-expiry access locks.
+ * Hourly job: renewal reminders, grace-expiry locks, subscription-expired notices, and E6 reengagement.
  */
 export async function runRenewalEmailCron(
   req: Request,

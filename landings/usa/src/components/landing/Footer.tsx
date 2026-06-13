@@ -1,3 +1,5 @@
+import { legalPolicyHref, resolveLegalLang } from "@/lib/legal-lang";
+
 const links = [
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Subscription Policy", href: "/subscription" },
@@ -5,6 +7,8 @@ const links = [
 ];
 
 export default function Footer() {
+  const lang = resolveLegalLang();
+
   return (
     <footer className="bg-background border-t border-border py-8 md:py-10 px-4 md:px-10">
       <div className="max-w-5xl mx-auto flex flex-col items-center gap-6">
@@ -17,7 +21,7 @@ export default function Footer() {
           {links.map((l) => (
             <a
               key={l.label}
-              href={l.href}
+              href={legalPolicyHref(l.href, lang)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[13px] md:text-sm text-muted-foreground hover:text-foreground transition-colors font-body"

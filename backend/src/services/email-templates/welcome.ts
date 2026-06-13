@@ -1,10 +1,11 @@
 import {
   appUrl,
   EMAIL_THEME,
+  escapeHtml,
   renderCtaButton,
   renderDivider,
-  renderEmailHighlight,
   renderEmailLayout,
+  renderGhostLink,
   renderTextLink,
   supportEmail,
 } from './layout.js'
@@ -15,7 +16,7 @@ export interface WelcomeEmailInput {
 }
 
 /**
- * Renders E2 — welcome email scheduled ~1 minute after E1.
+ * Renders E2 — welcome email scheduled ~1 minute after E1 (aligned with appex_email_2_white.html).
  */
 export function renderWelcomeEmail(input: WelcomeEmailInput): {
   subject: string
@@ -25,26 +26,22 @@ export function renderWelcomeEmail(input: WelcomeEmailInput): {
   const loginUrl = appUrl('/auth?tab=signin')
   const resetUrl = appUrl('/auth/forgot-password')
   const help = supportEmail()
-  const subject = `Welcome to Appex, ${input.firstName} 👋`
+  const subject = 'Welcome to Appex!'
 
   const bodyHtml = `
-    <p style="margin:0 0 16px;font-size:16px;color:${EMAIL_THEME.black};">Hi, ${escapeName(input.firstName)} 👋</p>
-    <p style="margin:0 0 16px;">We're super excited to have you here!</p>
-    <p style="margin:0 0 20px;">
+    <p style="margin:0 0 10px;font-size:16px;font-weight:500;color:${EMAIL_THEME.black};">Hi, ${escapeName(input.firstName)} 👋</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">We're super excited to have you here!</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">
       Your plan is ready. You now have access to your personalized AI skill roadmap,
       step-by-step lessons, and real income workflows.
     </p>
-    <p style="margin:0 0 8px;">Just log in to get started:</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">Just log in to get started:</p>
     ${renderCtaButton('Log in', loginUrl)}
-    <p style="margin:14px 0 0;text-align:center;font-size:14px;color:${EMAIL_THEME.muted};">
-      Forgot password? ${renderTextLink('Reset it here', resetUrl)}
-    </p>
+    ${renderGhostLink('Forgot password?', resetUrl)}
     ${renderDivider()}
-    <p style="margin:0 0 12px;font-size:14px;color:${EMAIL_THEME.muted};text-align:center;">
-      Make sure to use the email you signed up with:
-    </p>
-    ${renderEmailHighlight(input.email)}
-    <p style="margin:20px 0 0;text-align:center;font-size:14px;color:${EMAIL_THEME.muted};">
+    <p style="margin:0 0 4px;font-size:14px;color:#555555;line-height:1.7;">Make sure to use the email you signed up with:</p>
+    <p style="margin:6px 0 20px;font-size:14px;font-weight:500;color:${EMAIL_THEME.orange};">${escapeHtml(input.email)}</p>
+    <p style="margin:0;text-align:center;font-size:14px;color:#555555;line-height:1.7;">
       Any issues? ${renderTextLink('Contact support', `mailto:${help}`)}
     </p>
   `
@@ -56,6 +53,8 @@ export function renderWelcomeEmail(input: WelcomeEmailInput): {
   })
 
   const text = [
+    subject,
+    '',
     `Hi, ${input.firstName} 👋`,
     '',
     "We're super excited to have you here!",

@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { QuizProvider, useQuiz } from "@/contexts/QuizContext";
 import QuizFlow from "@/components/quiz/QuizFlow";
+import { LegalLink } from "@/components/legal/LegalLink";
+import { getQuizMenuLinks } from "@/lib/auth-links";
 import maleImg from "@/assets/quiz-male.jpg";
 import femaleImg from "@/assets/quiz-female.jpg";
 
 function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const docs = [
-    { label: "Privacy Policy", href: "/privacy" },
-    { label: "Money-back Policy", href: "/subscription" },
-    { label: "Subscription Policy", href: "/subscription" },
-    { label: "I already have an account", href: "/login" },
-  ];
+  const menuLinks = getQuizMenuLinks();
   return (
     <>
       {open && (
@@ -37,10 +34,12 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
 
         {/* Docs links */}
         <div className="flex flex-col gap-1 px-6 flex-1">
-          {docs.map((item) => (
+          {menuLinks.map((item) => (
             <a
               key={item.label}
               href={item.href}
+              target={item.newTab ? "_blank" : undefined}
+              rel={item.newTab ? "noopener noreferrer" : undefined}
               onClick={onClose}
               className="text-foreground text-[15px] py-2.5 hover:text-primary transition-colors"
             >
@@ -184,9 +183,9 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
 
         <p className="text-[12px] text-center max-w-[520px]" style={{ color: '#94A3B8' }}>
           By proceeding, you agree with{" "}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#F97316' }}>Terms and Conditions</a>,{" "}
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#F97316' }}>Privacy Policy</a>,{" "}
-          <a href="/subscription" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#F97316' }}>Subscription Terms</a>
+          <LegalLink href="/terms" className="underline" style={{ color: '#F97316' }}>Terms and Conditions</LegalLink>,{" "}
+          <LegalLink href="/privacy" className="underline" style={{ color: '#F97316' }}>Privacy Policy</LegalLink>,{" "}
+          <LegalLink href="/subscription" className="underline" style={{ color: '#F97316' }}>Subscription Terms</LegalLink>
         </p>
 
       </div>
@@ -261,11 +260,11 @@ function GenderScreen() {
 
 
         <div className="flex gap-3 mt-6 text-[12px] text-muted-foreground">
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</a>
+          <LegalLink href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</LegalLink>
           <span>·</span>
-          <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms</a>
+          <LegalLink href="/terms" className="hover:text-foreground transition-colors">Terms</LegalLink>
           <span>·</span>
-          <a href="/subscription" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Subscription Policy</a>
+          <LegalLink href="/subscription" className="hover:text-foreground transition-colors">Subscription Policy</LegalLink>
         </div>
       </div>
     </div>

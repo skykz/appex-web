@@ -181,6 +181,23 @@ function assertMailgunProductionReady() {
 
 assertMailgunProductionReady()
 
+/**
+ * Warns when production mail would still embed localhost links (APP_PUBLIC_URL unset and APP_URL is local).
+ */
+function warnEmailLinksMisconfigured() {
+  if (!isProductionHost || !mailgunEnabled) return
+  const appUrl = parsed.APP_URL.replace(/\/+$/, '')
+  const publicUrl = parsed.APP_PUBLIC_URL?.replace(/\/+$/, '')
+  const emailBase = publicUrl ?? appUrl
+  if (emailBase.includes('localhost') || emailBase.includes('127.0.0.1')) {
+    console.warn(
+      '[email] APP_PUBLIC_URL is unset and APP_URL is localhost — transactional email links will not work for customers. Set APP_PUBLIC_URL (and APP_URL) to your live learner app URL on Vercel.'
+    )
+  }
+}
+
+warnEmailLinksMisconfigured()
+
 export const env = {
   ...parsed,
   USA_LANDING_URL: parsed.USA_LANDING_URL ?? 'http://localhost:5175',

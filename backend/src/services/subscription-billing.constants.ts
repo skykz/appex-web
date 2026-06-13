@@ -7,3 +7,9 @@ export const RENEWAL_REMINDER_24H_MS = 24 * 60 * 60 * 1000
 
 /** Window around the 24h-before-renewal target for hourly cron matching. */
 export const RENEWAL_24H_CRON_WINDOW_MS = 60 * 60 * 1000
+
+/** Days without learner activity before E6 reengagement email (daily cron). */
+export const REENGAGEMENT_INACTIVE_DAYS = 7
+
+/** Minimum days between E6 reengagement emails for the same user. */
+export const REENGAGEMENT_COOLDOWN_DAYS = 14

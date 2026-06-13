@@ -15,10 +15,12 @@ export const EMAIL_THEME = {
 } as const
 
 /**
- * Public app base URL used in email CTAs (no trailing slash).
+ * Public learner-app base URL used in email CTAs (no trailing slash).
+ * Prefer APP_PUBLIC_URL so production mail never points at localhost when APP_URL is left for local Stripe URLs.
  */
 export function appBaseUrl(): string {
-  return env.APP_URL.replace(/\/+$/, '')
+  const base = env.APP_PUBLIC_URL ?? env.APP_URL
+  return base.replace(/\/+$/, '')
 }
 
 /**
@@ -47,16 +49,28 @@ export function firstNameFrom(fullName: string): string {
 
 export interface EmailLayoutInput {
   headline: string
+  /** When set, replaces the plain headline (must be pre-escaped HTML). */
+  headlineHtml?: string
   bodyHtml: string
   footerReason: string
+  /** When set, replaces the default two-line footer (must be pre-escaped HTML). */
+  footerHtml?: string
 }
 
 /**
  * Wraps email content in the shared Appex white-card layout (600px, system font).
  */
 export function renderEmailLayout(input: EmailLayoutInput): string {
-  const { headline, bodyHtml, footerReason } = input
+  const { headline, headlineHtml, bodyHtml, footerReason, footerHtml } = input
   const help = supportEmail()
+  const headlineBlock = headlineHtml
+    ? headlineHtml
+    : escapeHtml(headline)
+
+  const footerBlock = footerHtml
+    ? footerHtml
+    : `<p style="margin:0 0 2px;font-size:12px;line-height:1.6;color:#aaaaaa;">${escapeHtml(footerReason)}</p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#aaaaaa;">Questions? ${escapeHtml(help)}</p>`
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -75,7 +89,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
               <p style="margin:0;font-size:30px;font-weight:800;letter-spacing:-0.03em;line-height:1;">
                 <span style="color:${EMAIL_THEME.black};">App</span><span style="color:${EMAIL_THEME.orange};">ex</span>
               </p>
-              <h1 style="margin:22px 0 0;font-size:24px;line-height:1.3;color:${EMAIL_THEME.black};font-weight:700;">${escapeHtml(headline)}</h1>
+              <h1 style="margin:22px 0 0;font-size:24px;line-height:1.3;color:${EMAIL_THEME.black};font-weight:700;">${headlineBlock}</h1>
             </td>
           </tr>
           <tr>
@@ -84,11 +98,8 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
             </td>
           </tr>
           <tr>
-            <td style="padding:22px 32px;background:${EMAIL_THEME.footerBg};text-align:center;">
-              <p style="margin:0;font-size:12px;line-height:1.6;color:${EMAIL_THEME.muted};">
-                ${escapeHtml(footerReason)} Questions?
-                <a href="mailto:${escapeHtml(help)}" style="color:${EMAIL_THEME.muted};text-decoration:underline;">${escapeHtml(help)}</a>
-              </p>
+            <td style="padding:22px 32px;background:${EMAIL_THEME.footerBg};text-align:center;border-top:1px solid ${EMAIL_THEME.border};">
+              ${footerBlock}
             </td>
           </tr>
         </table>
@@ -116,10 +127,10 @@ export function renderCtaButton(label: string, href: string): string {
  * Renders a full-width outlined secondary button (white fill, dark border).
  */
 export function renderOutlineButton(label: string, href: string): string {
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0 8px;">
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
   <tr>
-    <td align="center" style="border-radius:10px;border:1.5px solid ${EMAIL_THEME.black};background:${EMAIL_THEME.bg};">
-      <a href="${escapeHtml(href)}" style="display:block;padding:15px 24px;font-size:16px;font-weight:700;color:${EMAIL_THEME.black};text-decoration:none;text-align:center;border-radius:10px;">${escapeHtml(label)}</a>
+    <td align="center" style="border-radius:6px;border:1px solid #cccccc;background:${EMAIL_THEME.bg};">
+      <a href="${escapeHtml(href)}" style="display:block;padding:12px 24px;font-size:13px;font-weight:500;color:#555555;text-decoration:none;text-align:center;border-radius:6px;">${escapeHtml(label)}</a>
     </td>
   </tr>
 </table>`
@@ -142,6 +153,15 @@ export function renderDivider(): string {
 }
 
 /**
+ * Renders a centered ghost text link below a primary CTA (E2 forgot password).
+ */
+export function renderGhostLink(label: string, href: string): string {
+  return `<p style="margin:0 0 20px;text-align:center;font-size:13px;line-height:1.5;">
+  <a href="${escapeHtml(href)}" style="color:#555555;text-decoration:none;">${escapeHtml(label)}</a>
+</p>`
+}
+
+/**
  * Renders a checklist row for the E1 onboarding steps.
  */
 export function renderChecklistItem(
@@ -149,22 +169,22 @@ export function renderChecklistItem(
   label: string
 ): string {
   let icon = ''
-  let labelStyle = `color:${EMAIL_THEME.black};font-weight:600;`
+  let labelStyle = `color:${EMAIL_THEME.black};font-weight:500;`
 
   if (state === 'done') {
-    icon = `<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:${EMAIL_THEME.black};color:#fff;font-size:12px;font-weight:700;">✓</span>`
-    labelStyle = `color:${EMAIL_THEME.lightMuted};text-decoration:line-through;font-weight:500;`
+    icon = `<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;border-radius:50%;background:${EMAIL_THEME.black};color:#fff;font-size:11px;font-weight:700;">✓</span>`
+    labelStyle = `color:#aaaaaa;text-decoration:line-through;font-weight:400;`
   } else if (state === 'active') {
-    icon = `<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:#3B82F6;color:#fff;font-size:11px;">●</span>`
+    icon = `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:2px solid ${EMAIL_THEME.black};background:#f5f5f5;"></span>`
   } else {
-    icon = `<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;border:2px solid #D1D5DB;color:#D1D5DB;font-size:11px;">○</span>`
-    labelStyle = `color:${EMAIL_THEME.lightMuted};font-weight:500;`
+    icon = `<span style="display:inline-block;width:20px;height:20px;border-radius:50%;border:1px solid #cccccc;"></span>`
+    labelStyle = `color:#aaaaaa;font-weight:400;`
   }
 
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 10px;">
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0;border-bottom:1px solid #eeeeee;">
   <tr>
-    <td width="34" valign="middle" style="padding-right:10px;">${icon}</td>
-    <td valign="middle" style="font-size:15px;line-height:1.4;${labelStyle}">${escapeHtml(label)}</td>
+    <td width="32" valign="middle" style="padding:11px 12px 11px 0;">${icon}</td>
+    <td valign="middle" style="padding:11px 0;font-size:14px;line-height:1.4;${labelStyle}">${escapeHtml(label)}</td>
   </tr>
 </table>`
 }
@@ -198,19 +218,57 @@ export function renderFeatureCardGrid(cards: FeatureCard[]): string {
  * Renders a single feature card with an orange icon badge.
  */
 function renderFeatureCard(card: FeatureCard): string {
-  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${EMAIL_THEME.cardBg};border-radius:14px;">
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${EMAIL_THEME.cardBg};border:1px solid #eeeeee;border-radius:8px;">
   <tr>
-    <td style="padding:18px 16px;">
-      <p style="margin:0 0 10px;font-size:22px;line-height:1;">${card.icon}</p>
-      <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:${EMAIL_THEME.black};line-height:1.3;">${escapeHtml(card.title)}</p>
-      <p style="margin:0;font-size:13px;line-height:1.45;color:${EMAIL_THEME.muted};">${escapeHtml(card.description)}</p>
+    <td style="padding:14px;">
+      <p style="margin:0 0 8px;font-size:18px;line-height:1;color:${EMAIL_THEME.orange};">${card.icon}</p>
+      <p style="margin:0 0 3px;font-size:13px;font-weight:500;color:${EMAIL_THEME.black};line-height:1.3;">${escapeHtml(card.title)}</p>
+      <p style="margin:0;font-size:12px;line-height:1.4;color:#888888;">${escapeHtml(card.description)}</p>
     </td>
   </tr>
 </table>`
 }
 
 /**
- * Renders a grey info box (renewal details in E3, email highlight in E2).
+ * Renders the renewal date + amount row used in E3/E5 renewal reminders.
+ */
+export function renderRenewalRemindBox(renewalDate: string, amount: string): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #eeeeee;border-radius:8px;">
+  <tr>
+    <td style="padding:18px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td width="50%" valign="top">
+            <p style="margin:0 0 4px;font-size:12px;color:#888888;">Renewal date</p>
+            <p style="margin:0;font-size:15px;font-weight:500;color:#111111;">${escapeHtml(renewalDate)}</p>
+          </td>
+          <td width="50%" valign="top" align="right">
+            <p style="margin:0 0 4px;font-size:12px;color:#888888;">Amount</p>
+            <p style="margin:0;font-size:15px;font-weight:500;color:#111111;">${escapeHtml(amount)}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`
+}
+
+/**
+ * Renders a titled info box for cancellation and similar notices.
+ */
+export function renderContentInfoBox(title: string, bodyHtml: string): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #eeeeee;border-radius:8px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:500;color:#111111;">${escapeHtml(title)}</p>
+      <p style="margin:0;font-size:13px;color:#555555;line-height:1.6;">${bodyHtml}</p>
+    </td>
+  </tr>
+</table>`
+}
+
+/**
+ * Renders a grey info box (legacy stacked layout).
  */
 export function renderInfoBox(rows: { label: string; value: string; valueColor?: string }[]): string {
   const inner = rows
@@ -268,6 +326,103 @@ export function formatRenewalDate(iso: string): string {
   } catch {
     return iso.slice(0, 10)
   }
+}
+
+/**
+ * Short plan label for E7 receipt rows (e.g. "4 Weeks").
+ */
+export function planDisplayLabel(
+  interval: 'week_1' | 'week_4' | 'year' | null | undefined,
+  fallback = 'Premium'
+): string {
+  switch (interval) {
+    case 'week_4':
+      return '4 Weeks'
+    case 'week_1':
+      return '1 Week'
+    case 'year':
+      return 'Yearly'
+    default:
+      return fallback
+  }
+}
+
+/**
+ * Renders the green success pill used in E7 payment confirmed.
+ */
+export function renderSuccessBadge(label: string): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;">
+  <tr>
+    <td align="center">
+      <span style="display:inline-block;background:#f0faf4;border:1px solid #b7e4c7;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:500;color:#1a7a42;line-height:1.4;">✓ ${escapeHtml(label)}</span>
+    </td>
+  </tr>
+</table>`
+}
+
+export interface ReceiptRow {
+  label: string
+  value: string
+}
+
+/**
+ * Renders a two-column receipt box for E7 renewal confirmations.
+ */
+export function renderReceiptBox(rows: ReceiptRow[]): string {
+  const inner = rows
+    .map((row, idx) => {
+      const isLast = idx === rows.length - 1
+      return `<tr>
+        <td style="padding:6px 0;${isLast ? '' : 'border-bottom:1px solid #eeeeee;'}">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:14px;${isLast ? 'font-weight:500;color:#111111;' : ''}">
+            <tr>
+              <td style="color:${isLast ? '#111111' : '#555555'};">${escapeHtml(row.label)}</td>
+              <td align="right" style="color:#111111;">${escapeHtml(row.value)}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>`
+    })
+    .join('')
+
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #eeeeee;border-radius:8px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        ${inner}
+      </table>
+    </td>
+  </tr>
+</table>`
+}
+
+/**
+ * Renders the friendly robot illustration for E6 reengagement emails.
+ */
+export function renderReengagementRobot(): string {
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:24px 0;">
+  <tr>
+    <td align="center">
+      <svg width="120" height="140" viewBox="0 0 120 140" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
+        <rect x="30" y="40" width="60" height="50" rx="10" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <circle cx="44" cy="62" r="8" fill="#fff" stroke="#ccc" stroke-width="1.5"/>
+        <circle cx="76" cy="62" r="8" fill="#fff" stroke="#ccc" stroke-width="1.5"/>
+        <circle cx="44" cy="62" r="4" fill="#111"/>
+        <circle cx="76" cy="62" r="4" fill="#111"/>
+        <path d="M44 76 Q60 86 76 76" stroke="#555" stroke-width="2" stroke-linecap="round" fill="none"/>
+        <rect x="52" y="28" width="16" height="14" rx="3" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <circle cx="60" cy="28" r="3" fill="#FF6B00"/>
+        <rect x="20" y="50" width="10" height="28" rx="5" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="90" y="50" width="10" height="28" rx="5" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <path d="M95 54 L108 44" stroke="#ccc" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="111" cy="42" r="5" fill="#f0f0f0" stroke="#FF6B00" stroke-width="1.5"/>
+        <rect x="38" y="90" width="44" height="36" rx="6" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="30" y="126" width="18" height="10" rx="5" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+        <rect x="72" y="126" width="18" height="10" rx="5" fill="#f0f0f0" stroke="#ccc" stroke-width="1.5"/>
+      </svg>
+    </td>
+  </tr>
+</table>`
 }
 
 /**

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { LegalLink } from "@/components/legal/LegalLink";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import {
@@ -37,6 +38,101 @@ function getQuizData() {
   } catch {
     return {};
   }
+}
+
+/** Decorative laurel icon flanking paywall trust badges. */
+function Laurel({ side }: { side: "left" | "right" }) {
+  return (
+    <svg
+      width="32"
+      height="52"
+      viewBox="0 0 36 56"
+      fill="none"
+      style={{ transform: side === "right" ? "scaleX(-1)" : undefined }}
+      aria-hidden
+    >
+      <path d="M30 4 C 14 12, 6 28, 8 52" stroke="#E0A91A" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      {[6, 13, 20, 27, 34, 41, 48].map((y, i) => {
+        const x = 30 - i * 3.6;
+        const rot = -55 + i * 6;
+        return (
+          <ellipse
+            key={i}
+            cx={x}
+            cy={y}
+            rx="5.5"
+            ry="2.6"
+            fill="#F5C13A"
+            stroke="#C68A0E"
+            strokeWidth="0.8"
+            transform={`rotate(${rot} ${x} ${y})`}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Renders one Trustpilot-style square star (full or half for the 4.5 rating). */
+function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
+  const starPath =
+    "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+      {half && (
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="0" y="0" width="9" height="18" />
+          </clipPath>
+        </defs>
+      )}
+      <rect width="18" height="18" rx="1" fill={half ? "#DCDCE6" : "#00B67A"} />
+      {half && <rect width="18" height="18" rx="1" fill="#00B67A" clipPath={`url(#${clipId})`} />}
+      <path d={starPath} fill="white" />
+    </svg>
+  );
+}
+
+/** Trustpilot rating and learner count shown beneath subscription plan cards. */
+function PaywallTrustBadges() {
+  const halfStarClipId = "paywall-trust-half-star";
+
+  return (
+    <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4 flex-wrap">
+      <div className="flex items-center gap-2">
+        <Laurel side="left" />
+        <div className="text-center">
+          <p className="text-[13px] font-bold leading-tight" style={{ color: BLACK }}>
+            4.5 excellent
+          </p>
+          <div className="flex gap-0.5 my-1 justify-center">
+            {[1, 2, 3, 4].map((i) => (
+              <TrustpilotStar key={i} clipId={`${halfStarClipId}-${i}`} />
+            ))}
+            <TrustpilotStar half clipId={halfStarClipId} />
+          </div>
+          <p className="text-[11px]" style={{ color: "#475569" }}>
+            on Trustpilot
+          </p>
+        </div>
+        <Laurel side="right" />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Laurel side="left" />
+        <div className="text-center">
+          <p className="text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
+            50K+ learners
+          </p>
+          <p className="text-[11px] mt-1" style={{ color: "#475569" }}>
+            Learned new skills
+          </p>
+        </div>
+        <Laurel side="right" />
+      </div>
+    </div>
+  );
 }
 
 /** Single plan radio row on the paywall. */
@@ -136,6 +232,8 @@ function PricingBlock({
         ))}
       </div>
 
+      <PaywallTrustBadges />
+
       {/* GET MY PLAN button — same on mobile and desktop */}
       <button
         id="get-my-plan-btn"
@@ -163,16 +261,6 @@ function PricingBlock({
       <p className="text-center mb-5 leading-relaxed font-body text-[11px] md:text-[12.5px]" style={{ color: '#888888' }}>
         {ftcDisclosure(plan)}
       </p>
-
-      {/* Trust badge — 5 stars + 4.8 only */}
-      <div className="flex items-center justify-center gap-2 mb-5">
-        <div className="flex items-center gap-0.5">
-          {[1,2,3,4,5].map(i => (
-            <span key={i} className="text-[18px]" style={{ color: ORANGE }}>★</span>
-          ))}
-        </div>
-        <span className="text-[14px] font-bold" style={{ color: BLACK }}>4.8</span>
-      </div>
     </div>
   );
 }
@@ -518,9 +606,9 @@ export default function Paywall() {
         <footer className="text-center border-t pt-8" style={{ borderColor: '#E5E5E5' }}>
           <p className="text-[12px] mb-2" style={{ color: '#64748B' }}>
             By proceeding, you agree with{" "}
-            <a href="/terms" className="underline" style={{ color: ORANGE }}>Terms and Conditions</a>,{" "}
-            <a href="/privacy" className="underline" style={{ color: ORANGE }}>Privacy Policy</a>,{" "}
-            <a href="/subscription" className="underline" style={{ color: ORANGE }}>Subscription Terms</a>
+            <LegalLink href="/terms" className="underline" style={{ color: ORANGE }}>Terms and Conditions</LegalLink>,{" "}
+            <LegalLink href="/privacy" className="underline" style={{ color: ORANGE }}>Privacy Policy</LegalLink>,{" "}
+            <LegalLink href="/subscription" className="underline" style={{ color: ORANGE }}>Subscription Terms</LegalLink>
           </p>
           <p className="text-center mt-1 text-[12px]" style={{ color: '#94A3B8' }}>
             <span className="font-extrabold" style={{ color: BLACK }}>App</span><span className="font-extrabold" style={{ color: ORANGE }}>ex</span> Inc.

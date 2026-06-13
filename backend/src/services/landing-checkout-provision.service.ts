@@ -63,7 +63,7 @@ async function resolveDisplayName(
 /**
  * Returns a prior provision row for this checkout session, if webhook replay already ran.
  */
-async function findExistingProvision(sessionId: string) {
+export async function getLandingCheckoutProvision(sessionId: string) {
   const { data, error } = await supabaseAdmin
     .from('landing_checkout_provisions')
     .select('user_id, email')
@@ -137,7 +137,7 @@ export async function provisionFromLandingCheckoutSession(
   subscription: Stripe.Subscription
 ): Promise<LandingProvisionResult> {
   const sessionId = session.id
-  const existing = await findExistingProvision(sessionId)
+  const existing = await getLandingCheckoutProvision(sessionId)
   if (existing) {
     const profile = await findUserByEmail(existing.email)
     return {

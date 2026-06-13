@@ -1,4 +1,5 @@
 import type { Answers } from "@/quiz/QuizContext";
+import { getLearnerAppUrl } from "@/lib/checkout-redirect";
 
 const SESSION_KEY = "appexLandingSession";
 const LANDING_ID = "usa";
@@ -201,6 +202,94 @@ export async function createLandingCheckout(args: {
   } catch (err) {
     console.warn("[landing-api] checkout error", err);
     return { error: "Could not reach the payment server. Please try again." };
+  }
+}
+
+/**
+ * Builds the learner SPA auth callback URL with tokens in the hash (cross-origin handoff).
+ */
+export function buildLearnerAuthCallbackUrl(args: {
+  accessToken: string
+  refreshToken: string;
+}): string | null {
+  const base = getLearnerAppUrl();
+  if (!base) return null;
+  const hash = new URLSearchParams({
+    access_token: args.accessToken,
+    refresh_token: args.refreshToken,
+  }).toString();
+  return `${base}/auth/callback#${hash}`;
+}
+
+export type LandingCheckoutStatus = {
+  status: "pending" | "ready";
+  email: string | null;
+  name: string | null;
+};
+
+export type CompleteCheckoutResult = {
+  accessToken: string;
+  refreshToken: string;
+  user: { id: string; email: string; name: string | null };
+  redirectUrl: string;
+};
+
+/**
+ * Polls backend until the post-payment learner account is ready.
+ */
+export async function fetchLandingCheckoutStatus(
+  sessionId: string
+): Promise<LandingCheckoutStatus | { error: string }> {
+  const base = getApiBaseUrl();
+  if (!base) {
+    return { error: "Checkout status is not configured. Set VITE_API_URL on the USA landing deployment." };
+  }
+
+  try {
+    const params = new URLSearchParams({ session_id: sessionId });
+    const res = await fetch(`${base}/landing/checkout/session?${params.toString()}`);
+    if (!res.ok) {
+      const message = await readApiError(res, "Could not verify your payment.");
+      return { error: message };
+    }
+    return (await res.json()) as LandingCheckoutStatus;
+  } catch {
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
+/**
+ * Sets password on the provisioned account and returns auth tokens for the learner app.
+ */
+export async function completeLandingCheckoutAccount(args: {
+  sessionId: string;
+  password: string;
+  name?: string;
+}): Promise<CompleteCheckoutResult | { error: string }> {
+  const base = getApiBaseUrl();
+  if (!base) {
+    return { error: "Account setup is not configured. Set VITE_API_URL on the USA landing deployment." };
+  }
+
+  try {
+    const res = await fetch(`${base}/landing/checkout/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        session_id: args.sessionId,
+        password: args.password,
+        name: args.name?.trim() || undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      const message = await readApiError(res, "Could not create your account.");
+      return { error: message };
+    }
+
+    return (await res.json()) as CompleteCheckoutResult;
+  } catch {
+    return { error: "Could not reach the server. Please try again." };
   }
 }
 

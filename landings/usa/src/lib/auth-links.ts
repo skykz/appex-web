@@ -4,6 +4,7 @@ import {
   buildSigninUrl,
   getLearnerAppUrl,
 } from "./checkout-redirect";
+import { legalPolicyHref, resolveLegalLang } from "./legal-lang";
 
 export type MenuLink = {
   label: string;
@@ -23,11 +24,13 @@ export function getQuizMenuLinks(args?: {
       ? buildSigninCheckoutUrl({ email: args.email, interval: args.interval })
       : buildSigninUrl({ email: args.email });
 
+  const lang = resolveLegalLang();
+
   return [
-    { label: "Privacy Policy", href: "/privacy", newTab: true },
-    { label: "Money-back Policy", href: "/subscription", newTab: true },
-    { label: "Subscription Terms", href: "/subscription", newTab: true },
-    { label: "Terms and Conditions", href: "/terms", newTab: true },
+    { label: "Privacy Policy", href: legalPolicyHref("/privacy", lang), newTab: true },
+    { label: "Money-back Policy", href: legalPolicyHref("/subscription", lang), newTab: true },
+    { label: "Subscription Terms", href: legalPolicyHref("/subscription", lang), newTab: true },
+    { label: "Terms and Conditions", href: legalPolicyHref("/terms", lang), newTab: true },
     {
       label: "I already have an account",
       href: accountHref ?? "#",

@@ -14,6 +14,7 @@ import {
   isLandingCheckoutSession,
   provisionFromLandingCheckoutSession,
 } from '../../services/landing-checkout-provision.service.js'
+import { sendPaymentConfirmedAsync } from '../../services/lifecycle-email.service.js'
 
 /**
  * Stripe webhook entry point.
@@ -119,7 +120,9 @@ async function dispatch(event: Stripe.Event): Promise<void> {
     // Payment-related events: write to billing_history.
     case 'invoice.paid':
     case 'invoice.payment_succeeded': {
-      await recordInvoicePayment(event.data.object as Stripe.Invoice)
+      const invoice = event.data.object as Stripe.Invoice
+      await recordInvoicePayment(invoice)
+      sendPaymentConfirmedAsync(invoice)
       return
     }
 

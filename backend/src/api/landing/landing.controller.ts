@@ -6,6 +6,10 @@ import {
   createLandingCheckoutSession,
   type BillingInterval,
 } from '../../services/stripe.service.js'
+import {
+  completeLandingCheckoutAccount,
+  getLandingCheckoutStatus,
+} from '../../services/landing-checkout-complete.service.js'
 
 const LANDING_IDS = ['usa'] as const
 const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
@@ -208,6 +212,54 @@ export async function createLandingCheckout(
     })
 
     res.json({ url })
+  } catch (err) {
+    next(err)
+  }
+}
+
+const checkoutSessionQuerySchema = z.object({
+  session_id: z.string().min(1).max(128),
+})
+
+const completeCheckoutSchema = z.object({
+  session_id: z.string().min(1).max(128),
+  password: z.string().min(8).max(128),
+  name: z.string().min(1).max(200).optional(),
+})
+
+/**
+ * Polls whether a USA landing Stripe checkout is paid and the learner account is provisioned.
+ */
+export async function getLandingCheckoutSessionStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { session_id } = checkoutSessionQuerySchema.parse(req.query)
+    const status = await getLandingCheckoutStatus(session_id)
+    res.json(status)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Sets password on a provisioned post-checkout account and returns tokens for the learner SPA.
+ */
+export async function completeLandingCheckout(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = completeCheckoutSchema.parse(req.body)
+    const result = await completeLandingCheckoutAccount({
+      sessionId: body.session_id,
+      password: body.password,
+      name: body.name,
+    })
+    res.json(result)
   } catch (err) {
     next(err)
   }

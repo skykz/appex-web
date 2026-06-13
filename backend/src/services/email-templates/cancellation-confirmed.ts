@@ -1,67 +1,78 @@
 import {
-  appUrl,
+  escapeHtml,
   formatRenewalDate,
-  renderCtaButton,
+  renderContentInfoBox,
+  renderDivider,
   renderEmailLayout,
-  renderInfoBox,
+  renderOutlineButton,
   supportEmail,
 } from './layout.js'
 
 /**
- * Renders email sent immediately after the user confirms subscription cancellation.
+ * Renders E4 — cancellation confirmation (aligned with appex_email_4_cancellation.html).
  */
 export function renderCancellationConfirmedEmail(args: {
   firstName: string
   accessUntilIso: string
 }): { subject: string; html: string; text: string } {
   const accessUntilLabel = formatRenewalDate(args.accessUntilIso)
-  const settingsUrl = appUrl('/settings?section=plan')
-  const subject = 'Your subscription cancellation is confirmed'
+  const help = supportEmail()
+  const subject = 'Your Appex subscription has been cancelled'
+  const endDateHtml = `<strong>${escapeHtml(accessUntilLabel)}</strong>`
 
   const bodyHtml = `
-    <p style="margin:0 0 16px;font-size:16px;color:#111111;">Hi ${escapeName(args.firstName)},</p>
-    <p style="margin:0 0 20px;font-size:15px;color:#374151;">
-      We've received your cancellation request. You won't be charged again unless you resubscribe.
+    <p style="margin:0 0 10px;font-size:16px;font-weight:500;color:#111111;">Hello, ${escapeHtml(args.firstName)}!</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">
+      This email confirms that you have cancelled your Appex subscription which will end on ${endDateHtml}.
+      We're really sorry to see you go, but thanks for giving us a try.
     </p>
-    ${renderInfoBox([{ label: 'Access until', value: accessUntilLabel }])}
-    <p style="margin:0 0 20px;font-size:15px;color:#374151;">
-      You can keep learning until that date. Changed your mind? You can resume your subscription anytime before then.
-    </p>
-    ${renderCtaButton('Manage subscription', settingsUrl)}
-    <p style="margin:24px 0 0;text-align:center;font-size:14px;color:#6B7280;">
-      Need help? <a href="mailto:${supportEmail()}" style="color:#FF6B00;font-weight:600;text-decoration:none;">Contact support</a>
-    </p>
+    ${renderContentInfoBox(
+      "You won't be charged again",
+      `You will continue to have access to your plan until the end of your current billing cycle on ${endDateHtml}. After that, you will no longer be billed.`
+    )}
+    ${renderContentInfoBox(
+      "We'd love to welcome you back!",
+      'Remember, our door is always open. If your circumstances change or you wish to explore Appex again, reactivating your subscription is straightforward and hassle-free.'
+    )}
+    ${renderDivider()}
+    <p style="margin:0 0 12px;font-size:14px;font-weight:500;color:#111111;">Need help?</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">If you have any questions, please contact us here</p>
+    ${renderOutlineButton('Contact support', `mailto:${help}`)}
+  `
+
+  const footerHtml = `
+    <p style="margin:0 0 2px;font-size:12px;line-height:1.6;color:#aaaaaa;">Please do not reply to this email. This mailbox is not monitored.</p>
+    <p style="margin:0 0 2px;font-size:12px;line-height:1.6;color:#aaaaaa;">If you have questions, contact us at ${escapeHtml(help)}</p>
+    <p style="margin:4px 0 0;font-size:12px;line-height:1.6;color:#aaaaaa;">Appex Inc. · 131 Continental Dr, Suite 305, Newark, DE 19713</p>
   `
 
   const html = renderEmailLayout({
-    headline: 'Cancellation confirmed',
+    headline: 'Your account has been cancelled.',
+    headlineHtml: `${escapeHtml('Your account has been cancelled.')}<br />${escapeHtml('We are sad to see you go.')}`,
     bodyHtml,
-    footerReason: "You're receiving this because you cancelled your Appex subscription.",
+    footerReason: '',
+    footerHtml,
   })
 
   const text = [
-    `Hi ${args.firstName},`,
+    subject,
     '',
-    "We've received your cancellation request. You won't be charged again unless you resubscribe.",
+    `Hello, ${args.firstName}!`,
     '',
-    `Access until: ${accessUntilLabel}`,
+    `This email confirms that you have cancelled your Appex subscription which will end on ${accessUntilLabel}.`,
+    "We're really sorry to see you go, but thanks for giving us a try.",
     '',
-    'You can keep learning until that date. Resume anytime before then:',
-    settingsUrl,
+    "You won't be charged again.",
+    `You will continue to have access until ${accessUntilLabel}. After that, you will no longer be billed.`,
     '',
-    `Need help? ${supportEmail()}`,
+    "We'd love to welcome you back! Reactivating your subscription is straightforward and hassle-free.",
+    '',
+    'Need help?',
+    `Contact support: ${help}`,
+    '',
+    'Please do not reply to this email. This mailbox is not monitored.',
+    'Appex Inc. · 131 Continental Dr, Suite 305, Newark, DE 19713',
   ].join('\n')
 
   return { subject, html, text }
-}
-
-/**
- * Escapes a display value for HTML email bodies.
- */
-function escapeName(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }

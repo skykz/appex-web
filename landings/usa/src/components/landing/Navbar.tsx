@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { buildSigninUrl } from "@/lib/checkout-redirect";
+import { legalPolicyHref, resolveLegalLang } from "@/lib/legal-lang";
 
 const navLinks = [
   { label: "How it Works", href: "#how-it-works" },
@@ -10,15 +11,16 @@ const navLinks = [
 
 const sidebarLinks = [
   ...navLinks,
-  { label: "Privacy Policy", href: "/privacy" },
-  { label: "Terms", href: "/terms" },
-  { label: "Subscription Policy", href: "/subscription" },
+  { label: "Privacy Policy", href: "/privacy", newTab: true },
+  { label: "Terms", href: "/terms", newTab: true },
+  { label: "Subscription Policy", href: "/subscription", newTab: true },
 ];
 
 /** Fixed top navigation with learner-app login and quiz CTA. */
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const loginUrl = buildSigninUrl();
+  const lang = resolveLegalLang();
 
   const handleLoginClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (loginUrl) return;
@@ -96,7 +98,9 @@ export default function Navbar() {
             {sidebarLinks.map((l) => (
               <a
                 key={l.label}
-                href={l.href}
+                href={"newTab" in l && l.newTab ? legalPolicyHref(l.href, lang) : l.href}
+                target={"newTab" in l && l.newTab ? "_blank" : undefined}
+                rel={"newTab" in l && l.newTab ? "noopener noreferrer" : undefined}
                 onClick={() => setOpen(false)}
                 className="text-base text-foreground/80 py-2 hover:text-primary transition-colors"
               >

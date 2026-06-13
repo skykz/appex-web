@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
 import { submitLandingQuiz } from "@/lib/landing-api";
+import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
@@ -428,9 +429,9 @@ function S1() {
       </div>
       <div className="text-center text-[11px] leading-relaxed" style={{ color: C.muted }}>
         <div className="flex justify-center gap-2 flex-wrap mb-2">
-          <a href="/terms" className="underline">Terms and Conditions</a>·
-          <a href="/privacy" className="underline">Privacy Policy</a>·
-          <a href="/subscription" className="underline">Subscription Terms</a>
+          <LegalLink href="/terms" className="underline">Terms and Conditions</LegalLink>·
+          <LegalLink href="/privacy" className="underline">Privacy Policy</LegalLink>·
+          <LegalLink href="/subscription" className="underline">Subscription Terms</LegalLink>
         </div>
       </div>
     </StepShell>
@@ -1228,7 +1229,7 @@ function S23() {
       </div>
       <p className="flex items-start gap-2 text-[12px] mb-4" style={{ color: C.muted }}>
         <Lock size={14} className="mt-0.5 flex-shrink-0" />
-        We respect your privacy. See our <a href="/privacy" className="underline ml-1">Privacy Policy</a>.
+        We respect your privacy. See our <LegalLink href="/privacy" className="underline ml-1">Privacy Policy</LegalLink>.
       </p>
       <div className="rounded-2xl p-3 mb-6 text-[13px]" style={{ background: "rgba(47,79,224,0.08)", color: C.text }}>
         Make sure your email is valid — get the <strong>AI Agents Guidebook</strong> from us.
