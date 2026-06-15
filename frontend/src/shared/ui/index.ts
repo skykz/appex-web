@@ -53,3 +53,4 @@ export {
   useSidebar,
 } from './sidebar'
 export { ProgressCard } from './progress-card'
+export { PlatformLoader, PageLoader, SectionLoader } from './platform-loader'

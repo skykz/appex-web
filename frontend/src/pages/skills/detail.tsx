@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronRight, ChevronUp, ChevronDown, Lock, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import { PageLoader } from '@shared/ui'
 import { skillsApi, type SkillModule } from '@features/skills'
 import { PaywallDialog } from '@features/skills/paywall-dialog'
 
@@ -33,20 +34,7 @@ export default function SkillDetailPage() {
   }
 
   if (isPending) {
-    return (
-      <div className="relative min-h-dvh w-full animate-pulse py-2">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="mb-6 h-4 w-24 rounded bg-muted" />
-          <div className="flex flex-col gap-8 lg:flex-row">
-            <div className="flex-1 space-y-4">
-              <div className="h-56 rounded-2xl bg-muted" />
-              <div className="h-32 rounded-xl bg-muted" />
-            </div>
-            <div className="h-96 w-full shrink-0 rounded-2xl bg-muted lg:w-80" />
-          </div>
-        </div>
-      </div>
-    )
+    return <PageLoader label="Loading course…" />
   }
 
   if (isError || !skill) {

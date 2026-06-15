@@ -1,29 +1,48 @@
 import { cn } from '@shared/lib'
-import { skillCategories, type SkillCategoryFilter } from './types'
 
-interface SkillCategoryTabsProps {
-  value: SkillCategoryFilter
-  onChange: (category: SkillCategoryFilter) => void
+export interface SkillNavTab {
+  id: string
+  label: string
 }
 
-export function SkillCategoryTabs({ value, onChange }: SkillCategoryTabsProps) {
+interface SkillCategoryTabsProps {
+  tabs: SkillNavTab[]
+  activeId: string
+  onSelect: (id: string) => void
+}
+
+/**
+ * Horizontal underline tabs for jumping between skills catalog sections.
+ */
+export function SkillCategoryTabs({ tabs, activeId, onSelect }: SkillCategoryTabsProps) {
   return (
-    <div className="scrollbar-hide flex gap-2 overflow-x-auto pb-1">
-      {skillCategories.map((cat) => (
-        <button
-          key={cat.value}
-          type="button"
-          onClick={() => onChange(cat.value)}
-          className={cn(
-            'shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200',
-            value === cat.value
-              ? 'bg-foreground text-background shadow-sm'
-              : 'bg-muted text-muted-foreground hover:bg-muted/80'
-          )}
-        >
-          {cat.label}
-        </button>
-      ))}
+    <div className="scrollbar-hide -mx-1 overflow-x-auto border-b border-border/70">
+      <div className="flex min-w-max gap-1 px-1">
+        {tabs.map((tab) => {
+          const active = tab.id === activeId
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => onSelect(tab.id)}
+              className={cn(
+                'relative shrink-0 px-4 py-3 text-sm font-medium transition-colors',
+                active
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {tab.label}
+              <span
+                className={cn(
+                  'absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary transition-opacity',
+                  active ? 'opacity-100' : 'opacity-0'
+                )}
+              />
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

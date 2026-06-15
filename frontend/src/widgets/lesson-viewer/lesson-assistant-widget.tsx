@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { MessageCircle, Sparkles, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { ApiError } from '@shared/api/http-client'
-import { Button } from '@shared/ui'
+import { Button, PlatformLoader } from '@shared/ui'
 import {
   ChatInput,
   ChatMessageList,
@@ -178,7 +178,9 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
               <ChatMessageList messages={messages} />
             )}
             {sending ? (
-              <div className="mt-4 h-14 animate-pulse rounded-xl bg-muted/60" aria-label="Assistant thinking" />
+              <div className="mt-4 flex justify-center py-2" aria-label="Assistant thinking">
+                <PlatformLoader variant="compact" />
+              </div>
             ) : null}
             {error ? (
               <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">

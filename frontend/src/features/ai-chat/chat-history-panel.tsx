@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Trash2 } from 'lucide-react'
+import { PlatformLoader } from '@shared/ui'
 import { chatApi } from './api'
 import { ApiError } from '@shared/api/http-client'
 import { cn } from '@shared/lib'
@@ -99,13 +100,8 @@ export function ChatHistoryPanel({
 
         <div className="max-h-96 overflow-y-auto px-4 pb-4">
           {isPending ? (
-            <div className="space-y-2 py-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-14 animate-pulse rounded-xl bg-muted/60"
-                />
-              ))}
+            <div className="flex justify-center py-8">
+              <PlatformLoader variant="compact" />
             </div>
           ) : isError ? (
             <div className="py-8 text-center text-sm text-muted-foreground">

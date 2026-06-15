@@ -468,6 +468,34 @@ function displayNameFromUser(name: string | undefined, email: string): string {
 /** z-index above dialogs/sheets so the account menu stays readable over lesson content. */
 const PROFILE_MENU_Z = 10050
 
+type ProfileMenuItemProps = {
+  icon: React.ElementType
+  label: string
+  onClick: () => void
+  iconClassName?: string
+}
+
+/**
+ * One actionable row in the profile dropdown — keeps icons aligned and lets long labels wrap without shifting.
+ */
+function ProfileMenuItem({
+  icon: Icon,
+  label,
+  onClick,
+  iconClassName,
+}: ProfileMenuItemProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+    >
+      <Icon className={cn('size-4 shrink-0 text-muted-foreground', iconClassName)} />
+      <span className="min-w-0 leading-snug">{label}</span>
+    </button>
+  )
+}
+
 function ProfileDropdown() {
   const [open, setOpen] = useState(false)
   const [menuPos, setMenuPos] = useState<{ left: number; bottom: number }>({
@@ -540,7 +568,7 @@ function ProfileDropdown() {
         position: 'fixed',
         left: menuPos.left,
         bottom: menuPos.bottom,
-        width: '14rem',
+        width: '16rem',
         zIndex: PROFILE_MENU_Z,
       }}
       className="rounded-xl border-2 border-border bg-popover text-popover-foreground shadow-2xl ring-2 ring-black/10 animate-in fade-in slide-in-from-bottom-2 duration-150 dark:ring-white/20"
@@ -568,59 +596,41 @@ function ProfileDropdown() {
       </div>
 
       <div className="p-1.5">
-        <button
-          type="button"
+        <ProfileMenuItem
+          icon={BadgeCheck}
+          label="Account"
           onClick={() => {
             setOpen(false)
             navigate('/settings?section=account')
           }}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          <BadgeCheck className="size-4 text-muted-foreground" />
-          <span>Account</span>
-        </button>
-        <button
-          type="button"
+        />
+        <ProfileMenuItem
+          icon={subscription.tier === 'premium' ? CreditCard : Sparkles}
+          label={
+            subscription.tier === 'premium'
+              ? 'Subscription management'
+              : 'Upgrade to Premium'
+          }
+          iconClassName={
+            subscription.tier === 'premium' ? undefined : 'text-orange-500'
+          }
           onClick={() => {
             setOpen(false)
             navigate('/settings?section=plan')
           }}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          {subscription.tier === 'premium' ? (
-            <>
-              <CreditCard className="size-4 text-muted-foreground" />
-              <span>Subscription management</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="size-4 text-orange-500" />
-              <span>Upgrade to Premium</span>
-            </>
-          )}
-        </button>
-        <button
-          type="button"
+        />
+        <ProfileMenuItem
+          icon={CreditCard}
+          label="Billing history"
           onClick={() => {
             setOpen(false)
             navigate('/settings?section=billing')
           }}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          <CreditCard className="size-4 text-muted-foreground" />
-          <span>Billing history</span>
-        </button>
+        />
       </div>
 
       <div className="border-t p-1.5">
-        <button
-          type="button"
-          onClick={handleSignOut}
-          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          <LogOut className="size-4 text-muted-foreground" />
-          <span>Sign out</span>
-        </button>
+        <ProfileMenuItem icon={LogOut} label="Sign out" onClick={handleSignOut} />
       </div>
     </div>
   ) : null

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Clock3, ExternalLink, FileText, Inbox } from 'lucide-react'
-import { Button } from '@shared/ui'
+import { Button, SectionLoader } from '@shared/ui'
 import { cn } from '@shared/lib'
 import { lessonApi } from '@widgets/lesson-viewer/api'
 
@@ -70,10 +70,7 @@ export default function MySubmissionsPage() {
         </header>
 
         {isPending ? (
-          <div className="space-y-3">
-            <div className="h-36 w-full animate-pulse rounded-2xl bg-muted/50" />
-            <div className="h-36 w-full animate-pulse rounded-2xl bg-muted/50" />
-          </div>
+          <SectionLoader label="Loading submissions…" />
         ) : isError ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
             Failed to load submissions: {(error as Error)?.message}

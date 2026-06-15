@@ -16,7 +16,7 @@ function ChatGPTLogo({ size = 36 }: { size?: number }) {
 /* Gemini — official 4-pointed star with 4-corner color gradient */
 function GeminiLogo({ size = 36 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="-4 -1 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         {/* Simulates the conic gradient: red top, blue right, green bottom, yellow left */}
         <linearGradient id="gem-tb" x1="14" y1="0" x2="14" y2="28" gradientUnits="userSpaceOnUse">
@@ -91,7 +91,7 @@ export default function Hero() {
         </div>
 
         {/* Right side photo: small on mobile, big on desktop */}
-        <div className="absolute right-2 sm:right-0 top-2 md:top-auto md:bottom-32 lg:bottom-16 z-20 animate-[fade-up_0.8s_ease-out_0.3s_both]">
+        <div className="absolute right-2 sm:right-0 top-2 md:top-auto md:bottom-40 lg:bottom-24 z-20 animate-[fade-up_0.8s_ease-out_0.3s_both]">
           <div
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg rotate-[6deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[260px] md:h-[230px]"
             style={{ border: "3px solid white" }}
@@ -132,13 +132,13 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Bottom-left: Gemini logo bubble — kept off the centered rating row */}
-        <div className="hidden md:flex absolute left-[6%] md:left-[10%] lg:left-[14%] bottom-0 md:bottom-2 lg:bottom-6 z-10 items-center justify-center w-[60px] h-[60px] md:w-[72px] md:h-[72px] rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] animate-[float_4.5s_ease-in-out_infinite]" style={{ border: "1px solid hsl(var(--border))" }}>
+        {/* Bottom-left: Gemini logo bubble — beside certificate, above overlapping layers */}
+        <div className="hidden md:flex absolute left-[200px] md:left-[280px] lg:left-[300px] bottom-4 md:bottom-8 lg:bottom-10 z-30 items-center justify-center w-[60px] h-[60px] md:w-[72px] md:h-[72px] rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.15)] animate-[float_4.5s_ease-in-out_infinite]" style={{ border: "1px solid hsl(var(--border))" }}>
           <GeminiLogo size={36} />
         </div>
 
-        {/* Bottom-right: animated arrow — aligned with Gemini, away from rating text */}
-        <div className="hidden md:block absolute right-[6%] md:right-[10%] lg:right-[14%] bottom-0 md:bottom-2 lg:bottom-6 z-10 animate-[float_3s_ease-in-out_infinite]">
+        {/* Bottom-right: animated arrow — aligned with Gemini, above the right photo */}
+        <div className="hidden md:block absolute right-[6%] md:right-[10%] lg:right-[14%] bottom-4 md:bottom-8 lg:bottom-10 z-30 animate-[float_3s_ease-in-out_infinite]">
           <svg width="56" height="56" viewBox="0 0 60 60" fill="none">
             <path
               d="M10 30 L45 30 M30 15 L45 30 L30 45"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Copy, ThumbsUp, ThumbsDown, RefreshCw, Check } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { PlatformLoader } from '@shared/ui'
 import type { ChatMessage } from './types'
 import { AssistantMessageBody } from './assistant-message-body'
 
@@ -108,11 +109,9 @@ function AssistantMessage({
   return (
     <div className="flex flex-col items-start gap-2">
       {isRegenerating ? (
-        <div
-          className="h-16 w-full max-w-xl animate-pulse rounded-xl bg-muted/70"
-          aria-busy
-          aria-label="Regenerating reply"
-        />
+        <div className="flex h-16 w-full max-w-xl items-center px-2" aria-busy aria-label="Regenerating reply">
+          <PlatformLoader variant="compact" />
+        </div>
       ) : (
         <AssistantMessageBody text={content} />
       )}

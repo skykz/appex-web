@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@shared/ui'
+import { SidebarProvider, SidebarInset, SidebarTrigger, PageLoader } from '@shared/ui'
 import { useCurrentUser } from '@entities/user'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
@@ -41,11 +41,7 @@ export function RootLayout() {
         {/* Main content area with suspense fallback */}
         <div className="flex flex-1 flex-col pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
           <Suspense
-            fallback={
-              <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
-                <div className="text-muted-foreground animate-pulse">Loading...</div>
-              </div>
-            }
+            fallback={<PageLoader />}
           >
             <Outlet />
           </Suspense>

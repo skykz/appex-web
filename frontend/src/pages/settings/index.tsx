@@ -80,6 +80,18 @@ function billingPeriodLabel(interval: BillingInterval | null): string {
   }
 }
 
+/** Annualized plan cost for comparing shorter billing intervals to yearly in the cancel modal. */
+function annualPlanCost(amount: number, interval: BillingInterval): number {
+  switch (interval) {
+    case 'week_1':
+      return amount * 52
+    case 'week_4':
+      return amount * 13
+    case 'year':
+      return amount
+  }
+}
+
 export default function SettingsPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -1003,7 +1015,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
-/** Cancel modal with yearly win-back offer (mirrors the competitor flow). */
+/** Cancel modal with yearly win-back offer and platform-consistent dialog styling. */
 function CancelDialog({
   open,
   onOpenChange,
@@ -1022,6 +1034,11 @@ function CancelDialog({
   })
   const yearly = plans?.find((p) => p.id === 'year')
   const showWinBack = subscription.billing_interval !== 'year' && !!yearly
+  const currentInterval = subscription.billing_interval ?? 'week_4'
+  const yearlySavings =
+    yearly && showWinBack
+      ? Math.max(0, annualPlanCost(subscription.price, currentInterval) - yearly.amount)
+      : 0
 
   const switchPlan = useMutation({
     mutationFn: () => settingsApi.switchToYearly(),
@@ -1038,78 +1055,141 @@ function CancelDialog({
     },
   })
 
+  const accessUntil = formatDate(subscription.current_period_end)
+  const errorMessage =
+    cancel.error instanceof Error
+      ? cancel.error.message
+      : switchPlan.error instanceof Error
+        ? switchPlan.error.message
+        : null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          {showWinBack ? (
-            <>
-              <DialogTitle className="text-center text-2xl">
-                Don't lose your savings
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
+        {showWinBack ? (
+          <>
+            <div className="border-b border-orange-100 bg-gradient-to-br from-orange-50 via-amber-50 to-white px-6 pb-5 pt-8 text-center">
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+                <Sparkles className="size-6" strokeWidth={2.5} />
+              </div>
+              <DialogHeader className="space-y-2 sm:text-center">
+                <DialogTitle className="text-center text-2xl font-bold tracking-tight">
+                  Don't lose your savings
+                </DialogTitle>
+                <DialogDescription className="text-center text-base">
+                  Switch to yearly and keep learning for less.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="flex flex-col gap-5 px-6 py-6">
+              {yearly && (
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-5 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Yearly plan
+                  </p>
+                  <p className="mt-2 text-3xl font-bold tracking-tight">
+                    {formatMoney(yearly.amount, yearly.currency)}
+                    <span className="ml-1 text-base font-normal text-muted-foreground">
+                      / year
+                    </span>
+                  </p>
+                  {yearlySavings > 0 && (
+                    <p className="mt-2 inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800 dark:bg-green-900/40 dark:text-green-200">
+                      Save {formatMoney(yearlySavings, yearly.currency)} per year
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <ul className="space-y-2.5 text-sm">
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+                  <span>Keep unlimited access to every skill and lesson</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+                  <span>One simple annual payment — fewer renewals to manage</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+                  <span>Cancel anytime from settings</span>
+                </li>
+              </ul>
+
+              <div className="flex flex-col gap-2.5">
+                <Button
+                  onClick={() => switchPlan.mutate()}
+                  disabled={switchPlan.isPending || cancel.isPending}
+                  size="xl"
+                  className="w-full"
+                >
+                  {switchPlan.isPending ? 'Switching…' : 'Switch to yearly plan'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xl"
+                  className="w-full"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Keep current plan
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => cancel.mutate()}
+                  disabled={cancel.isPending || switchPlan.isPending}
+                  className="py-1 text-sm text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
+                >
+                  {cancel.isPending ? 'Cancelling…' : 'Yes, cancel my subscription'}
+                </button>
+              </div>
+
+              {errorMessage && (
+                <p className="text-center text-sm text-red-500">{errorMessage}</p>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="px-6 py-6">
+            <DialogHeader className="space-y-3 sm:text-center">
+              <div className="mx-auto mb-1 flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Hourglass className="size-6" strokeWidth={2} />
+              </div>
+              <DialogTitle className="text-center text-2xl font-bold tracking-tight">
+                Cancel subscription?
               </DialogTitle>
-              <DialogDescription className="text-center">
-                Switch to yearly and keep learning for less.
+              <DialogDescription className="text-center text-base leading-relaxed">
+                You'll keep full access until{' '}
+                <span className="font-medium text-foreground">{accessUntil}</span>. After
+                that, premium content will be locked.
               </DialogDescription>
-            </>
-          ) : (
-            <>
-              <DialogTitle>Are you sure?</DialogTitle>
-              <DialogDescription>
-                You'll keep access until {formatDate(subscription.current_period_end)}.
-                After that date your subscription will end and premium content will be locked.
-              </DialogDescription>
-            </>
-          )}
-        </DialogHeader>
+            </DialogHeader>
 
-        {showWinBack && yearly && (
-          <div className="rounded-2xl border-2 border-primary/40 p-4 text-center">
-            <p className="text-3xl font-bold">
-              {formatMoney(yearly.amount, yearly.currency)} now
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Billed yearly at {formatMoney(yearly.amount, yearly.currency)}
-            </p>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <Button
+                type="button"
+                size="xl"
+                className="w-full"
+                onClick={() => onOpenChange(false)}
+              >
+                Keep current plan
+              </Button>
+              <Button
+                onClick={() => cancel.mutate()}
+                disabled={cancel.isPending}
+                variant="outline"
+                size="xl"
+                className="w-full border-border/70 text-foreground/80 hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+              >
+                {cancel.isPending ? 'Cancelling…' : 'Confirm cancellation'}
+              </Button>
+            </div>
+
+            {errorMessage && (
+              <p className="mt-4 text-center text-sm text-red-500">{errorMessage}</p>
+            )}
           </div>
-        )}
-
-        <div className="mt-2 flex flex-col gap-2">
-          {showWinBack && (
-            <Button
-              onClick={() => switchPlan.mutate()}
-              disabled={switchPlan.isPending}
-              size="xl"
-              className="w-full"
-            >
-              {switchPlan.isPending ? 'Switching…' : 'Switch to yearly plan'}
-            </Button>
-          )}
-          <Button
-            onClick={() => cancel.mutate()}
-            disabled={cancel.isPending}
-            variant="outline"
-            size="xl"
-            className="w-full"
-          >
-            {cancel.isPending ? 'Cancelling…' : 'Confirm cancellation'}
-          </Button>
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="mt-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            Keep current plan
-          </button>
-        </div>
-
-        {(switchPlan.isError || cancel.isError) && (
-          <p className="text-center text-sm text-red-500">
-            {cancel.error instanceof Error
-              ? cancel.error.message
-              : switchPlan.error instanceof Error
-                ? switchPlan.error.message
-                : 'Something went wrong. Please try again.'}
-          </p>
         )}
       </DialogContent>
     </Dialog>

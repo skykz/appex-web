@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import { PageLoader } from '@shared/ui'
 import { skillsApi } from '@features/skills'
 import type { SkillLesson, SkillModule } from '@features/skills'
 
@@ -106,19 +107,7 @@ export default function CoursePage() {
   }
 
   if (isPending) {
-    return (
-      <div className="relative mx-auto min-h-dvh w-full max-w-6xl animate-pulse px-4 py-4 sm:px-6 lg:px-8">
-        <div className="rounded-[2rem] border bg-card/70 p-6 shadow-sm">
-          <div className="mb-4 h-4 w-32 rounded bg-muted" />
-          <div className="mb-2 h-10 w-2/3 rounded bg-muted" />
-          <div className="mb-8 h-4 w-1/2 rounded bg-muted" />
-          <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
-            <div className="h-96 rounded-[2rem] bg-muted" />
-            <div className="h-72 rounded-[2rem] bg-muted" />
-          </div>
-        </div>
-      </div>
-    )
+    return <PageLoader label="Loading course…" />
   }
 
   if (isError || !course) {

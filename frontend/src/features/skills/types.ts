@@ -68,3 +68,15 @@ export const skillCategories: { value: SkillCategoryFilter; label: string }[] = 
   { value: 'marketing', label: 'Marketing' },
   { value: 'ai_content', label: 'AI content' },
 ]
+
+/** Section blurbs shown under each category heading on the skills page. */
+export const categorySectionCopy: Partial<Record<SkillCategorySlug, string>> = {
+  ai_automations:
+    'Automate repetitive work with AI workflows you can deploy in minutes.',
+  freelancing:
+    'Practical skills to win clients, deliver projects, and grow your income.',
+  marketing:
+    'Use AI to plan campaigns, write copy, and ship content faster.',
+  ai_content:
+    'Create images, scripts, and posts with modern generative tools.',
+}

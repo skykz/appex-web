@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PenSquare, Sparkles, Clock, X } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { PlatformLoader } from '@shared/ui'
 import { ApiError } from '@shared/api/http-client'
 import {
   ChatInput,
@@ -290,13 +291,10 @@ export default function AIChatPage() {
                 />
                 {sending && (
                   <div
-                    className="mt-4 flex items-center gap-2 text-sm text-muted-foreground"
+                    className="mt-4 flex items-center gap-3 text-sm text-muted-foreground"
                     aria-live="polite"
                   >
-                    <span
-                      className="inline-flex size-2 animate-pulse rounded-full bg-primary"
-                      aria-hidden
-                    />
+                    <PlatformLoader variant="compact" className="gap-0" />
                     Thinking…
                   </div>
                 )}

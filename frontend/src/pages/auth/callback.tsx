@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Loader2, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
+import { PlatformLoader } from '@shared/ui'
 import { useAuthStore } from '@entities/user'
 import { userApi } from '@entities/user/api/user-api'
 
@@ -90,7 +91,7 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="flex justify-center rounded-2xl border border-border/80 bg-card/80 p-10 shadow-lg ring-1 ring-border/40">
-      <Loader2 className="text-muted-foreground size-8 animate-spin" />
+      <PlatformLoader variant="inline" label="Signing you in…" />
     </div>
   )
 }

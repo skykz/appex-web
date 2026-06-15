@@ -7,6 +7,7 @@ import {
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
 import { skillsApi, type SkillDetail } from '@features/skills'
+import { PageLoader } from '@shared/ui'
 
 /**
  * Finds the next lesson in course order after the current lesson.
@@ -90,12 +91,7 @@ export default function LessonPage() {
   }
 
   if (isPending || !content) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-background">
-        <div className="size-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        <p className="text-muted-foreground text-sm">Loading lesson…</p>
-      </div>
-    )
+    return <PageLoader label="Loading lesson…" />
   }
 
   if (isError) {

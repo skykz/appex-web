@@ -4,7 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { Play, Check, Lock, ChevronRight, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
-import { ProgressCard } from '@shared/ui'
+import { ProgressCard, SectionLoader } from '@shared/ui'
 import { skillsApi, type SkillDetail, type SkillListItem } from '@features/skills'
 import { HomeOffersNewsSection } from '@/widgets/home-offers-news-section'
 import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
@@ -117,14 +117,7 @@ export default function HomePage() {
                   </Link>
                 </div>
                 {coursesLoading ? (
-                  <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className="h-36 min-w-[200px] shrink-0 animate-pulse rounded-2xl bg-muted/50"
-                      />
-                    ))}
-                  </div>
+                  <SectionLoader className="py-10" />
                 ) : courses.length === 0 ? (
                   <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
                     <p className="text-sm text-muted-foreground">
@@ -176,11 +169,7 @@ export default function HomePage() {
               {activeCourseIds.length > 0 && (
                 <section className="pb-12 lg:pb-24">
                   {activitiesLoading && activityCourses.length === 0 ? (
-                    <div className="space-y-4 animate-pulse">
-                      <div className="h-6 w-48 rounded bg-muted" />
-                      <div className="h-24 rounded-2xl bg-muted/60" />
-                      <div className="h-24 rounded-2xl bg-muted/60" />
-                    </div>
+                    <SectionLoader className="py-8" label="Loading activity…" />
                   ) : (
                     <>
                       <div className="mb-4">

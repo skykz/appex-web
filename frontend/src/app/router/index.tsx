@@ -1,8 +1,11 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import { AuthShell } from '@features/auth'
+import { PageLoader } from '@shared/ui'
 import { RootLayout } from './layouts/root-layout'
 import { ProtectedRoute } from './guards/protected-route'
+import RouteErrorPage from './route-error-page'
+import TechnicalDifficultiesPage from '@pages/errors/technical-difficulties'
 
 const HomePage = lazy(() => import('@pages/home'))
 const AuthPage = lazy(() => import('@pages/auth'))
@@ -29,14 +32,13 @@ const SkillLessonPage = lazy(() => import('@pages/skills/lesson'))
 const routerBasename =
   import.meta.env.BASE_URL === '/' ? undefined : import.meta.env.BASE_URL.replace(/\/$/, '')
 
-const authRouteFallback = (
-  <div className="flex h-dvh items-center justify-center">
-    <div className="text-muted-foreground animate-pulse">Loading...</div>
-  </div>
-)
+const authRouteFallback = <PageLoader />
 
 export const router = createBrowserRouter(
   [
+  {
+    errorElement: <RouteErrorPage />,
+    children: [
   {
     path: '/',
     element: <ProtectedRoute />,
@@ -111,7 +113,7 @@ export const router = createBrowserRouter(
       {
         path: 'skills/:skillId/lessons/:lessonId',
         element: (
-          <Suspense fallback={<div className="flex h-dvh items-center justify-center"><div className="text-muted-foreground animate-pulse">Loading...</div></div>}>
+          <Suspense fallback={<PageLoader />}>
             <SkillLessonPage />
           </Suspense>
         ),
@@ -119,7 +121,7 @@ export const router = createBrowserRouter(
       {
         path: 'academy/courses/:courseId/lessons/:lessonId',
         element: (
-          <Suspense fallback={<div className="flex h-dvh items-center justify-center"><div className="text-muted-foreground animate-pulse">Loading...</div></div>}>
+          <Suspense fallback={<PageLoader />}>
             <LessonPage />
           </Suspense>
         ),
@@ -167,6 +169,12 @@ export const router = createBrowserRouter(
         ),
       },
     ],
+  },
+  {
+    path: '*',
+    element: <TechnicalDifficultiesPage variant="not-found" />,
+  },
+  ],
   },
   ],
   routerBasename ? { basename: routerBasename } : undefined
