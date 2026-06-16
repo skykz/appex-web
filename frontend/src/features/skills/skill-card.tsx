@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { buttonVariants } from '@shared/ui/button-variants'
-import { EmojiOrImageBadge } from '@shared/ui'
+import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import type { SkillCardModel } from './types'
 import { PaywallDialog } from './paywall-dialog'
 
