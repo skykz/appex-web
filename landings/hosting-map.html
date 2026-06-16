@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
-    <title>AppEx — hosting map (appex.kz + appex-web-frontend.vercel.app)</title>
+    <title>AppEx — hosting map (appex.kz + appex-web.vercel.app)</title>
     <style>
       body {
         font-family: system-ui, sans-serif;
@@ -67,14 +67,14 @@
           </td>
         </tr>
         <tr>
-          <td><code>https://appex-web-frontend.vercel.app/</code> (SPA, separate deploy)</td>
+          <td><code>https://appex-web.vercel.app/</code> (SPA, separate deploy)</td>
           <td>Build <code>appex-web/frontend</code> with <code>VITE_API_URL</code> pointing to your API. Default base <code>/</code>.</td>
         </tr>
       </tbody>
     </table>
     <p>
       Backend <code>CORS_ORIGINS</code> must include <code>https://appex.kz</code>,
-      <code>https://www.appex.kz</code>, <code>https://appex-web-frontend.vercel.app</code>, and local dev origins.
+      <code>https://www.appex.kz</code>, <code>https://appex-web.vercel.app</code>, and local dev origins.
     </p>
   </body>
 </html>
