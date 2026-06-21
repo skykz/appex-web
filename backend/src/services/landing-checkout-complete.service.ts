@@ -129,6 +129,26 @@ export async function completeLandingCheckoutAccount(args: {
   const session = await loadPaidLandingSession(args.sessionId)
   const { userId, email } = await ensureProvisioned(session)
 
+  // One-time claim: atomically stamp account_completed_at only if still null.
+  // This makes setting the password a single-use action per checkout session —
+  // a leaked session_id cannot be replayed later to RESET the password and
+  // seize an already-set-up account. The UPDATE...is null + row-count check is
+  // atomic, so two concurrent completions can't both win.
+  const { data: claimRows, error: claimErr } = await supabaseAdmin
+    .from('landing_checkout_provisions')
+    .update({ account_completed_at: new Date().toISOString() })
+    .eq('stripe_checkout_session_id', session.id)
+    .is('account_completed_at', null)
+    .select('stripe_checkout_session_id')
+
+  if (claimErr) throw new AppError(500, claimErr.message)
+  if (!claimRows || claimRows.length === 0) {
+    throw new AppError(
+      409,
+      'This account has already been set up. Use the login page (or Forgot password) to sign in.'
+    )
+  }
+
   const trimmedName = args.name?.trim()
   if (trimmedName) {
     const { error: profileErr } = await supabaseAdmin

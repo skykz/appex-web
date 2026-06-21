@@ -30,19 +30,42 @@ let cachedFreeSkillId: { value: number | null; expires: number } = {
 }
 
 /**
- * Returns the id of the free onboarding skill (lowest order), cached briefly.
+ * Returns the id of the free onboarding skill: the lowest-order skill that is
+ * actually visible in the learner catalog.
+ *
+ * Must match the visibility filter used by listSkills/getSkillDetail. If we
+ * picked the globally-lowest-order skill ignoring visibility, a hidden skill
+ * could be deemed "free" while every skill the learner can actually see is
+ * paywalled — locking the whole catalog. Cache is short (10s) so an admin
+ * reorder takes effect almost immediately instead of paywalling/free-ing a
+ * skill for up to a minute.
  */
 export async function getFreeSkillId(): Promise<number | null> {
   if (cachedFreeSkillId.expires > Date.now()) return cachedFreeSkillId.value
-  const { data } = await supabaseAdmin
-    .from('skills')
-    .select('id')
-    .order('order', { ascending: true })
-    .limit(1)
-    .maybeSingle()
+
+  // Restrict to visible categories first, then lowest-order visible skill.
+  const { data: visibleCategories } = await supabaseAdmin
+    .from('categories')
+    .select('slug')
+    .eq('is_visible', true)
+  const slugs = (visibleCategories ?? []).map((c) => c.slug as string)
+
+  let value: number | null = null
+  if (slugs.length > 0) {
+    const { data } = await supabaseAdmin
+      .from('skills')
+      .select('id')
+      .eq('is_visible', true)
+      .in('category', slugs)
+      .order('order', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    value = data?.id ?? null
+  }
+
   cachedFreeSkillId = {
-    value: data?.id ?? null,
-    expires: Date.now() + 60_000,
+    value,
+    expires: Date.now() + 10_000,
   }
   return cachedFreeSkillId.value
 }

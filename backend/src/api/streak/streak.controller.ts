@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import type { AuthenticatedRequest } from '../../types/index.js'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
-import { recalculateStreak, todayUTC } from '../../services/streak.service.js'
+import { recalculateStreak, todayUTC, normalizeDate } from '../../services/streak.service.js'
 
 export async function getStreak(
   req: Request,
@@ -18,15 +18,29 @@ export async function getStreak(
       .eq('user_id', userId)
       .maybeSingle()
 
-    res.json(
-      data ?? {
+    if (!data) {
+      res.json({
         user_id: userId,
         current: 0,
         best: 0,
-        milestone: 28,
+        milestone: 7,
         last_active_date: null,
-      }
-    )
+      })
+      return
+    }
+
+    // Decay on read: if the user missed a day, the stored `current` is stale.
+    // Recompute against the client's local "today" (falls back to UTC) and
+    // persist the corrected value so the streak actually resets to 0.
+    const today = normalizeDate(req.query.today) ?? todayUTC()
+    const recomputed = await recalculateStreak(userId, today, true)
+
+    res.json({
+      ...data,
+      current: recomputed.current,
+      best: recomputed.best,
+      milestone: recomputed.milestone,
+    })
   } catch (err) {
     next(err)
   }
@@ -39,7 +53,9 @@ export async function checkIn(
 ) {
   try {
     const { userId } = req as AuthenticatedRequest
-    const today = todayUTC()
+    // Use the learner's LOCAL calendar day (sent by the client) so evening
+    // check-ins in the Americas/Asia count for the right day, not the UTC day.
+    const today = normalizeDate((req.body as { date?: unknown } | undefined)?.date) ?? todayUTC()
 
     const { data: existingToday } = await supabaseAdmin
       .from('streak_days')
@@ -48,7 +64,7 @@ export async function checkIn(
       .eq('date', today)
       .maybeSingle()
 
-    /** True when this request is the first streak activity for the user on this calendar day (UTC). */
+    /** True when this request is the first streak activity for the user on this local day. */
     const firstCheckInToday = !existingToday
 
     // Insert today's date (upsert to avoid duplicates)
@@ -59,8 +75,8 @@ export async function checkIn(
         { onConflict: 'user_id,date' }
       )
 
-    // Recalculate streak
-    const { current, best } = await recalculateStreak(userId)
+    // Recalculate streak relative to the learner's local today.
+    const { current, best, milestone } = await recalculateStreak(userId, today, true)
 
     // Fetch full data
     const { data } = await supabaseAdmin
@@ -70,7 +86,7 @@ export async function checkIn(
       .single()
 
     res.json({
-      ...(data ?? { user_id: userId, current, best, milestone: 28, last_active_date: null }),
+      ...(data ?? { user_id: userId, current, best, milestone, last_active_date: today }),
       firstCheckInToday,
     })
   } catch (err) {

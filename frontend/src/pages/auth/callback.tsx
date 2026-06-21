@@ -38,14 +38,24 @@ export default function AuthCallbackPage() {
 
       try {
         const prevToken = localStorage.getItem('appex_access_token')
+        const prevRefresh = localStorage.getItem('appex_refresh_token')
+        // Store BOTH tokens before the first authed call. Magic links are
+        // emailed and may be opened after the access token has already expired;
+        // without the refresh token in storage the http-client cannot
+        // auto-refresh and sign-in fails despite a valid refresh token in the URL.
         localStorage.setItem('appex_access_token', accessToken)
+        localStorage.setItem('appex_refresh_token', refreshToken)
 
         let user
         try {
           user = await userApi.getCurrentUser()
         } finally {
-          if (!user && prevToken) {
-            localStorage.setItem('appex_access_token', prevToken)
+          if (!user) {
+            // Restore prior session tokens on failure (or clear if there were none).
+            if (prevToken) localStorage.setItem('appex_access_token', prevToken)
+            else localStorage.removeItem('appex_access_token')
+            if (prevRefresh) localStorage.setItem('appex_refresh_token', prevRefresh)
+            else localStorage.removeItem('appex_refresh_token')
           }
         }
 

@@ -29,7 +29,8 @@ interface StreakCalendar {
 
 export const streakApi = {
   async get(): Promise<StreakData> {
-    return httpClient.get('/streaks')
+    // Pass local date so the server decays a stale streak against the user's day.
+    return httpClient.get(`/streaks?today=${localDateString()}`)
   },
 
   /**

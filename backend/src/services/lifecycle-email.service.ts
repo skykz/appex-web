@@ -134,6 +134,56 @@ async function logEmailSent(args: {
 }
 
 /**
+ * Atomically CLAIMS an email send before it goes out. Inserts the dedup row up
+ * front; if the unique index (uq_user_email_log_idem) rejects it, another
+ * caller already claimed this exact send (concurrent cron run / retry) and we
+ * return false so the caller skips sending. Prevents double-sends that the
+ * check-then-send `hasSentEmail` path allowed under concurrency.
+ */
+async function claimEmailSend(args: {
+  userId: string
+  emailType: LifecycleEmailType
+  periodEnd?: string | null
+  referenceId?: string | null
+}): Promise<boolean> {
+  const { error } = await supabaseAdmin.from('user_email_log').insert({
+    user_id: args.userId,
+    email_type: args.emailType,
+    mailgun_id: null,
+    period_end: args.periodEnd ?? null,
+    reference_id: args.referenceId ?? null,
+  })
+
+  if (!error) return true
+  if (error.code === '23505') return false // unique_violation → already claimed
+  // Unknown error → don't send (fail closed); a missed reminder is safer than a dupe.
+  console.error('[lifecycle-email] claim failed', args.emailType, error.message)
+  return false
+}
+
+/** Records the Mailgun id onto a previously-claimed email row (best effort, audit only). */
+async function attachMailgunId(args: {
+  userId: string
+  emailType: LifecycleEmailType
+  mailgunId: string | null
+  periodEnd?: string | null
+  referenceId?: string | null
+}): Promise<void> {
+  if (!args.mailgunId) return
+  let q = supabaseAdmin
+    .from('user_email_log')
+    .update({ mailgun_id: args.mailgunId })
+    .eq('user_id', args.userId)
+    .eq('email_type', args.emailType)
+  q = args.periodEnd ? q.eq('period_end', args.periodEnd) : q.is('period_end', null)
+  q = args.referenceId ? q.eq('reference_id', args.referenceId) : q.is('reference_id', null)
+  const { error } = await q
+  if (error) {
+    console.error('[lifecycle-email] attach mailgun id failed', args.emailType, error.message)
+  }
+}
+
+/**
  * Links a marketing quiz lead to the new user account by email.
  */
 export async function linkQuizSubmissionToUser(
@@ -343,7 +393,15 @@ async function sendRenewalRemindersForLeadTime(args: {
       .maybeSingle()
 
     if (!profile?.email) continue
-    if (await hasSentEmail(userId, args.emailType, periodEnd)) continue
+
+    // Claim BEFORE sending so two concurrent cron runs can't both send: the
+    // unique index makes exactly one claim win; the loser skips.
+    const claimed = await claimEmailSend({
+      userId,
+      emailType: args.emailType,
+      periodEnd,
+    })
+    if (!claimed) continue
 
     const amount = (row.price as number) ?? 0
 
@@ -363,14 +421,15 @@ async function sendRenewalRemindersForLeadTime(args: {
       tag: args.mailgunTag,
     })
 
-    if (!result) continue
-
-    await logEmailSent({
-      userId,
-      emailType: args.emailType,
-      mailgunId: result.id,
-      periodEnd,
-    })
+    // Record the provider id on the already-claimed row for auditing.
+    if (result) {
+      await attachMailgunId({
+        userId,
+        emailType: args.emailType,
+        mailgunId: result.id,
+        periodEnd,
+      })
+    }
 
     await supabaseAdmin
       .from('subscriptions')
