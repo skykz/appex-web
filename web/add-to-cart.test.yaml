@@ -1,0 +1,21 @@
+fileType: momentic/test/v2
+id: dd5c6c6c-bef1-4d00-acd9-4cb179be7c15
+version: 1.0.24
+description: Log in, add an item to cart, and verify it appears
+defaultEnv: web
+disabled: false
+viewport: 1920, 1080
+browserType: Chromium
+steps:
+  - type:
+      text: "{{env.USERNAME}}"
+      into: username input
+      clear: inputs
+  - type:
+      text: "{{env.PASSWORD}}"
+      into: password input
+      clear: inputs
+  - click: login button
+  - click: add to cart for the Momentic Backpack item
+  - click: Cart icon on the top right of the page
+  - assert: Verify the Momentic Backpack is listed as an item in the cart

@@ -1,0 +1,42 @@
+{
+  "gitMainBranch": "main",
+  "gitProtectedBranches": [
+    "main"
+  ],
+  "ciProvider": "none",
+  "gitCommitSha": "156fb75d8f63c2c8841e3c9dcfa6e36640256c56",
+  "gitCommitShaShort": "156fb75",
+  "gitBranchName": "main",
+  "gitOriginUrl": "https://github.com/skykz/appex-web.git",
+  "gitCommitTimestamp": "2026-05-27T02:49:00.000Z",
+  "gitCommitMessage": "Merge pull request #1 from skykz:feat/stripe\n\nImplement paywall features for premium skills and lessons",
+  "gitCommitAuthorName": "Yerassyl Ospanov",
+  "gitLocalEmail": "erasylgeso@gmail.com",
+  "gitLocalName": "Yerassyl Ospanov",
+  "lastCommitOnMainSha": "156fb75d8f63c2c8841e3c9dcfa6e36640256c56",
+  "lastCommitOnMainTimestamp": "2026-05-27T02:49:00.000Z",
+  "githubRepository": "skykz/appex-web",
+  "id": "bb2c2f88-d3a1-4da7-bc92-1f85ee57238b",
+  "trigger": "CLI",
+  "startedAt": "2026-05-27T02:51:27.231Z",
+  "status": "FAILED",
+  "cliVersion": "2.118.1",
+  "labels": [],
+  "ai": {
+    "useMemory": true,
+    "failureRecovery": true,
+    "agentConfig": {
+      "locator": "v3",
+      "assertion": "v3",
+      "visual-assertion": "v3",
+      "text-extraction": "v3",
+      "failure-classification": "v1",
+      "failure-recovery": "v2"
+    }
+  },
+  "browser": {
+    "autoExpandIframes": true
+  },
+  "updatedAt": "2026-05-27T02:52:25.749Z",
+  "finishedAt": "2026-05-27T02:52:25.749Z"
+}

@@ -20,7 +20,8 @@
     "lint": "npm run lint --workspace=frontend"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "momentic": "^2.118.1"
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-win32-x64-msvc": "^4.3.0",

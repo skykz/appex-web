@@ -1,0 +1,28 @@
+# See https://momentic.ai/docs/cli/configuration
+name: appex-web
+include:
+  - "**/*.test.yaml"
+  - "**/*.module.yaml"
+retries: 0
+parallel: 1
+recordVideo: true
+gitMainBranch: main
+fileFormat: v2
+browser:
+  autoExpandIframes: true
+ai:
+  useMemory: true
+  failureRecovery: true
+  agentConfig:
+    locator: v3
+    assertion: v3
+    visual-assertion: v3
+    text-extraction: v3
+    failure-classification: v1
+    failure-recovery: v2
+environments:
+  - name: web
+    baseUrl: https://static.momentic.ai/wizard/index.html
+    envVariables:
+      USERNAME: standard_user
+      PASSWORD: secret_sauce
