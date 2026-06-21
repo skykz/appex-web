@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   Clock3,
+  Download,
   Flag,
   Lock,
   Map,
@@ -17,7 +18,9 @@ import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { PageLoader } from '@shared/ui'
 import { skillsApi } from '@features/skills'
+import { downloadCertificate } from '@features/skills/certificate-download'
 import type { SkillLesson, SkillModule } from '@features/skills'
+import { useAuthStore } from '@entities/user'
 
 const moduleTones = [
   {
@@ -91,6 +94,7 @@ function getLessonState(lesson: SkillLesson, nextLessonId: number | null) {
 export default function CoursePage() {
   const { courseId } = useParams<{ courseId: string }>()
   const id = Number(courseId)
+  const userName = useAuthStore((s) => s.user?.name)
 
   const { data: course, isPending, isError, refetch } = useQuery({
     queryKey: ['skill', id],
@@ -213,6 +217,25 @@ export default function CoursePage() {
                 <p className="mt-2 text-xs text-muted-foreground">
                   Clear each level to unlock the next area.
                 </p>
+                {course.certificate && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void downloadCertificate({
+                        recipientName:
+                          course.certificate!.user_name || userName || 'Appex Learner',
+                        courseTitle: course.title,
+                        description: `for the successful completion of the "${course.title}" learning plan. ${course.description}`,
+                        certCode: course.certificate!.cert_code,
+                        issuedAt: course.certificate!.issued_at,
+                      })
+                    }
+                    className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+                  >
+                    <Download className="size-4" />
+                    Download certificate
+                  </button>
+                )}
               </div>
             </div>
           </section>

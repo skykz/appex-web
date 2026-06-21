@@ -255,7 +255,8 @@ export async function evaluateRefundEligibility(args: {
 }
 
 /**
- * Persists a refund evaluation decision for audit.
+ * Persists a refund evaluation decision for audit. Returns the row id so the
+ * caller can update it (e.g. attach a Stripe refund id after the fact).
  */
 export async function logRefundRequest(args: {
   userId: string
@@ -286,6 +287,21 @@ export async function logRefundRequest(args: {
   return data.id as string
 }
 
+/** Attaches the Stripe refund id to an existing audit row after the refund succeeds. */
+async function attachStripeRefundId(
+  refundRequestId: string,
+  stripeRefundId: string
+): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('refund_requests')
+    .update({ stripe_refund_id: stripeRefundId })
+    .eq('id', refundRequestId)
+  if (error) {
+    // The money is already refunded; surface loudly but don't throw away the id.
+    console.error('[refund] failed to attach stripe_refund_id', refundRequestId, stripeRefundId, error.message)
+  }
+}
+
 /**
  * Marks courtesy_refund_used when a courtesy renewal refund is approved.
  */
@@ -300,6 +316,12 @@ export async function applyCourtesyRefundFlag(userId: string): Promise<void> {
 
 /**
  * Issues a Stripe refund for a billing_history row when configured.
+ *
+ * Passes a deterministic idempotency key derived from the billing row id, so a
+ * retry (double-click, network retry, re-run) returns the SAME Stripe refund
+ * instead of charging back twice. Stripe itself also rejects a second full
+ * refund of an already-fully-refunded charge, but the idempotency key makes the
+ * happy-path retry safe and side-effect-free.
  */
 export async function stripeRefundForBillingRow(
   billing: BillingRow
@@ -322,12 +344,34 @@ export async function stripeRefundForBillingRow(
   }
 
   const stripe = getStripe()
-  const refund = await stripe.refunds.create({
-    charge: chargeId,
-    reason: 'requested_by_customer',
-  })
+  const refund = await stripe.refunds.create(
+    {
+      charge: chargeId,
+      reason: 'requested_by_customer',
+    },
+    { idempotencyKey: `refund:billing:${billing.id}` }
+  )
 
   return refund.id
+}
+
+/**
+ * Returns an existing refund for this billing row that already issued money in
+ * Stripe, if any. Used to block duplicate refunds before we call Stripe again.
+ */
+async function existingStripeRefund(
+  billingHistoryId: string | null
+): Promise<{ id: string; stripe_refund_id: string | null } | null> {
+  if (!billingHistoryId) return null
+  const { data, error } = await supabaseAdmin
+    .from('refund_requests')
+    .select('id, stripe_refund_id')
+    .eq('billing_history_id', billingHistoryId)
+    .not('stripe_refund_id', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new AppError(500, error.message)
+  return (data as { id: string; stripe_refund_id: string | null } | null) ?? null
 }
 
 /**
@@ -350,24 +394,39 @@ export async function processRefundRequest(args: {
     return { ...evaluation, refundRequestId, stripeRefundId: null }
   }
 
-  let stripeRefundId: string | null = null
-
-  if (args.executeStripeRefund) {
-    const billing = await resolveBillingRow(args.userId, evaluation.billingHistoryId)
-    if (!billing) throw new AppError(404, 'Billing record not found')
-    stripeRefundId = await stripeRefundForBillingRow(billing)
+  // Idempotency guard: if this billing row was already refunded in Stripe, do
+  // not issue a second refund. Return the existing record instead.
+  const prior = await existingStripeRefund(evaluation.billingHistoryId)
+  if (prior) {
+    return { ...evaluation, refundRequestId: prior.id, stripeRefundId: prior.stripe_refund_id }
   }
 
-  if (evaluation.reasonCode === 'courtesy_renewal_no_completion') {
-    await applyCourtesyRefundFlag(args.userId)
-  }
-
+  // Write the audit row BEFORE touching Stripe so a crash mid-refund still
+  // leaves a record. The row starts without a stripe_refund_id; we attach it
+  // after the refund succeeds.
   const refundRequestId = await logRefundRequest({
     userId: args.userId,
     evaluation,
     processedBy: args.processedBy,
-    stripeRefundId,
+    stripeRefundId: null,
   })
+
+  let stripeRefundId: string | null = null
+  if (args.executeStripeRefund) {
+    const billing = await resolveBillingRow(args.userId, evaluation.billingHistoryId)
+    if (!billing) throw new AppError(404, 'Billing record not found')
+    // idempotency-keyed inside stripeRefundForBillingRow (key = billing row id).
+    stripeRefundId = await stripeRefundForBillingRow(billing)
+    if (stripeRefundId) {
+      await attachStripeRefundId(refundRequestId, stripeRefundId)
+    }
+  }
+
+  // Only burn the one-time courtesy flag once money has actually moved (or when
+  // we are not executing a Stripe refund, i.e. a manual/marked refund).
+  if (evaluation.reasonCode === 'courtesy_renewal_no_completion') {
+    await applyCourtesyRefundFlag(args.userId)
+  }
 
   return { ...evaluation, refundRequestId, stripeRefundId }
 }

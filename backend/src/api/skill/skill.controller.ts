@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from '../../types/index.js'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { getFreeSkillId, hasAccess } from '../../services/access.service.js'
+import { getCertificate, mintCertificate } from '../../services/certificate.service.js'
 
 export async function listSkills(
   req: Request,
@@ -190,6 +191,17 @@ export async function getSkillDetail(
       .eq('skill_id', skillId)
       .maybeSingle()
 
+    // Surface the earned certificate so the UI can show the real credential
+    // code + issue date. If the course is complete but no certificate exists
+    // yet (legacy completion, or a missed mint), back-fill it on read so the
+    // credential is always available once a course is done.
+    let certificate = null
+    if (progress?.status === 'completed') {
+      certificate =
+        (await getCertificate(userId, skillId)) ??
+        (await mintCertificate(userId, skillId))
+    }
+
     res.json({
       ...skill,
       progress: progress?.progress ?? 0,
@@ -197,6 +209,7 @@ export async function getSkillDetail(
       requires_premium: requiresPremium,
       premium_locked: premiumLocked,
       modules: modulesWithLessons,
+      certificate,
     })
   } catch (err) {
     next(err)

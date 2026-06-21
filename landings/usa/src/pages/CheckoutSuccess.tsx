@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import {
   completeLandingCheckoutAccount,
   fetchLandingCheckoutStatus,
@@ -234,10 +235,10 @@ export default function CheckoutSuccess() {
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                className="rounded-xl border px-3 text-[13px] font-medium text-muted-foreground"
+                className="flex items-center justify-center rounded-xl border px-3 text-muted-foreground"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "Hide" : "Show"}
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             {password.length > 0 && !passwordValid && (

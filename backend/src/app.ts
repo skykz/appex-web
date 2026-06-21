@@ -6,6 +6,7 @@ import authRoutes from './api/auth/auth.route.js'
 import userRoutes from './api/user/user.route.js'
 import skillRoutes from './api/skill/skill.route.js'
 import lessonRoutes from './api/lesson/lesson.route.js'
+import certificateRoutes from './api/certificate/certificate.route.js'
 import chatRoutes from './api/chat/chat.route.js'
 import streakRoutes from './api/streak/streak.route.js'
 import promptRoutes from './api/prompt/prompt.route.js'
@@ -74,6 +75,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/skills', skillRoutes)
 app.use('/api/lessons', lessonRoutes)
+app.use('/api/certificates', certificateRoutes)
 app.use('/api/chat', chatRoutes)
 app.use('/api/streaks', streakRoutes)
 app.use('/api/prompts', promptRoutes)

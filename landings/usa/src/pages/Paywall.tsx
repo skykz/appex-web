@@ -621,12 +621,11 @@ export default function Paywall() {
         <div className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 border-t" style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(8px)', borderColor: '#E5E5E5' }}>
           <button
             type="button"
-            onClick={handleGetPlan}
-            disabled={checkoutLoading}
-            className="mx-auto block w-full max-w-[440px] py-3.5 rounded-2xl text-white font-bold text-[15px] border-none cursor-pointer tracking-wide disabled:opacity-60"
+            onClick={() => document.getElementById("plan-block")?.scrollIntoView({ behavior: "smooth" })}
+            className="mx-auto block w-full max-w-[440px] py-3.5 rounded-2xl text-white font-bold text-[15px] border-none cursor-pointer tracking-wide"
             style={{ background: BLACK }}
           >
-            {checkoutLoading ? "Redirecting…" : "GET MY PLAN"}
+            Get Started
           </button>
         </div>
       )}

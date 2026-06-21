@@ -26,5 +26,24 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit"
+  },
+  "dayStreak": {
+    "eyebrow": "Nice work",
+    "dayStreak": "Day streak!",
+    "bestStreak_one": "Best streak: {{count}} day",
+    "bestStreak_other": "Best streak: {{count}} days",
+    "thisWeek": "This week",
+    "continue": "Continue",
+    "message": {
+      "none": "Finish a lesson today to start your streak.",
+      "day1": "Day one down — come back tomorrow to keep it going.",
+      "day2": "I knew you'd come back! Let's do this again tomorrow.",
+      "day3": "Three days in a row — you're building a real habit.",
+      "week_one": "{{count}} day strong. Come back tomorrow to keep the flame going.",
+      "week_other": "{{count}} days strong. Come back tomorrow to keep the flame going.",
+      "twoWeeks": "A full week — and counting. {{count}} days and unstoppable.",
+      "month": "{{count}} days! This is officially a routine now.",
+      "legend": "{{count}} days. You're an inspiration — keep the flame roaring."
+    }
   }
 }

@@ -57,7 +57,6 @@ export const PAYWALL_FEATURES = [
   "Build real projects — websites, apps, and more",
   "50+ bite-sized lessons & step-by-step personal plan",
   "Personal AI mentors and 24/7 support chat",
-  "+7 AI tools: CV & Portfolio builder and more",
 ] as const;
 
 /**

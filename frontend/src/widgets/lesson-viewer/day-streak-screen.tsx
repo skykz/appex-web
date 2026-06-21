@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import Lottie from 'lottie-react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { streakApi } from '@features/streak/api'
 import { cn } from '@shared/lib'
 import { Button } from '@shared/ui'
+
+type TFn = ReturnType<typeof useTranslation>['t']
 
 const WEEK_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] as const
 
@@ -16,6 +19,22 @@ function getTodayIndex(): number {
   return jsDay === 0 ? 6 : jsDay - 1
 }
 
+/**
+ * Streak-day-aware encouragement shown under the week strip. Early days get
+ * warmer "you came back" copy; longer streaks lean into momentum. All copy is
+ * localized via the `dayStreak.message.*` keys.
+ */
+function getStreakMessage(t: TFn, current: number): string {
+  if (current <= 0) return t('dayStreak.message.none')
+  if (current === 1) return t('dayStreak.message.day1')
+  if (current === 2) return t('dayStreak.message.day2')
+  if (current === 3) return t('dayStreak.message.day3')
+  if (current < 7) return t('dayStreak.message.week', { count: current })
+  if (current < 14) return t('dayStreak.message.twoWeeks', { count: current })
+  if (current < 30) return t('dayStreak.message.month', { count: current })
+  return t('dayStreak.message.legend', { count: current })
+}
+
 interface DayStreakScreenProps {
   onContinue: () => void
 }
@@ -25,6 +44,7 @@ interface DayStreakScreenProps {
  * only shows checks on days that count toward the streak (not on future/empty days).
  */
 export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
+  const { t } = useTranslation()
   const [fireAnimationData, setFireAnimationData] = useState<Record<
     string,
     unknown
@@ -70,7 +90,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
             )}
           >
             <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-orange-900/90 dark:text-orange-200">
-              Nice work
+              {t('dayStreak.eyebrow')}
             </p>
 
             <div className="flex items-end justify-center gap-3">
@@ -86,7 +106,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
                   {current}
                 </p>
                 <p className="mt-2 text-base font-semibold text-orange-900/90 dark:text-orange-50">
-                  Day streak!
+                  {t('dayStreak.dayStreak')}
                 </p>
               </div>
 
@@ -122,18 +142,14 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
             </div>
 
             <p className="mt-4 text-center text-xs text-orange-950/70 dark:text-orange-100/75">
-              Best streak:{' '}
-              <span className="font-semibold tabular-nums text-orange-900 dark:text-orange-200">
-                {best}
-              </span>{' '}
-              days
+              {t('dayStreak.bestStreak', { count: best })}
             </p>
           </div>
 
           {/* Week strip — checks only on streak days; no misleading icons on future days */}
           <div className="bg-card px-4 py-5">
             <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              This week
+              {t('dayStreak.thisWeek')}
             </p>
             <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
               {WEEK_DAYS.map((day, i) => {
@@ -195,7 +211,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
             </div>
 
             <p className="mt-5 text-center text-sm leading-relaxed text-muted-foreground">
-              Come back tomorrow to keep the flame going.
+              {getStreakMessage(t, current)}
             </p>
           </div>
         </div>
@@ -204,7 +220,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
       <div className="sticky bottom-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-2xl justify-end">
           <Button onClick={onContinue} size="xl" className="min-w-[10rem] px-10">
-            Continue
+            {t('dayStreak.continue')}
           </Button>
         </div>
       </div>

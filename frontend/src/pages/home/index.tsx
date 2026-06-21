@@ -6,7 +6,6 @@ import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { ProgressCard, SectionLoader } from '@shared/ui'
 import { skillsApi, type SkillDetail, type SkillListItem } from '@features/skills'
-import { HomeOffersNewsSection } from '@/widgets/home-offers-news-section'
 import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
 
 /**
@@ -261,7 +260,6 @@ export default function HomePage() {
                 }
               />
               <HomeStreakPromoSection />
-              <HomeOffersNewsSection />
             </aside>
           </div>
         </div>

@@ -14,5 +14,6 @@ export type {
   SkillCategoryFilter,
   SkillCategorySlug,
   SkillStatus,
+  Certificate,
 } from './types'
 export { skillCategories, categorySectionCopy } from './types'

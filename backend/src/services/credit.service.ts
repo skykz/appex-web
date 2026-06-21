@@ -12,21 +12,20 @@ export async function getBalance(userId: string): Promise<number> {
 }
 
 export async function deductCredit(userId: string): Promise<number> {
-  const balance = await getBalance(userId)
+  // Atomic: a single conditional UPDATE (balance = balance - 1 WHERE balance > 0)
+  // runs inside the deduct_credit() Postgres function so two concurrent chat
+  // requests cannot both read the same balance and double-spend. Returns the new
+  // balance, or -1 when there were no credits to deduct.
+  const { data, error } = await supabaseAdmin.rpc('deduct_credit', {
+    p_user_id: userId,
+  })
 
-  if (balance <= 0) {
+  if (error) throw new AppError(500, error.message)
+
+  const newBalance = typeof data === 'number' ? data : -1
+  if (newBalance < 0) {
     throw new AppError(403, 'Insufficient credits')
   }
-
-  const newBalance = balance - 1
-
-  await supabaseAdmin
-    .from('user_credits')
-    .update({
-      balance: newBalance,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
 
   return newBalance
 }

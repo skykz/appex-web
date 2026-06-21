@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronRight, ChevronUp, ChevronDown, Lock, Sparkles } from 'lucide-react'
+import { ChevronRight, ChevronUp, ChevronDown, Lock, Sparkles, Download } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { PageLoader } from '@shared/ui'
 import { skillsApi, type SkillModule } from '@features/skills'
 import { PaywallDialog } from '@features/skills/paywall-dialog'
+import { CourseCertificate } from '@features/skills/course-certificate'
+import { downloadCertificate } from '@features/skills/certificate-download'
+import { useAuthStore } from '@entities/user'
 
 /**
  * Single skill (course) overview with expandable modules and lesson links.
@@ -15,6 +18,7 @@ export default function SkillDetailPage() {
   const { skillId } = useParams<{ skillId: string }>()
   const navigate = useNavigate()
   const id = Number(skillId)
+  const userName = useAuthStore((s) => s.user?.name)
 
   const { data: skill, isPending, isError, refetch } = useQuery({
     queryKey: ['skill', id],
@@ -62,6 +66,23 @@ export default function SkillDetailPage() {
     0
   )
 
+  // The certificate is minted server-side the moment the course completes; the
+  // detail response carries it. We only show the credential once it exists.
+  const certificate = skill.certificate ?? null
+  const certificateDescription = `for the successful completion of the "${skill.title}" learning plan. ${skill.description}`
+
+  /** Downloads the earned certificate as a high-resolution PNG image. */
+  function handleDownloadCertificate() {
+    if (!certificate) return
+    void downloadCertificate({
+      recipientName: certificate.user_name || userName || 'Appex Learner',
+      courseTitle: skill!.title,
+      description: certificateDescription,
+      certCode: certificate.cert_code,
+      issuedAt: certificate.issued_at,
+    })
+  }
+
   return (
     <div className="relative min-h-dvh w-full py-2">
       <div className="px-4">
@@ -101,42 +122,63 @@ export default function SkillDetailPage() {
                   </span>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Paywall short-circuit: paid skill + no active subscription
-                    // → open the upsell instead of routing into a 402.
-                    if (skill.premium_locked) {
-                      setPaywallOpen(true)
-                      return
-                    }
-                    const firstUnlocked = skill.modules
-                      .flatMap((m) => m.lessons)
-                      .find((l) => !l.locked)
-                    if (firstUnlocked) {
-                      navigate(`/skills/${skill.id}/lessons/${firstUnlocked.id}`)
-                    }
-                  }}
-                  className={cn(
-                    'mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] sm:w-auto sm:px-8',
-                    skill.premium_locked
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm hover:from-amber-500 hover:to-orange-600'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  )}
-                >
-                  {skill.premium_locked ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Sparkles className="size-4" />
-                      Unlock with Premium
-                    </span>
-                  ) : skill.status === 'completed' ? (
-                    'Review course'
-                  ) : skill.status === 'in_progress' ? (
-                    'Continue'
-                  ) : (
-                    'Start course'
-                  )}
-                </button>
+                {certificate && !skill.premium_locked ? (
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleDownloadCertificate}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98] sm:w-auto sm:px-8"
+                    >
+                      <Download className="size-4" />
+                      Download certificate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const first = skill.modules.flatMap((m) => m.lessons).find((l) => !l.locked)
+                        if (first) navigate(`/skills/${skill.id}/lessons/${first.id}`)
+                      }}
+                      className="inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98] sm:w-auto sm:px-8"
+                    >
+                      Review course
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Paywall short-circuit: paid skill + no active subscription
+                      // → open the upsell instead of routing into a 402.
+                      if (skill.premium_locked) {
+                        setPaywallOpen(true)
+                        return
+                      }
+                      const firstUnlocked = skill.modules
+                        .flatMap((m) => m.lessons)
+                        .find((l) => !l.locked)
+                      if (firstUnlocked) {
+                        navigate(`/skills/${skill.id}/lessons/${firstUnlocked.id}`)
+                      }
+                    }}
+                    className={cn(
+                      'mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] sm:w-auto sm:px-8',
+                      skill.premium_locked
+                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm hover:from-amber-500 hover:to-orange-600'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    )}
+                  >
+                    {skill.premium_locked ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Sparkles className="size-4" />
+                        Unlock with Premium
+                      </span>
+                    ) : skill.status === 'in_progress' ? (
+                      'Continue'
+                    ) : (
+                      'Start course'
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -170,6 +212,45 @@ export default function SkillDetailPage() {
                 </button>
               )}
             </div>
+
+            {certificate && (
+              <div className="mt-10">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold">Certificate</h2>
+                    <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
+                      {certificateDescription}
+                    </p>
+                    <p className="mt-2 text-xs font-medium text-muted-foreground">
+                      Credential ID:{' '}
+                      <span className="font-semibold text-foreground">{certificate.cert_code}</span>
+                      {' · '}
+                      <a
+                        href={`/verify/${certificate.cert_code}`}
+                        className="text-primary hover:underline"
+                      >
+                        Verify
+                      </a>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCertificate}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+                  >
+                    <Download className="size-4" />
+                    Download certificate
+                  </button>
+                </div>
+                <CourseCertificate
+                  recipientName={certificate.user_name || userName || 'Appex Learner'}
+                  courseTitle={skill.title}
+                  description={certificateDescription}
+                  certCode={certificate.cert_code}
+                  issuedAt={certificate.issued_at}
+                />
+              </div>
+            )}
           </div>
 
           <div className="w-full shrink-0 lg:w-80 xl:w-96">

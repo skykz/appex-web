@@ -53,16 +53,12 @@ export async function recordLessonOpen(
 }
 
 /**
- * Fire-and-forget wrapper so lesson GET responses are not blocked on logging.
- */
-export function recordLessonOpenAsync(userId: string, lessonId: number): void {
-  void recordLessonOpen(userId, lessonId).catch((err) => {
-    console.error('[lesson-open] async failed', userId, lessonId, err)
-  })
-}
-
-/**
  * Counts distinct lessons opened on or after a reference timestamp.
+ *
+ * Throws on query failure rather than returning 0. These counts gate refund
+ * eligibility: a silent 0 on a transient DB error would read as "no engagement"
+ * and wrongly APPROVE a refund for a user who actually opened lessons. Failing
+ * closed (propagating the error) makes the refund evaluation abort instead.
  */
 export async function countLessonsOpenedSince(
   userId: string,
@@ -76,7 +72,7 @@ export async function countLessonsOpenedSince(
 
   if (error) {
     console.error('[lesson-open] count opened failed', userId, error.message)
-    return 0
+    throw new Error(`Failed to count opened lessons: ${error.message}`)
   }
 
   return new Set((data ?? []).map((r) => r.lesson_id as number)).size
@@ -84,6 +80,7 @@ export async function countLessonsOpenedSince(
 
 /**
  * Counts lessons completed on or after a reference timestamp.
+ * Throws on failure (fail-closed) for the same refund-eligibility reason as above.
  */
 export async function countLessonsCompletedSince(
   userId: string,
@@ -98,7 +95,7 @@ export async function countLessonsCompletedSince(
 
   if (error) {
     console.error('[lesson-open] count completed failed', userId, error.message)
-    return 0
+    throw new Error(`Failed to count completed lessons: ${error.message}`)
   }
 
   return count ?? 0

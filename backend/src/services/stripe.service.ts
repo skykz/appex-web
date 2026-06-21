@@ -636,10 +636,26 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
     throw error
   }
 
-  await supabaseAdmin
+  // Clear the payment-failure grace flags ONLY when the subscription is actually
+  // back in a paying state. Previously this cleared unconditionally on any paid
+  // invoice — so an unrelated paid invoice (a proration, a one-off) arriving while
+  // the subscription was still `past_due` would null payment_failed_at and, because
+  // isWithinPaymentGracePeriod(null)===true, re-grant indefinite premium to a
+  // non-paying user. A subscription that has truly recovered emits
+  // customer.subscription.updated with status active/trialing, which clears the
+  // flags via upsertSubscriptionFromStripe; we mirror that condition here.
+  const { data: subRow } = await supabaseAdmin
     .from('subscriptions')
-    .update({ payment_failed_at: null, payment_failed_count: 0 })
+    .select('status')
     .eq('user_id', mapping.user_id)
+    .maybeSingle()
+
+  if (subRow?.status === 'active' || subRow?.status === 'trialing') {
+    await supabaseAdmin
+      .from('subscriptions')
+      .update({ payment_failed_at: null, payment_failed_count: 0 })
+      .eq('user_id', mapping.user_id)
+  }
 
   await syncCreditsForUser(mapping.user_id)
 }
@@ -708,4 +724,47 @@ export async function markEventProcessed(
     .insert({ id: eventId, type })
     .select()
     .maybeSingle()
+}
+
+/**
+ * Atomically claims a Stripe event for processing.
+ *
+ * Inserts the event id (the table PK) and reports whether THIS caller won the
+ * insert. Stripe delivers at-least-once and can deliver the same event
+ * concurrently (or retry while a slow handler is still running); a read-then-write
+ * guard lets two concurrent deliveries both pass and run side effects twice. The
+ * PK unique constraint makes the insert the single source of truth: exactly one
+ * caller gets `claimed: true`, every duplicate gets `claimed: false` and must NOT
+ * dispatch. A genuine DB error (not a duplicate) is surfaced so the webhook can
+ * 500 and let Stripe retry later.
+ */
+export async function claimEvent(
+  eventId: string,
+  type: string
+): Promise<{ claimed: boolean }> {
+  const { error } = await supabaseAdmin
+    .from('stripe_events')
+    .insert({ id: eventId, type })
+
+  if (!error) return { claimed: true }
+
+  // Postgres unique_violation → already claimed/processed by another delivery.
+  if (error.code === '23505') return { claimed: false }
+
+  // Any other error is a real failure; let the caller decide (return 500 → retry).
+  throw new Error(`claimEvent failed: ${error.message}`)
+}
+
+/**
+ * Releases a previously-claimed event so a Stripe retry can re-process it.
+ * Called when dispatch throws after the claim succeeded.
+ */
+export async function releaseEventClaim(eventId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('stripe_events')
+    .delete()
+    .eq('id', eventId)
+  if (error) {
+    console.error('[stripe] releaseEventClaim failed', eventId, error.message)
+  }
 }

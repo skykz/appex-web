@@ -25,6 +25,7 @@ const PromptCollectionPage = lazy(
 )
 const DocumentationPage = lazy(() => import('@pages/resources/docs'))
 const CoursePage = lazy(() => import('@pages/academy/course'))
+const VerifyCertificatePage = lazy(() => import('@pages/verify'))
 const LessonPage = lazy(() => import('@pages/academy/lesson'))
 const SkillLessonPage = lazy(() => import('@pages/skills/lesson'))
 
@@ -169,6 +170,14 @@ export const router = createBrowserRouter(
         ),
       },
     ],
+  },
+  {
+    path: '/verify/:code',
+    element: (
+      <Suspense fallback={authRouteFallback}>
+        <VerifyCertificatePage />
+      </Suspense>
+    ),
   },
   {
     path: '*',

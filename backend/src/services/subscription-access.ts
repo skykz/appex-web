@@ -34,10 +34,13 @@ export function subscriptionGrantsAccess(sub: SubscriptionAccessInput): boolean 
   switch (sub.status) {
     case 'active':
     case 'trialing':
-    case 'paused':
       return true
     case 'past_due':
       return isWithinPaymentGracePeriod(sub.payment_failed_at)
+    // 'paused' (Stripe pause_collection) means billing is suspended and the user
+    // is not paying — so it must NOT grant content access. Resuming flips the
+    // subscription back to 'active', which restores access.
+    case 'paused':
     default:
       return false
   }

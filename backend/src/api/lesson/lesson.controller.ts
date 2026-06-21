@@ -5,8 +5,9 @@ import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
-import { canAccessSkill, getLessonSkillId } from '../../services/access.service.js'
-import { recordLessonOpenAsync } from '../../services/lesson-open.service.js'
+import { canAccessSkill } from '../../services/access.service.js'
+import { recordLessonOpen } from '../../services/lesson-open.service.js'
+import { mintCertificate } from '../../services/certificate.service.js'
 
 const progressSchema = z.object({
   stepIndex: z.number().int().min(0),
@@ -19,8 +20,19 @@ const completeSchema = z.object({
 
 /**
  * Loads a lesson only if the lesson and every catalog ancestor is visible to learners.
+ *
+ * When `userId` is provided, this ALSO enforces the premium paywall: any lesson
+ * belonging to a paid skill the user cannot access throws 402. Passing userId is
+ * the default for every learner-facing handler so the paywall cannot be bypassed
+ * by calling a write endpoint (progress/complete/quiz/submission) directly without
+ * first going through getLesson. Pass `{ enforceAccess: false }` only for handlers
+ * that intentionally must work without an active subscription.
  */
-async function getVisibleLessonOrThrow(lessonId: number) {
+async function getVisibleLessonOrThrow(
+  lessonId: number,
+  userId?: string,
+  opts: { enforceAccess?: boolean } = {}
+) {
   const { data: lesson, error } = await supabaseAdmin
     .from('lessons')
     .select('*')
@@ -53,6 +65,15 @@ async function getVisibleLessonOrThrow(lessonId: number) {
     .single()
   if (categoryError || !category) throw new AppError(404, 'Lesson not found')
 
+  // Centralized paywall: enforce here so every caller (read AND write) is gated.
+  const enforceAccess = opts.enforceAccess ?? true
+  if (userId && enforceAccess) {
+    const allowed = await canAccessSkill(userId, mod.skill_id)
+    if (!allowed) {
+      throw new AppError(402, 'This lesson requires an active subscription')
+    }
+  }
+
   return { lesson, module: mod, skill }
 }
 
@@ -65,22 +86,10 @@ export async function getLesson(
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
 
-    const { lesson } = await getVisibleLessonOrThrow(lessonId)
+    // Paywall enforced inside getVisibleLessonOrThrow (402 if no access).
+    const { lesson } = await getVisibleLessonOrThrow(lessonId, userId)
 
-    // Paywall: every skill beyond the first one requires an active subscription.
-    // We resolve the skill from the lesson, then run the centralized check so
-    // the rule lives in one place (access.service.ts).
-    const skillId = await getLessonSkillId(lessonId)
-    if (skillId !== null) {
-      const allowed = await canAccessSkill(userId, skillId)
-      if (!allowed) {
-        // 402 Payment Required is semantically perfect here and the frontend
-        // can render a paywall modal on this specific code without ambiguity.
-        throw new AppError(402, 'This lesson requires an active subscription')
-      }
-    }
-
-    recordLessonOpenAsync(userId, lessonId)
+    await recordLessonOpen(userId, lessonId)
 
     // Fetch user progress
     const { data: progress } = await supabaseAdmin
@@ -114,7 +123,7 @@ export async function updateProgress(
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
     const body = progressSchema.parse(req.body)
-    await getVisibleLessonOrThrow(lessonId)
+    await getVisibleLessonOrThrow(lessonId, userId)
 
     const { data, error } = await supabaseAdmin
       .from('lesson_progress')
@@ -146,7 +155,7 @@ export async function completeLesson(
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
     const body = completeSchema.parse(req.body)
-    const visible = await getVisibleLessonOrThrow(lessonId)
+    const visible = await getVisibleLessonOrThrow(lessonId, userId)
 
     // Mark lesson complete
     const { data, error } = await supabaseAdmin
@@ -223,6 +232,17 @@ async function recalculateSkillProgress(userId: string, skillId: number) {
     },
     { onConflict: 'user_id,skill_id' }
   )
+
+  // Course just finished → mint the completion certificate (idempotent, so
+  // re-running on an already-completed course is a no-op). Issuance must never
+  // break lesson completion, so any failure is logged and swallowed.
+  if (status === 'completed') {
+    try {
+      await mintCertificate(userId, skillId)
+    } catch (err) {
+      console.error('Certificate minting failed', { userId, skillId, err })
+    }
+  }
 }
 
 const quizCheckSchema = z.object({
@@ -299,7 +319,7 @@ export async function checkQuizAnswer(
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
     const body = quizCheckSchema.parse(req.body)
-    const visible = await getVisibleLessonOrThrow(lessonId)
+    const visible = await getVisibleLessonOrThrow(lessonId, userId)
 
     const steps = visible.lesson.content as Array<{ blocks?: unknown[] }>
     const step = steps[body.stepIndex]
@@ -400,7 +420,7 @@ export async function uploadLessonSubmissionFile(
   try {
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
-    await getVisibleLessonOrThrow(lessonId)
+    await getVisibleLessonOrThrow(lessonId, userId)
     const body = submissionFileSchema.parse(req.body)
     const fileBuffer = Buffer.from(body.dataBase64, 'base64')
     if (fileBuffer.length !== body.size) {
@@ -433,7 +453,7 @@ export async function submitLessonSubmission(
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
     const body = submissionBodySchema.parse(req.body)
-    await getVisibleLessonOrThrow(lessonId)
+    await getVisibleLessonOrThrow(lessonId, userId)
 
     const { data, error } = await supabaseAdmin
       .from('lesson_submissions')
@@ -518,7 +538,7 @@ export async function getMyLessonSubmission(
   try {
     const { userId } = req as AuthenticatedRequest
     const lessonId = Number(req.params.id)
-    await getVisibleLessonOrThrow(lessonId)
+    await getVisibleLessonOrThrow(lessonId, userId)
 
     const { data, error } = await supabaseAdmin
       .from('lesson_submissions')

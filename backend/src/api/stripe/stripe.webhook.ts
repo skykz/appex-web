@@ -3,8 +3,8 @@ import type Stripe from 'stripe'
 import { env } from '../../config/env.js'
 import { getStripe } from '../../lib/stripe.js'
 import {
-  isEventProcessed,
-  markEventProcessed,
+  claimEvent,
+  releaseEventClaim,
   markPaymentFailedFromInvoice,
   recordInvoicePayment,
   syncCreditsForSubscription,
@@ -22,9 +22,10 @@ import { sendPaymentConfirmedAsync } from '../../services/lifecycle-email.servic
  * IMPORTANT: mounted with `express.raw({ type: 'application/json' })` in app.ts —
  * `req.body` here is a Buffer, not parsed JSON, so signature verification works.
  *
- * We always return 200 quickly after acknowledging the event; failures inside
- * handlers are logged but do not surface to Stripe as 5xx (which would trigger
- * retries that compound the problem). Idempotency is enforced via `stripe_events`.
+ * Idempotency is enforced by atomically CLAIMING the event (insert into
+ * `stripe_events`, gated by the PK) BEFORE dispatch. A duplicate or concurrent
+ * delivery loses the claim and returns 200 without re-running side effects. If
+ * dispatch fails, we release the claim and return 500 so Stripe retries.
  */
 export async function stripeWebhookHandler(req: Request, res: Response) {
   if (!env.stripeEnabled || !env.STRIPE_WEBHOOK_SECRET) {
@@ -52,21 +53,31 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
     return
   }
 
-  // Idempotency: Stripe retries on non-2xx, and at-least-once delivery is
-  // documented behaviour. Skip events we've already handled.
-  if (await isEventProcessed(event.id)) {
+  // Atomically claim the event before doing any work. Only the caller that wins
+  // the insert proceeds; duplicates/concurrent deliveries short-circuit here.
+  let claimed: boolean
+  try {
+    ;({ claimed } = await claimEvent(event.id, event.type))
+  } catch (err) {
+    // Real DB error (not a duplicate) → let Stripe retry.
+    console.error(`Stripe webhook claim failed (${event.type})`, err)
+    res.status(500).send('Webhook claim error')
+    return
+  }
+
+  if (!claimed) {
     res.json({ received: true, duplicate: true })
     return
   }
 
   try {
     await dispatch(event)
-    await markEventProcessed(event.id, event.type)
     res.json({ received: true })
   } catch (err) {
-    // Log loudly but still 200: the event is in `stripe_events`-less state, so
-    // a future retry from Stripe will re-attempt the handler.
+    // Release the claim so a future Stripe retry can re-attempt the handler;
+    // otherwise the event id would be permanently marked done with no work done.
     console.error(`Stripe webhook handler error (${event.type})`, err)
+    await releaseEventClaim(event.id)
     res.status(500).send('Webhook handler error')
   }
 }

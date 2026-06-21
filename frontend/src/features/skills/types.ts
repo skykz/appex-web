@@ -54,8 +54,23 @@ export interface SkillListItem {
   premium_locked?: boolean
 }
 
+/** A minted course-completion credential (see backend certificate.service). */
+export interface Certificate {
+  /** Public, branded + sequential code, e.g. "APX-2026-000142". */
+  cert_code: string
+  /** Learner name snapshotted at issuance. */
+  user_name: string
+  skill_id: number
+  /** Course title snapshotted at issuance. */
+  course_title: string
+  /** ISO timestamp the certificate was issued. */
+  issued_at: string
+}
+
 export interface SkillDetail extends SkillListItem {
   modules: SkillModule[]
+  /** Present once the course is completed and the certificate has been minted. */
+  certificate?: Certificate | null
 }
 
 /** Card grid item — same as list row from API (no modules on list endpoint). */
