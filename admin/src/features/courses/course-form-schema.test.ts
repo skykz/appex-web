@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { courseFormSchema } from './course-form'
+import { parseCertTags } from './cert-form-utils'
+import { buildCertificatePreviewData } from './certificate-preview-data'
 
 describe('courseFormSchema', () => {
   it('accepts a minimal valid payload', () => {
@@ -37,5 +39,32 @@ describe('courseFormSchema', () => {
         duration: '3 hours',
       })
     ).toThrow()
+  })
+})
+
+describe('parseCertTags', () => {
+  it('parses newline-separated tags and caps at eight', () => {
+    const tags = parseCertTags('Prompt Engineering\n\nAI Automation\n  Research  ')
+    expect(tags).toEqual(['Prompt Engineering', 'AI Automation', 'Research'])
+  })
+})
+
+describe('buildCertificatePreviewData', () => {
+  it('uses certificate title and sample learner fields', () => {
+    const data = buildCertificatePreviewData({
+      courseTitle: 'Catalog title',
+      cert_title: 'MASTER THE\nCLAUDE',
+      cert_description: 'Awarded for completing the program.',
+      cert_tags_text: 'Prompt Engineering\nAI Automation',
+    })
+    expect(data.recipientName).toBe('Jane Doe')
+    expect(data.courseTitle).toBe('MASTER THE\nCLAUDE')
+    expect(data.certCode).toBe('APX-2026-000000')
+    expect(data.tags).toEqual(['Prompt Engineering', 'AI Automation'])
+  })
+
+  it('falls back to catalog title when certificate title is empty', () => {
+    const data = buildCertificatePreviewData({ courseTitle: 'Build with AI' })
+    expect(data.courseTitle).toBe('Build with AI')
   })
 })

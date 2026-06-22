@@ -15,6 +15,8 @@ export type VerifyResult =
         cert_code: string
         user_name: string
         course_title: string
+        cert_description: string
+        cert_tags: string[]
         issued_at: string
       }
     }

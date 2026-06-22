@@ -14,6 +14,9 @@ export interface Course {
   order: number
   is_visible: boolean
   created_at: string
+  cert_title?: string | null
+  cert_description?: string | null
+  cert_tags?: string[]
   module_count?: number
   lesson_count?: number
 }
@@ -26,6 +29,9 @@ export interface CourseInput {
   category: string
   duration: string
   is_visible?: boolean
+  cert_title?: string | null
+  cert_description?: string | null
+  cert_tags?: string[]
 }
 
 export interface Module {

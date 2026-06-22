@@ -14,6 +14,8 @@ import {
   assertCanDeleteModule,
 } from './content-deletion-policy.js'
 
+const certTagsSchema = z.array(z.string().min(1).max(40)).max(8)
+
 const courseCreateSchema = z.object({
   title: z.string().min(2).max(120),
   description: z.string().min(2).max(300),
@@ -23,6 +25,12 @@ const courseCreateSchema = z.object({
   duration: z.string().min(1),
   is_visible: z.boolean().default(false),
   order: z.coerce.number().int().min(0).optional(),
+  /** Display title on the completion certificate (newline = line break). */
+  cert_title: z.string().max(200).nullable().optional(),
+  /** Description printed on the certificate (newline = line break). */
+  cert_description: z.string().max(600).nullable().optional(),
+  /** Skill tags shown as pills on the certificate. */
+  cert_tags: certTagsSchema.optional(),
 })
 
 const courseUpdateSchema = courseCreateSchema.partial()

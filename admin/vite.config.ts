@@ -12,6 +12,7 @@ export default defineConfig({
       '@features': path.resolve(__dirname, './src/features'),
       '@entities': path.resolve(__dirname, './src/entities'),
       '@shared': path.resolve(__dirname, './src/shared'),
+      '@appex/certificate': path.resolve(__dirname, '../frontend/src/features/skills'),
     },
   },
   server: {

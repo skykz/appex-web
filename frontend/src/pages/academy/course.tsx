@@ -18,7 +18,7 @@ import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { PageLoader } from '@shared/ui'
 import { skillsApi } from '@features/skills'
-import { downloadCertificate } from '@features/skills/certificate-download'
+import { downloadCertificate, certificateToDownloadData } from '@features/skills/certificate-download'
 import type { SkillLesson, SkillModule } from '@features/skills'
 import { useAuthStore } from '@entities/user'
 
@@ -221,14 +221,10 @@ export default function CoursePage() {
                   <button
                     type="button"
                     onClick={() =>
-                      void downloadCertificate({
-                        recipientName:
-                          course.certificate!.user_name || userName || 'Appex Learner',
-                        courseTitle: course.title,
-                        description: `for the successful completion of the "${course.title}" learning plan. ${course.description}`,
-                        certCode: course.certificate!.cert_code,
-                        issuedAt: course.certificate!.issued_at,
-                      })
+                      course.certificate &&
+                      void downloadCertificate(
+                        certificateToDownloadData(course.certificate, userName)
+                      )
                     }
                     className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
                   >

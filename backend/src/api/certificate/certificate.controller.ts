@@ -16,7 +16,7 @@ export async function listMyCertificates(
     const { userId } = req as AuthenticatedRequest
     const { data, error } = await supabaseAdmin
       .from('certificates')
-      .select('cert_code, user_name, skill_id, course_title, issued_at')
+      .select('cert_code, user_name, skill_id, course_title, cert_description, cert_tags, issued_at')
       .eq('user_id', userId)
       .order('issued_at', { ascending: false })
     if (error) throw new AppError(500, error.message)
@@ -51,6 +51,8 @@ export async function verifyCertificateByCode(
         cert_code: cert.cert_code,
         user_name: cert.user_name,
         course_title: cert.course_title,
+        cert_description: cert.cert_description,
+        cert_tags: cert.cert_tags,
         issued_at: cert.issued_at,
       },
     })

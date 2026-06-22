@@ -8,7 +8,7 @@ import { PageLoader } from '@shared/ui'
 import { skillsApi, type SkillModule } from '@features/skills'
 import { PaywallDialog } from '@features/skills/paywall-dialog'
 import { CourseCertificate } from '@features/skills/course-certificate'
-import { downloadCertificate } from '@features/skills/certificate-download'
+import { downloadCertificate, certificateToDownloadData } from '@features/skills/certificate-download'
 import { useAuthStore } from '@entities/user'
 
 /**
@@ -69,18 +69,11 @@ export default function SkillDetailPage() {
   // The certificate is minted server-side the moment the course completes; the
   // detail response carries it. We only show the credential once it exists.
   const certificate = skill.certificate ?? null
-  const certificateDescription = `for the successful completion of the "${skill.title}" learning plan. ${skill.description}`
 
   /** Downloads the earned certificate as a high-resolution PNG image. */
   function handleDownloadCertificate() {
     if (!certificate) return
-    void downloadCertificate({
-      recipientName: certificate.user_name || userName || 'Appex Learner',
-      courseTitle: skill!.title,
-      description: certificateDescription,
-      certCode: certificate.cert_code,
-      issuedAt: certificate.issued_at,
-    })
+    void downloadCertificate(certificateToDownloadData(certificate, userName))
   }
 
   return (
@@ -219,7 +212,7 @@ export default function SkillDetailPage() {
                   <div>
                     <h2 className="text-lg font-bold">Certificate</h2>
                     <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
-                      {certificateDescription}
+                      {certificate.cert_description || `Awarded for completing ${skill.title}.`}
                     </p>
                     <p className="mt-2 text-xs font-medium text-muted-foreground">
                       Credential ID:{' '}
@@ -242,13 +235,7 @@ export default function SkillDetailPage() {
                     Download certificate
                   </button>
                 </div>
-                <CourseCertificate
-                  recipientName={certificate.user_name || userName || 'Appex Learner'}
-                  courseTitle={skill.title}
-                  description={certificateDescription}
-                  certCode={certificate.cert_code}
-                  issuedAt={certificate.issued_at}
-                />
+                <CourseCertificate {...certificateToDownloadData(certificate, userName)} />
               </div>
             )}
           </div>

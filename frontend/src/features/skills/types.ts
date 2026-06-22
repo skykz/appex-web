@@ -61,8 +61,12 @@ export interface Certificate {
   /** Learner name snapshotted at issuance. */
   user_name: string
   skill_id: number
-  /** Course title snapshotted at issuance. */
+  /** Certificate display title snapshotted at issuance. */
   course_title: string
+  /** Description body snapshotted at issuance. */
+  cert_description: string
+  /** Skill tags snapshotted at issuance. */
+  cert_tags: string[]
   /** ISO timestamp the certificate was issued. */
   issued_at: string
 }

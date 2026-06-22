@@ -3,12 +3,67 @@ import { supabaseAdmin } from '../db/supabase.js'
 /** Branded credential prefix. Codes look like APX-2026-000142. */
 const CERT_PREFIX = 'APX'
 
+const CERT_COLUMNS =
+  'cert_code, user_name, skill_id, course_title, cert_description, cert_tags, issued_at'
+
 export type Certificate = {
   cert_code: string
   user_name: string
   skill_id: number
+  /** Certificate display title snapshotted at issuance. */
   course_title: string
+  /** Description body snapshotted at issuance. */
+  cert_description: string
+  /** Skill tags snapshotted at issuance. */
+  cert_tags: string[]
   issued_at: string
+}
+
+type SkillCertConfig = {
+  title: string
+  cert_title: string | null
+  cert_description: string | null
+  cert_tags: string[] | null
+}
+
+/**
+ * Normalizes a Postgres jsonb tags column into a string array.
+ */
+function normalizeCertTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((tag): tag is string => typeof tag === 'string')
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Maps a certificate row from Supabase into the public Certificate shape.
+ */
+function mapCertificateRow(row: Record<string, unknown>): Certificate {
+  return {
+    cert_code: String(row.cert_code),
+    user_name: String(row.user_name),
+    skill_id: Number(row.skill_id),
+    course_title: String(row.course_title),
+    cert_description: String(row.cert_description ?? ''),
+    cert_tags: normalizeCertTags(row.cert_tags),
+    issued_at: String(row.issued_at),
+  }
+}
+
+/**
+ * Resolves admin-defined certificate content for a skill at mint time.
+ */
+function resolveCertContent(skill: SkillCertConfig): {
+  course_title: string
+  cert_description: string
+  cert_tags: string[]
+} {
+  const course_title = skill.cert_title?.trim() || skill.title
+  const cert_description = skill.cert_description?.trim() || ''
+  const cert_tags = normalizeCertTags(skill.cert_tags)
+  return { course_title, cert_description, cert_tags }
 }
 
 /**
@@ -25,36 +80,33 @@ function formatCertCode(seq: number, year: number): string {
  * returned unchanged. Intended to be called the moment a course flips to
  * `completed` (see recalculateSkillProgress).
  *
- * The credential code is branded + sequential. The sequence number comes from a
- * Postgres sequence (`certificate_seq`) so concurrent completions never collide;
- * the row's UNIQUE(user_id, skill_id) is the idempotency guard.
- *
- * Failures are swallowed by the caller's try/catch on purpose — a certificate is
- * a reward, not a gate, so issuance must never break lesson completion.
+ * Course certificate text (title, description, tags) is snapshotted from the
+ * skill's admin-defined config so later edits never mutate issued credentials.
  */
 export async function mintCertificate(
   userId: string,
   skillId: number
 ): Promise<Certificate | null> {
-  // Already issued? Return it (idempotent).
   const { data: existing } = await supabaseAdmin
     .from('certificates')
-    .select('cert_code, user_name, skill_id, course_title, issued_at')
+    .select(CERT_COLUMNS)
     .eq('user_id', userId)
     .eq('skill_id', skillId)
     .maybeSingle()
-  if (existing) return existing as Certificate
+  if (existing) return mapCertificateRow(existing)
 
-  // Snapshot the learner name + course title at issuance time so a later
-  // rename never mutates an already-issued credential.
   const [{ data: user }, { data: skill }] = await Promise.all([
     supabaseAdmin.from('users').select('name').eq('id', userId).maybeSingle(),
-    supabaseAdmin.from('skills').select('title').eq('id', skillId).maybeSingle(),
+    supabaseAdmin
+      .from('skills')
+      .select('title, cert_title, cert_description, cert_tags')
+      .eq('id', skillId)
+      .maybeSingle(),
   ])
   if (!user || !skill) return null
 
-  // Reserve the next sequence value atomically. PostgREST may serialize a
-  // numeric scalar as either a JS number or a numeric string, so coerce both.
+  const certContent = resolveCertContent(skill as SkillCertConfig)
+
   const { data: seqRow, error: seqError } = await supabaseAdmin.rpc('next_certificate_seq')
   const seq = Number(seqRow)
   if (seqError || !Number.isFinite(seq) || seq <= 0) return null
@@ -69,30 +121,29 @@ export async function mintCertificate(
       user_id: userId,
       user_name: user.name,
       skill_id: skillId,
-      course_title: skill.title,
+      course_title: certContent.course_title,
+      cert_description: certContent.cert_description,
+      cert_tags: certContent.cert_tags,
       issued_at: issuedAt.toISOString(),
     })
-    .select('cert_code, user_name, skill_id, course_title, issued_at')
+    .select(CERT_COLUMNS)
     .single()
 
-  // A concurrent mint may have won the UNIQUE(user_id, skill_id) race — fall
-  // back to reading whatever row now exists.
   if (insertError) {
     const { data: row } = await supabaseAdmin
       .from('certificates')
-      .select('cert_code, user_name, skill_id, course_title, issued_at')
+      .select(CERT_COLUMNS)
       .eq('user_id', userId)
       .eq('skill_id', skillId)
       .maybeSingle()
-    return (row as Certificate) ?? null
+    return row ? mapCertificateRow(row) : null
   }
 
-  return inserted as Certificate
+  return mapCertificateRow(inserted)
 }
 
 /**
- * Looks up a learner's certificate for a course, if issued. Used by the skill
- * detail endpoint to surface the credential alongside course progress.
+ * Looks up a learner's certificate for a course, if issued.
  */
 export async function getCertificate(
   userId: string,
@@ -100,22 +151,21 @@ export async function getCertificate(
 ): Promise<Certificate | null> {
   const { data } = await supabaseAdmin
     .from('certificates')
-    .select('cert_code, user_name, skill_id, course_title, issued_at')
+    .select(CERT_COLUMNS)
     .eq('user_id', userId)
     .eq('skill_id', skillId)
     .maybeSingle()
-  return (data as Certificate) ?? null
+  return data ? mapCertificateRow(data) : null
 }
 
 /**
  * Public verification: resolves a credential code to its (sanitized) details.
- * Returns null for unknown codes. No auth — this powers /verify/:code.
  */
 export async function verifyCertificate(certCode: string): Promise<Certificate | null> {
   const { data } = await supabaseAdmin
     .from('certificates')
-    .select('cert_code, user_name, skill_id, course_title, issued_at')
+    .select(CERT_COLUMNS)
     .eq('cert_code', certCode)
     .maybeSingle()
-  return (data as Certificate) ?? null
+  return data ? mapCertificateRow(data) : null
 }

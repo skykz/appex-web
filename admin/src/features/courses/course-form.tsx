@@ -1,11 +1,12 @@
-import { useForm, Controller, type Resolver } from 'react-hook-form'
+import { useState, useMemo } from 'react'
+import { useForm, Controller, useWatch, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Eye } from 'lucide-react'
 import { lessonEmoji } from '@appex/lesson-schema'
-import { coursesApi, type Course } from './api'
+import { coursesApi, type Course, type CourseInput } from './api'
 import { categoriesApi } from '@features/categories/api'
 import { Button } from '@shared/ui/button'
 import { Input } from '@shared/ui/input'
@@ -14,6 +15,8 @@ import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
 import { ApiError } from '@shared/api/http-client'
 import { MediaBadgeField } from '@shared/ui/media-badge-field'
+import { parseCertTags } from './cert-form-utils'
+import { CertificatePreviewDialog } from './certificate-preview-dialog'
 
 /** Exported for tests and any server/client shared validation of course metadata. */
 export const courseFormSchema = z.object({
@@ -24,9 +27,23 @@ export const courseFormSchema = z.object({
   category: z.string().min(1, 'Pick a category'),
   duration: z.string().min(1),
   is_visible: z.boolean().default(false),
+  cert_title: z.string().max(200).optional(),
+  cert_description: z.string().max(600).optional(),
+  cert_tags_text: z.string().max(500).optional(),
 })
 
 type FormData = z.infer<typeof courseFormSchema>
+
+/** Builds the API payload from validated form values. */
+export function toCoursePayload(data: FormData): CourseInput {
+  const { cert_tags_text, cert_title, cert_description, ...rest } = data
+  return {
+    ...rest,
+    cert_title: cert_title?.trim() || null,
+    cert_description: cert_description?.trim() || null,
+    cert_tags: parseCertTags(cert_tags_text),
+  }
+}
 
 interface Props {
   initial?: Course
@@ -41,6 +58,7 @@ interface Props {
  */
 export function CourseForm({ initial, onDone, onCreated }: Props) {
   const qc = useQueryClient()
+  const [previewOpen, setPreviewOpen] = useState(false)
   const { data: categories } = useQuery({
     queryKey: ['admin', 'categories'],
     queryFn: categoriesApi.list,
@@ -61,12 +79,32 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
       category: initial?.category ?? '',
       duration: initial?.duration ?? '2 hours',
       is_visible: initial?.is_visible ?? false,
+      cert_title: initial?.cert_title ?? '',
+      cert_description: initial?.cert_description ?? '',
+      cert_tags_text: (initial?.cert_tags ?? []).join('\n'),
     },
   })
 
+  const watchedTitle = useWatch({ control, name: 'title' })
+  const watchedCertTitle = useWatch({ control, name: 'cert_title' })
+  const watchedCertDescription = useWatch({ control, name: 'cert_description' })
+  const watchedCertTags = useWatch({ control, name: 'cert_tags_text' })
+
+  const previewDraft = useMemo(
+    () => ({
+      courseTitle: watchedTitle,
+      cert_title: watchedCertTitle,
+      cert_description: watchedCertDescription,
+      cert_tags_text: watchedCertTags,
+    }),
+    [watchedTitle, watchedCertTitle, watchedCertDescription, watchedCertTags]
+  )
+
   const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      initial ? coursesApi.update(initial.id, data) : coursesApi.create(data),
+    mutationFn: (data: FormData) => {
+      const payload: CourseInput = toCoursePayload(data)
+      return initial ? coursesApi.update(initial.id, payload) : coursesApi.create(payload)
+    },
     onSuccess: (course) => {
       qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
       toast.success(initial ? 'Course updated' : 'Course created')
@@ -187,6 +225,65 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
           </span>
         </label>
       </section>
+
+      <section className="rounded-xl border border-border/60 bg-muted/20 p-4 shadow-inner">
+        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Certificate
+        </p>
+        <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+          Content printed on completion certificates for this course. Learner name, issue date, and
+          credential ID are generated automatically per user.
+        </p>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="cert_title">Certificate title</Label>
+            <Textarea
+              id="cert_title"
+              rows={2}
+              className="resize-y border-border/80 bg-background"
+              placeholder={'MASTER THE\nCLAUDE'}
+              {...register('cert_title')}
+            />
+            <p className="text-xs text-muted-foreground">One line per row on the certificate.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cert_description">Certificate description</Label>
+            <Textarea
+              id="cert_description"
+              rows={3}
+              className="resize-y border-border/80 bg-background"
+              placeholder="Awarded for successfully completing…"
+              {...register('cert_description')}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cert_tags_text">Skill tags</Label>
+            <Textarea
+              id="cert_tags_text"
+              rows={5}
+              className="resize-y border-border/80 bg-background font-mono text-sm"
+              placeholder={'Prompt Engineering\nAI Automation\nAI Research'}
+              {...register('cert_tags_text')}
+            />
+            <p className="text-xs text-muted-foreground">One tag per line, up to 8 tags.</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-border/80"
+            onClick={() => setPreviewOpen(true)}
+          >
+            <Eye className="h-4 w-4" />
+            Preview certificate
+          </Button>
+        </div>
+      </section>
+
+      <CertificatePreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        draft={previewDraft}
+      />
 
       <div className="sticky bottom-0 -mx-6 flex flex-wrap justify-end gap-2 border-t border-border/60 bg-card/95 px-6 py-4 backdrop-blur">
         <Button type="button" variant="outline" className="border-border/80" onClick={onDone}>
