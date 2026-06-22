@@ -4,6 +4,7 @@ import {
   SkillCard,
   SkillCategoryTabs,
   SkillSection,
+  SkillsComingSoonSection,
   SkillsHero,
   SkillsOnboardingDialog,
   skillsApi,
@@ -66,7 +67,7 @@ export default function SkillsPage() {
 
   const tabs = useMemo(
     () => buildSectionTabs(categoriesWithSkills, !!featuredSkill),
-    [categoriesWithSkills, featuredSkill]
+    [categoriesWithSkills, featuredSkill, skills.length]
   )
 
   useEffect(() => {
@@ -178,6 +179,8 @@ export default function SkillsPage() {
                   </SkillSection>
                 )
               })}
+
+              <SkillsComingSoonSection />
             </div>
           )}
         </div>

@@ -28,9 +28,8 @@ export function getQuizMenuLinks(args?: {
 
   return [
     { label: "Privacy Policy", href: legalPolicyHref("/privacy", lang), newTab: true },
-    { label: "Money-back Policy", href: legalPolicyHref("/subscription", lang), newTab: true },
+    { label: "Money-back Policy", href: legalPolicyHref("/terms", lang), newTab: true },
     { label: "Subscription Terms", href: legalPolicyHref("/subscription", lang), newTab: true },
-    { label: "Terms and Conditions", href: legalPolicyHref("/terms", lang), newTab: true },
     {
       label: "I already have an account",
       href: accountHref ?? "#",

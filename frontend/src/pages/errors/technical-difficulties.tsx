@@ -76,7 +76,7 @@ export default function TechnicalDifficultiesPage({
           </div>
         </div>
 
-        <TechnicalDifficultiesIllustration />
+        <TechnicalDifficultiesIllustration variant={variant} />
       </div>
     </div>
   )

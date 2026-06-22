@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import {
-  FileText,
   BadgeCheck,
   Lock,
   Receipt,
@@ -43,7 +42,7 @@ const navItems: { id: Section; label: string; icon: React.ElementType }[] = [
   { id: 'account', label: 'Account', icon: BadgeCheck },
   { id: 'password', label: 'Password', icon: Lock },
   { id: 'billing', label: 'Billing history', icon: Receipt },
-  { id: 'plan', label: 'Subscription management', icon: CreditCard },
+  { id: 'plan', label: 'Subscription', icon: CreditCard },
   { id: 'contact', label: 'Contact us', icon: HelpCircle },
 ]
 
@@ -154,10 +153,6 @@ export default function SettingsPage() {
   return (
     <div className="relative min-h-dvh w-full py-2">
       <div className="px-4">
-        <div className="mb-1 flex items-center gap-2 text-muted-foreground">
-          <FileText className="size-4" />
-          <span className="text-sm font-medium">Settings</span>
-        </div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your account and subscription settings.
@@ -175,7 +170,7 @@ export default function SettingsPage() {
         )}
 
         <div className="mt-6 flex flex-col gap-8 lg:flex-row">
-          <nav className="w-full shrink-0 lg:w-52">
+          <nav className="w-full shrink-0 lg:w-56">
             <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
               {navItems.map((item) => (
                 <button
@@ -183,14 +178,14 @@ export default function SettingsPage() {
                   type="button"
                   onClick={() => selectSection(item.id)}
                   className={cn(
-                    'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors',
                     section === item.id
-                      ? 'bg-muted'
+                      ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                   )}
                 >
-                  <item.icon className="size-4" />
-                  <span>{item.label}</span>
+                  <item.icon className="size-4 shrink-0" aria-hidden />
+                  <span className="whitespace-nowrap">{item.label}</span>
                 </button>
               ))}
             </div>

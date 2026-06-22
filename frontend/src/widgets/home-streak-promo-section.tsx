@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Flame } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button } from '@shared/ui'
-import { StreakSheet } from '@features/streak'
+import { StreakCalendarDialog } from '@features/streak'
 import { streakApi } from '@features/streak/api'
 import {
   countActiveDaysThisWeek,
@@ -14,7 +14,7 @@ import {
  * Home dashboard streak card: pill count, week strip, and a compact weekly goal bar.
  */
 export function HomeStreakPromoSection() {
-  const [sheetOpen, setSheetOpen] = useState(false)
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const calendarMonth = new Date().toISOString().slice(0, 7)
   const weekDays = useMemo(() => getCurrentWeekDays(), [])
 
@@ -42,7 +42,7 @@ export function HomeStreakPromoSection() {
 
   return (
     <>
-      <StreakSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+      <StreakCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} />
 
       <div className="rounded-2xl border border-border/70 bg-muted/25 p-4 shadow-sm">
         <div className="mb-4 flex items-start justify-between gap-2">
@@ -56,13 +56,6 @@ export function HomeStreakPromoSection() {
               aria-hidden
             />
           </span>
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-2 hover:underline"
-          >
-            Details
-          </button>
         </div>
 
         <div className="grid grid-cols-7 gap-1">
@@ -127,7 +120,7 @@ export function HomeStreakPromoSection() {
           variant="ghost"
           size="sm"
           className="text-muted-foreground mt-3 h-8 w-full text-xs"
-          onClick={() => setSheetOpen(true)}
+          onClick={() => setCalendarOpen(true)}
         >
           View streak calendar
         </Button>

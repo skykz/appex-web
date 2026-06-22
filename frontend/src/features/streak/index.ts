@@ -1,1 +1,1 @@
-export { StreakSheet } from './streak-sheet'
+export { StreakCalendarDialog } from './streak-calendar-dialog'
