@@ -16,6 +16,7 @@ import { LessonCompleteScreen } from './lesson-complete-screen'
 import { DayStreakScreen } from './day-streak-screen'
 import {
   CalloutBlockView,
+  PromptBlockView,
   QuizBlockView,
   SubmissionBlockView,
 } from './lesson-interactive-blocks'
@@ -493,6 +494,12 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     if (block.type === 'callout') {
       elements.push(<CalloutBlockView key={`callout-${i}`} block={block} />)
+      i++
+      continue
+    }
+
+    if (block.type === 'prompt') {
+      elements.push(<PromptBlockView key={`prompt-${i}`} block={block} />)
       i++
       continue
     }

@@ -122,6 +122,11 @@ export const lessonBlockSchema = z.union([
     content: z.string().trim().min(1).max(4000),
   }),
   z.object({
+    type: z.literal('prompt'),
+    title: z.string().trim().min(1).max(120),
+    content: z.string().trim().min(1).max(12000),
+  }),
+  z.object({
     type: z.literal('list'),
     items: cleanedStringArray.pipe(z.array(z.string().min(1)).min(1)),
   }),

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { LessonBlockLearner } from '@appex/lesson-schema'
 import { ExternalLink, FileText } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { CopyPromptCard } from '@shared/ui/copy-prompt-card'
 
 const URL_PATTERN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
 const TRAILING_PUNCTUATION_PATTERN = /[),.!?:;]+$/
@@ -360,6 +361,19 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
     if (block.type === 'callout') {
       elements.push(
         <CalloutPreview key={`co-${i}`} variant={block.variant} title={block.title} content={block.content} />
+      )
+      i++
+      continue
+    }
+
+    if (block.type === 'prompt') {
+      elements.push(
+        <CopyPromptCard
+          key={`prompt-${i}`}
+          className="mt-5 first:mt-0"
+          title={block.title}
+          content={block.content}
+        />
       )
       i++
       continue

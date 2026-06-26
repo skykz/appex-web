@@ -362,6 +362,7 @@ function StepBlocksEditor({
           <option value="quiz">Quiz</option>
           <option value="submission">Student submission</option>
           <option value="callout">Callout</option>
+          <option value="prompt">Copy prompt</option>
           <option value="user-message">User message</option>
           <option value="mentor-message">Mentor message</option>
         </Select>
@@ -698,6 +699,19 @@ function BlockFields({
       </div>
     )
   }
+  if (type === 'prompt') {
+    return (
+      <div className="grid gap-2">
+        <Input placeholder="Card title (e.g. Prototype handoff prompt)" {...form.register(`${base}.title` as const)} />
+        <Textarea
+          rows={8}
+          placeholder="Paste the full prompt learners should copy into Claude…"
+          className="font-mono text-sm"
+          {...form.register(`${base}.content` as const)}
+        />
+      </div>
+    )
+  }
   if (type === 'user-message') {
     return (
       <div className="grid gap-2">
@@ -746,6 +760,8 @@ function defaultBlock(type: LessonBlock['type']): LessonBlock {
       return { type: 'submission', prompt: '', acceptAttachment: false }
     case 'callout':
       return { type: 'callout', variant: 'tip', content: '' }
+    case 'prompt':
+      return { type: 'prompt', title: '', content: '' }
     case 'user-message':
       return { type: 'user-message', name: '', text: '' }
     case 'mentor-message':

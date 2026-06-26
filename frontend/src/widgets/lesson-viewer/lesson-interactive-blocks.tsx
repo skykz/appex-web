@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, Copy, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button, Input, Textarea } from '@shared/ui'
 import type { LessonBlock } from './lesson-types'
@@ -426,6 +426,50 @@ const calloutStyles = {
   note: 'border-sky-500/40 bg-sky-500/[0.07] ring-sky-500/20',
   warn: 'border-amber-500/50 bg-amber-500/[0.08] ring-amber-500/25',
 } as const
+
+/**
+ * Copyable prompt card shown inside lesson steps (handoff prompts, Claude instructions, etc.).
+ */
+export function PromptBlockView({
+  block,
+}: {
+  block: Extract<LessonBlock, { type: 'prompt' }>
+}) {
+  const [copied, setCopied] = useState(false)
+
+  /** Copies the prompt body to the learner clipboard. */
+  async function handleCopy() {
+    if (!block.content.trim()) return
+    try {
+      await navigator.clipboard.writeText(block.content)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard may be blocked on insecure origins or denied permissions.
+    }
+  }
+
+  return (
+    <div className="mt-5 overflow-hidden rounded-xl border border-border/80 bg-muted/30 shadow-sm first:mt-0">
+      <div className="flex items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+        <p className="text-sm font-semibold text-foreground">{block.title}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+          aria-label={copied ? 'Copied' : 'Copy prompt'}
+          onClick={() => void handleCopy()}
+        >
+          {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
+        </Button>
+      </div>
+      <p className="whitespace-pre-wrap px-4 py-3 font-mono text-[13px] leading-relaxed text-foreground">
+        {block.content}
+      </p>
+    </div>
+  )
+}
 
 /**
  * Highlighted callout panel for tips, notes, and warnings inside a lesson step.

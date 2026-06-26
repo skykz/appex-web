@@ -60,6 +60,11 @@ export const lessonBlockLearnerSchema = z.union([
     title: z.string().optional(),
     content: z.string(),
   }),
+  z.object({
+    type: z.literal('prompt'),
+    title: z.string(),
+    content: z.string(),
+  }),
   z.object({ type: z.literal('list'), items: z.array(z.string()) }),
   z.object({ type: z.literal('user-message'), name: z.string(), text: z.string() }),
   z.object({ type: z.literal('mentor-message'), text: z.string() }),
