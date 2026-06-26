@@ -30,8 +30,10 @@ interface LessonViewerProps {
   content: LessonContent
   /** Shown in the header and completion screens (e.g. lesson label from CMS). */
   lessonLabel?: string
-  /** Restores the learner to their last saved step when opening a lesson. */
+  /** Restores the learner to their last saved step when opening an in-progress lesson. */
   initialStepIndex?: number
+  /** When true, the step bar reflects full lesson completion while the learner reviews from step 1. */
+  lessonCompleted?: boolean
   /** Persists step index to the server when the learner moves between steps. */
   onStepChange?: (stepIndex: number) => void | Promise<void>
   onClose: () => void
@@ -48,6 +50,7 @@ export function LessonViewer({
   content,
   lessonLabel = 'Lesson 1',
   initialStepIndex = 0,
+  lessonCompleted = false,
   onStepChange,
   onClose,
   onFinish,
@@ -187,7 +190,7 @@ export function LessonViewer({
                 key={i}
                 className={cn(
                   'h-1.5 flex-1 rounded-full transition-all duration-500',
-                  i <= stepIndex
+                  lessonCompleted || i <= stepIndex
                     ? 'bg-gradient-to-r from-primary to-orange-400 shadow-sm shadow-primary/25'
                     : 'bg-muted'
                 )}

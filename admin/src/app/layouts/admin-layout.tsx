@@ -16,6 +16,8 @@ import {
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
 import { CommandPalette } from '@features/command-palette/command-palette'
+import { InboxUnreadBadge } from '@features/inbox/inbox-unread-badge'
+import { SubmissionsUnreadBadge } from '@features/submissions-admin/submissions-unread-badge'
 import { setSessionExpiredHandler } from '@shared/session/session-expired'
 import { Button } from '@shared/ui/button'
 
@@ -91,6 +93,8 @@ export function AdminLayout() {
             >
               <n.icon className="h-4 w-4 shrink-0" />
               {n.label}
+              {n.to === '/support' ? <InboxUnreadBadge /> : null}
+              {n.to === '/submissions' ? <SubmissionsUnreadBadge /> : null}
             </NavLink>
           ))}
         </nav>

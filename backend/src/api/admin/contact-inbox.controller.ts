@@ -13,6 +13,48 @@ const listQuerySchema = z.object({
 })
 
 /**
+ * Returns the number of unread contact / feedback messages for the inbox badge.
+ */
+export async function getContactUnreadCount(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { count, error } = await supabaseAdmin
+      .from('contact_messages')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null)
+    if (error) throw new AppError(500, error.message)
+    res.json({ unread: count ?? 0 })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Marks every unread contact message as read (bulk inbox action).
+ */
+export async function markAllContactMessagesRead(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const readAt = new Date().toISOString()
+    const { data, error } = await supabaseAdmin
+      .from('contact_messages')
+      .update({ read_at: readAt })
+      .is('read_at', null)
+      .select('id')
+    if (error) throw new AppError(500, error.message)
+    res.json({ updated: (data ?? []).length })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
  * Lists contact / feedback messages with user email and read state for the support inbox.
  */
 export async function listContactMessages(

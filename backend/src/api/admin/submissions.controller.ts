@@ -8,13 +8,60 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   lessonId: z.coerce.number().int().optional(),
   status: z.enum(['submitted', 'reviewed']).optional(),
+  unread: z
+    .enum(['0', '1', 'true', 'false'])
+    .optional()
+    .transform((v) => v === '1' || v === 'true'),
 })
 
 const patchSchema = z.object({
   status: z.enum(['submitted', 'reviewed']).optional(),
   adminFeedback: z.string().max(8000).optional(),
   grade: z.string().max(120).nullable().optional(),
+  read: z.boolean().optional(),
 })
+
+/**
+ * Returns the number of unread student submissions for the admin sidebar badge.
+ */
+export async function getLessonSubmissionsUnreadCount(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { count, error } = await supabaseAdmin
+      .from('lesson_submissions')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null)
+    if (error) throw new AppError(500, error.message)
+    res.json({ unread: count ?? 0 })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Marks every unread submission as read (bulk queue action).
+ */
+export async function markAllLessonSubmissionsRead(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const readAt = new Date().toISOString()
+    const { data, error } = await supabaseAdmin
+      .from('lesson_submissions')
+      .update({ read_at: readAt })
+      .is('read_at', null)
+      .select('id')
+    if (error) throw new AppError(500, error.message)
+    res.json({ updated: (data ?? []).length })
+  } catch (err) {
+    next(err)
+  }
+}
 
 /**
  * Lists student lesson submissions with optional lesson filter and pagination.
@@ -25,14 +72,14 @@ export async function listLessonSubmissions(
   next: NextFunction
 ) {
   try {
-    const { page, limit, lessonId, status } = listQuerySchema.parse(req.query)
+    const { page, limit, lessonId, status, unread } = listQuerySchema.parse(req.query)
     const from = (page - 1) * limit
     const to = from + limit - 1
 
     let q = supabaseAdmin
       .from('lesson_submissions')
       .select(
-        'id, user_id, lesson_id, message, attachment_url, status, admin_feedback, grade, created_at, users(email, name), lessons(title, label)',
+        'id, user_id, lesson_id, message, attachment_url, status, admin_feedback, grade, read_at, created_at, users(email, name), lessons(title, label)',
         { count: 'exact' }
       )
       .order('created_at', { ascending: false })
@@ -42,6 +89,9 @@ export async function listLessonSubmissions(
     }
     if (status != null) {
       q = q.eq('status', status)
+    }
+    if (unread === true) {
+      q = q.is('read_at', null)
     }
 
     const { data, error, count } = await q.range(from, to)
@@ -60,6 +110,7 @@ export async function listLessonSubmissions(
       status: r.status,
       admin_feedback: r.admin_feedback,
       grade: r.grade,
+      read_at: r.read_at,
       created_at: r.created_at,
     }))
 
@@ -70,7 +121,7 @@ export async function listLessonSubmissions(
 }
 
 /**
- * Updates review status and optional staff feedback on a student submission.
+ * Updates review status, staff feedback, and read state on a student submission.
  */
 export async function patchLessonSubmission(
   req: Request,
@@ -80,6 +131,8 @@ export async function patchLessonSubmission(
   try {
     const id = String(req.params.id)
     const body = patchSchema.parse(req.body)
+    const readAt =
+      body.read === true ? new Date().toISOString() : body.read === false ? null : undefined
 
     const patch: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -87,6 +140,7 @@ export async function patchLessonSubmission(
     if (body.status != null) patch.status = body.status
     if (body.adminFeedback !== undefined) patch.admin_feedback = body.adminFeedback
     if (body.grade !== undefined) patch.grade = body.grade?.trim() || null
+    if (readAt !== undefined) patch.read_at = readAt
 
     const { data, error } = await supabaseAdmin
       .from('lesson_submissions')

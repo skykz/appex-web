@@ -127,6 +127,7 @@ export default function SkillLessonPage() {
         content={content}
         lessonLabel={data.label}
         initialStepIndex={data.progress.stepIndex}
+        lessonCompleted={data.progress.completed}
         onStepChange={persistStep}
         onClose={() => navigate(`/skills/${skillId}`)}
         onFinish={handleFinish}

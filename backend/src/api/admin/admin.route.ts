@@ -26,10 +26,12 @@ import {
   reorderModuleLessons,
 } from './courses.controller.js'
 import { listAdminUsers } from './users.controller.js'
-import { listContactMessages, patchContactMessage } from './contact-inbox.controller.js'
+import { listContactMessages, patchContactMessage, getContactUnreadCount, markAllContactMessagesRead } from './contact-inbox.controller.js'
 import {
   listLessonSubmissions,
   patchLessonSubmission,
+  getLessonSubmissionsUnreadCount,
+  markAllLessonSubmissionsRead,
 } from './submissions.controller.js'
 import {
   listAdminSubscriptions,
@@ -78,9 +80,13 @@ router.get('/billing-history', ...guard, listAdminBillingHistory)
 router.post('/users/:userId/refund/evaluate', ...guard, evaluateAdminRefund)
 router.post('/users/:userId/refund/process', ...guard, processAdminRefund)
 
+router.get('/contact-messages/unread-count', ...guard, getContactUnreadCount)
+router.post('/contact-messages/read-all', ...guard, markAllContactMessagesRead)
 router.get('/contact-messages', ...guard, listContactMessages)
 router.patch('/contact-messages/:id', ...guard, patchContactMessage)
 
+router.get('/lesson-submissions/unread-count', ...guard, getLessonSubmissionsUnreadCount)
+router.post('/lesson-submissions/read-all', ...guard, markAllLessonSubmissionsRead)
 router.get('/lesson-submissions', ...guard, listLessonSubmissions)
 router.patch('/lesson-submissions/:id', ...guard, patchLessonSubmission)
 

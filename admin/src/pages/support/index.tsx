@@ -4,6 +4,8 @@ import { MailOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   fetchContactMessages,
+  fetchContactUnreadCount,
+  markAllContactMessagesRead,
   patchContactRead,
   type ContactMessageRow,
 } from '@features/inbox/api'
@@ -15,6 +17,15 @@ import { ApiError } from '@shared/api/http-client'
 
 const PAGE = 20
 
+const INBOX_QUERY_KEY = ['admin', 'contact-messages'] as const
+const UNREAD_COUNT_KEY = ['admin', 'contact-messages', 'unread-count'] as const
+
+/** Invalidates inbox list and sidebar unread badge after read-state changes. */
+function invalidateInbox(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: INBOX_QUERY_KEY })
+  qc.invalidateQueries({ queryKey: UNREAD_COUNT_KEY })
+}
+
 /**
  * Admin inbox for user-submitted contact messages and categorized feedback.
  */
@@ -23,16 +34,31 @@ export function SupportInboxPage() {
   const [page, setPage] = useState(1)
   const [unreadOnly, setUnreadOnly] = useState(false)
 
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: UNREAD_COUNT_KEY,
+    queryFn: fetchContactUnreadCount,
+  })
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'contact-messages', page, unreadOnly],
+    queryKey: [...INBOX_QUERY_KEY, page, unreadOnly],
     queryFn: () =>
       fetchContactMessages({ page, limit: PAGE, unreadOnly: unreadOnly || undefined }),
   })
 
   const markRead = useMutation({
     mutationFn: ({ id, read }: { id: string; read: boolean }) => patchContactRead(id, read),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'contact-messages'] })
+    onSuccess: () => invalidateInbox(qc),
+    onError: (e: unknown) => {
+      const msg = e instanceof ApiError ? e.message : 'Failed'
+      toast.error(msg)
+    },
+  })
+
+  const readAll = useMutation({
+    mutationFn: markAllContactMessagesRead,
+    onSuccess: (res) => {
+      invalidateInbox(qc)
+      toast.success(res.updated > 0 ? `Marked ${res.updated} as read` : 'Inbox is up to date')
     },
     onError: (e: unknown) => {
       const msg = e instanceof ApiError ? e.message : 'Failed'
@@ -64,6 +90,16 @@ export function SupportInboxPage() {
             />
             Unread only
           </label>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            disabled={unreadCount <= 0 || readAll.isPending}
+            onClick={() => readAll.mutate()}
+          >
+            Read all
+          </Button>
         </CardContent>
       </Card>
 
@@ -80,6 +116,9 @@ export function SupportInboxPage() {
             <MessageCard
               key={m.id}
               m={m}
+              onOpen={() => {
+                if (!m.read_at) markRead.mutate({ id: m.id, read: true })
+              }}
               onMarkRead={() => markRead.mutate({ id: m.id, read: !m.read_at })}
             />
           ))}
@@ -120,23 +159,33 @@ export function SupportInboxPage() {
  */
 function MessageCard({
   m,
+  onOpen,
   onMarkRead,
 }: {
   m: ContactMessageRow
+  onOpen: () => void
   onMarkRead: () => void
 }) {
   const [open, setOpen] = useState(false)
+
+  /** Expands the message and marks it read on first open. */
+  function toggleOpen() {
+    const next = !open
+    setOpen(next)
+    if (next) onOpen()
+  }
+
   return (
     <li className="rounded-xl border border-border/70 bg-card shadow-sm">
       <button
         type="button"
         className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
-        onClick={() => setOpen(!open)}
+        onClick={toggleOpen}
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             {!m.read_at ? (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+              <span className="rounded-full bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-600">
                 New
               </span>
             ) : null}

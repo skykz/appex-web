@@ -13,6 +13,7 @@ export interface LessonSubmissionRow {
   status: string
   admin_feedback: string | null
   grade: string | null
+  read_at: string | null
   created_at: string
 }
 
@@ -32,16 +33,42 @@ export async function fetchLessonSubmissions(params: {
   lessonId?: number
   /** When set, narrows to homework queue (`submitted`) or reviewed rows. */
   status?: 'submitted' | 'reviewed'
+  unreadOnly?: boolean
 }): Promise<SubmissionsListResponse> {
   const sp = new URLSearchParams()
   if (params.page != null) sp.set('page', String(params.page))
   if (params.limit != null) sp.set('limit', String(params.limit))
   if (params.lessonId != null) sp.set('lessonId', String(params.lessonId))
   if (params.status != null) sp.set('status', params.status)
+  if (params.unreadOnly) sp.set('unread', '1')
   const q = sp.toString()
   return httpClient.get<SubmissionsListResponse>(
     `/admin/lesson-submissions${q ? `?${q}` : ''}`
   )
+}
+
+/**
+ * Returns how many submissions are still unread for the sidebar badge.
+ */
+export async function fetchSubmissionsUnreadCount(): Promise<number> {
+  const res = await httpClient.get<{ unread: number }>(
+    '/admin/lesson-submissions/unread-count'
+  )
+  return res.unread
+}
+
+/**
+ * Marks every unread submission as read.
+ */
+export async function markAllSubmissionsRead(): Promise<{ updated: number }> {
+  return httpClient.post<{ updated: number }>('/admin/lesson-submissions/read-all', {})
+}
+
+/**
+ * Marks a submission as read or unread.
+ */
+export async function patchSubmissionRead(id: string, read: boolean): Promise<void> {
+  await httpClient.patch(`/admin/lesson-submissions/${id}`, { read })
 }
 
 /**

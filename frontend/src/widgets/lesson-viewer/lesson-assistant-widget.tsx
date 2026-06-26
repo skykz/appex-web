@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { MessageCircle, Sparkles, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { ApiError } from '@shared/api/http-client'
 import { Button, PlatformLoader } from '@shared/ui'
+import mentorAvatarUrl from '@/assets/appex-mentor.jpg'
 import {
   ChatInput,
   ChatMessageList,
@@ -17,6 +18,41 @@ interface LessonAssistantWidgetProps {
   stepIndex: number
   stepCount: number
   blocks: LessonBlock[]
+}
+
+/**
+ * Human mentor avatar used for the floating trigger and chat header.
+ */
+function AppexAssistantAvatar({ className }: { className?: string }) {
+  const [failed, setFailed] = useState(false)
+
+  if (failed) {
+    return (
+      <span
+        className={cn(
+          'flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
+          className
+        )}
+        aria-hidden
+      >
+        A
+      </span>
+    )
+  }
+
+  return (
+    <img
+      src={mentorAvatarUrl}
+      alt="Appex AI learning mentor"
+      loading="eager"
+      decoding="async"
+      onError={() => setFailed(true)}
+      className={cn(
+        'size-10 shrink-0 rounded-full object-cover object-top ring-2 ring-primary/30',
+        className
+      )}
+    />
+  )
 }
 
 /**
@@ -70,7 +106,7 @@ function buildLessonPrompt({
     .slice(0, 1800)
 
   return [
-    'You are a helpful lesson assistant inside AppEx.',
+    'You are Appex, a helpful AI learning mentor inside AppEx.',
     'Answer the learner question clearly and briefly. Use the lesson context when relevant, but do not invent facts if the context is not enough.',
     `Lesson: ${lessonLabel}`,
     `Current step: ${stepIndex + 1} of ${stepCount}`,
@@ -139,24 +175,23 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'fixed bottom-16 right-4 z-20 flex size-12 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 sm:bottom-20 sm:right-6',
-          'bg-zinc-950 text-white ring-2 ring-primary/40 hover:ring-primary',
+          'fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background py-1 pl-1 pr-3 shadow-lg transition-all hover:scale-105 active:scale-95 sm:bottom-20 sm:right-6',
+          'ring-2 ring-primary/30 hover:ring-primary/50',
           open && 'pointer-events-none scale-75 opacity-0'
         )}
-        aria-label="Open lesson assistant"
+        aria-label="Open Appex learning mentor"
       >
-        <MessageCircle className="size-6" aria-hidden />
+        <AppexAssistantAvatar className="size-10" />
+        <span className="text-sm font-semibold text-foreground">Appex</span>
       </button>
 
       {open ? (
         <div className="fixed bottom-16 right-4 z-30 flex h-[min(560px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-20 sm:right-6 sm:w-[420px]">
           <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Sparkles className="size-4" aria-hidden />
-            </div>
+            <AppexAssistantAvatar className="size-9" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Lesson assistant</p>
-              <p className="truncate text-xs text-muted-foreground">{intro}</p>
+              <p className="text-sm font-semibold">Appex</p>
+              <p className="truncate text-xs text-muted-foreground">Your AI learning mentor</p>
             </div>
             <button
               type="button"
@@ -171,8 +206,7 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             {messages.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/80 bg-muted/30 px-4 py-5 text-sm leading-relaxed text-muted-foreground">
-                Ask a question about this step. The assistant will use the current lesson
-                context in the answer.
+                {intro}
               </div>
             ) : (
               <ChatMessageList messages={messages} />

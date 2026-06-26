@@ -7,7 +7,6 @@ import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { PageLoader } from '@shared/ui'
 import { skillsApi, type SkillModule } from '@features/skills'
 import { PaywallDialog } from '@features/skills/paywall-dialog'
-import { CourseCertificate } from '@features/skills/course-certificate'
 import { downloadCertificate, certificateToDownloadData } from '@features/skills/certificate-download'
 import { useAuthStore } from '@entities/user'
 
@@ -70,7 +69,7 @@ export default function SkillDetailPage() {
   // detail response carries it. We only show the credential once it exists.
   const certificate = skill.certificate ?? null
 
-  /** Downloads the earned certificate as a high-resolution PNG image. */
+  /** Downloads the earned certificate as a PDF named `certificate.pdf`. */
   function handleDownloadCertificate() {
     if (!certificate) return
     void downloadCertificate(certificateToDownloadData(certificate, userName))
@@ -205,39 +204,6 @@ export default function SkillDetailPage() {
                 </button>
               )}
             </div>
-
-            {certificate && (
-              <div className="mt-10">
-                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold">Certificate</h2>
-                    <p className="mt-1 max-w-md text-sm leading-relaxed text-muted-foreground">
-                      {certificate.cert_description || `Awarded for completing ${skill.title}.`}
-                    </p>
-                    <p className="mt-2 text-xs font-medium text-muted-foreground">
-                      Credential ID:{' '}
-                      <span className="font-semibold text-foreground">{certificate.cert_code}</span>
-                      {' · '}
-                      <a
-                        href={`/verify/${certificate.cert_code}`}
-                        className="text-primary hover:underline"
-                      >
-                        Verify
-                      </a>
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleDownloadCertificate}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
-                  >
-                    <Download className="size-4" />
-                    Download certificate
-                  </button>
-                </div>
-                <CourseCertificate {...certificateToDownloadData(certificate, userName)} />
-              </div>
-            )}
           </div>
 
           <div className="w-full shrink-0 lg:w-80 xl:w-96">

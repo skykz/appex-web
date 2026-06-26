@@ -124,6 +124,7 @@ export default function LessonPage() {
         content={content}
         lessonLabel={data.label}
         initialStepIndex={data.progress.stepIndex}
+        lessonCompleted={data.progress.completed}
         onStepChange={persistStep}
         onClose={() => navigate(`/academy/courses/${courseId}`)}
         onFinish={handleFinish}

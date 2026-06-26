@@ -41,3 +41,18 @@ export async function fetchContactMessages(params: {
 export async function patchContactRead(id: string, read: boolean): Promise<void> {
   await httpClient.patch(`/admin/contact-messages/${id}`, { read })
 }
+
+/**
+ * Returns how many inbox messages are still unread.
+ */
+export async function fetchContactUnreadCount(): Promise<number> {
+  const res = await httpClient.get<{ unread: number }>('/admin/contact-messages/unread-count')
+  return res.unread
+}
+
+/**
+ * Marks every unread inbox message as read.
+ */
+export async function markAllContactMessagesRead(): Promise<{ updated: number }> {
+  return httpClient.post<{ updated: number }>('/admin/contact-messages/read-all', {})
+}

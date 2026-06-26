@@ -99,14 +99,31 @@ export async function getLesson(
       .eq('lesson_id', lessonId)
       .maybeSingle()
 
+    const completed = progress?.completed ?? false
+    let stepIndex = progress?.step_index ?? 0
+
+    // Completed lessons reopen at the first step; completion, ratings, and quiz history stay intact.
+    if (completed && stepIndex !== 0) {
+      stepIndex = 0
+      const { error: resetError } = await supabaseAdmin
+        .from('lesson_progress')
+        .update({ step_index: 0 })
+        .eq('user_id', userId)
+        .eq('lesson_id', lessonId)
+
+      if (resetError) {
+        console.error('[lesson] reset step for completed lesson failed', userId, lessonId, resetError.message)
+      }
+    }
+
     res.json({
       id: lesson.id,
       label: lesson.label,
       title: lesson.title,
       steps: stripQuizAnswersFromSteps(lesson.content),
       progress: {
-        stepIndex: progress?.step_index ?? 0,
-        completed: progress?.completed ?? false,
+        stepIndex,
+        completed,
       },
     })
   } catch (err) {
