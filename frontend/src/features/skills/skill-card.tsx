@@ -114,7 +114,14 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
   }
 
   return (
-    <Link to={`/skills/${skill.id}`} className={sharedClass}>
+    <Link
+      to={
+        skill.status === 'completed'
+          ? `/academy/courses/${skill.id}`
+          : `/skills/${skill.id}`
+      }
+      className={sharedClass}
+    >
       {body}
     </Link>
   )

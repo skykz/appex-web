@@ -41,6 +41,12 @@ const envSchema = z.object({
   /** Perplexity model (default sonar). */
   PERPLEXITY_MODEL: z.string().optional(),
 
+  /**
+   * Lexi system prompt override. When set, replaces the hardcoded Lexi persona
+   * so Bota can edit the mentor's voice from Vercel env vars without a deploy.
+   */
+  LEXI_SYSTEM_PROMPT: z.string().optional(),
+
   // --- Stripe (subscription billing) ---
   /** Public URL of the React app (used for Stripe success/cancel/return URLs). */
   APP_URL: z.string().url().default('http://localhost:5173'),

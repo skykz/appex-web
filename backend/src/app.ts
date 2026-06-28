@@ -18,6 +18,7 @@ import landingRoutes from './api/landing/landing.route.js'
 import mailgunRoutes from './api/mailgun/mailgun.route.js'
 import cronRoutes from './api/cron/cron.route.js'
 import adminRoutes from './api/admin/admin.route.js'
+import lexiRoutes from './api/lexi/lexi.route.js'
 import { stripeWebhookHandler } from './api/stripe/stripe.webhook.js'
 
 /**
@@ -87,6 +88,7 @@ app.use('/api/landing', landingRoutes)
 app.use('/api/mailgun', mailgunRoutes)
 app.use('/api/cron', cronRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/lexi', lexiRoutes)
 
 // Error handler (must be last)
 app.use(errorHandler)

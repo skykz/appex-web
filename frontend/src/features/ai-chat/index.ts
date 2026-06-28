@@ -6,6 +6,7 @@ export { ChatMessageList } from './chat-message-list'
 export { ChatHistoryPanel } from './chat-history-panel'
 export { AIToolsOnboardingDialog } from './ai-tools-onboarding-dialog'
 export { chatApi } from './api'
+export { streamLexiMessage, getLexiThread, getLexiMessages, submitLexiFeedback } from './lexi-api'
 export { actionChips, onboardingSteps } from './constants'
 export type {
   AIModel,
@@ -14,3 +15,4 @@ export type {
   OnboardingStep,
 } from './types'
 export type { MessageFeedback } from './chat-message-list'
+export type { LexiLessonCtx, LexiThread, LexiMessage, LexiStreamCallbacks } from './lexi-api'

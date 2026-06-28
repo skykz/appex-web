@@ -1,176 +1,369 @@
-import { useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+/**
+ * LessonAssistantWidget — floating Lexi mentor bubble that lives over the lesson.
+ *
+ * Behaviour:
+ *  - Streams Claude responses in real-time via SSE (no spinner-wait).
+ *  - Sends lesson context (label, step, content) to personalise answers.
+ *  - Persists the thread ID across steps so history is maintained per-session.
+ *  - Lets learners rate assistant replies (👍/👎) without leaving the lesson.
+ *  - No model picker — Lexi always uses Claude (decided on the backend).
+ */
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { X, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { ApiError } from '@shared/api/http-client'
-import { Button, PlatformLoader } from '@shared/ui'
-import mentorAvatarUrl from '@/assets/appex-mentor.jpg'
+import { Textarea } from '@shared/ui'
+import lexiAvatarUrl from '@/assets/lexi-avatar.png'
 import {
-  ChatInput,
-  ChatMessageList,
-  chatApi,
-  type AIModel,
-  type ChatMessage,
-} from '@features/ai-chat'
+  streamLexiMessage,
+  submitLexiFeedback,
+  type LexiLessonCtx,
+} from '@features/ai-chat/lexi-api'
 import type { LessonBlock } from './lesson-types'
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface LessonAssistantWidgetProps {
   lessonLabel: string
+  moduleLabel?: string
   stepIndex: number
   stepCount: number
   blocks: LessonBlock[]
 }
 
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  /** Feedback for assistant messages: 1 = 👍, -1 = 👎, null = none yet. */
+  feedback?: 1 | -1 | null
+}
+
+// ─── Avatar ──────────────────────────────────────────────────────────────────
+
 /**
- * Human mentor avatar used for the floating trigger and chat header.
+ * Lexi avatar — falls back to a branded initial when the image fails to load.
  */
-function AppexAssistantAvatar({ className }: { className?: string }) {
+function LexiAvatar({ className }: { className?: string }) {
   const [failed, setFailed] = useState(false)
 
   if (failed) {
     return (
       <span
         className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
+          'flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
           className
         )}
         aria-hidden
       >
-        A
+        L
       </span>
     )
   }
 
   return (
     <img
-      src={mentorAvatarUrl}
-      alt="Appex AI learning mentor"
+      src={lexiAvatarUrl}
+      alt="Lexi AI learning mentor"
       loading="eager"
       decoding="async"
       onError={() => setFailed(true)}
       className={cn(
-        'size-10 shrink-0 rounded-full object-cover object-top ring-2 ring-primary/30',
+        'shrink-0 rounded-full object-cover object-top ring-2 ring-primary/30',
         className
       )}
     />
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
 /**
- * Converts learner-visible lesson blocks into compact text context for the AI helper.
+ * Converts lesson blocks into a compact text summary for Lexi's grounding context.
  */
-function blockContext(block: LessonBlock): string | null {
-  switch (block.type) {
-    case 'heading':
-    case 'text':
-    case 'bold-text':
-      return block.content
-    case 'callout':
-      return `${block.title ? `${block.title}: ` : ''}${block.content}`
-    case 'quiz':
-    case 'quiz-single':
-    case 'quiz-multi':
-      return `Quiz question: ${block.question}`
-    case 'submission':
-      return `Submission task: ${block.prompt}`
-    case 'video':
-      return block.title ? `Video: ${block.title}` : null
-    case 'file':
-      return `Resource: ${block.label}${block.description ? ` - ${block.description}` : ''}`
-    case 'list':
-      return block.items.join('\n')
-    case 'user-message':
-      return `${block.name}: ${block.text}`
-    case 'mentor-message':
-      return `Mentor: ${block.text}`
-    case 'image':
-      return block.alt ? `Image: ${block.alt}` : null
-    default:
-      return null
+function extractContentSummary(blocks: LessonBlock[]): string {
+  const parts: string[] = []
+
+  for (const block of blocks) {
+    let text: string | null = null
+    switch (block.type) {
+      case 'heading':
+      case 'text':
+      case 'bold-text':
+        text = block.content
+        break
+      case 'callout':
+        text = `${block.title ? `${block.title}: ` : ''}${block.content}`
+        break
+      case 'quiz':
+      case 'quiz-single':
+      case 'quiz-multi':
+        text = `Quiz: ${block.question}`
+        break
+      case 'submission':
+        text = `Task: ${block.prompt}`
+        break
+      case 'list':
+        text = block.items.join('\n')
+        break
+      case 'user-message':
+        text = `${block.name}: ${block.text}`
+        break
+      case 'mentor-message':
+        text = `Mentor: ${block.text}`
+        break
+      case 'video':
+        text = block.title ? `Video: ${block.title}` : null
+        break
+      case 'file':
+        text = `Resource: ${block.label}${block.description ? ` — ${block.description}` : ''}`
+        break
+      case 'image':
+        text = block.alt ? `Image: ${block.alt}` : null
+        break
+      default:
+        break
+    }
+    if (text) parts.push(text)
   }
+
+  return parts.join('\n\n').slice(0, 1800)
 }
 
+// ─── Empty state copy ─────────────────────────────────────────────────────────
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border/80 bg-muted/30 px-4 py-5 text-sm leading-relaxed text-muted-foreground">
+      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
+        I can help you:
+      </p>
+      <ul className="space-y-1.5">
+        <li>• Understand anything in this lesson — in plain words, with an example</li>
+        <li>• Improve your prompt or your submission for this step</li>
+        <li>• Connect the lesson to your background → a service you could actually sell</li>
+        <li>• Decide what to do next and keep your momentum</li>
+      </ul>
+      <p className="mt-3 text-xs text-muted-foreground/60">
+        I won't do the work for you — I coach, you build. That's how you become an AI Operator.
+      </p>
+    </div>
+  )
+}
+
+// ─── Typing indicator ─────────────────────────────────────────────────────────
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 py-1" aria-label="Lexi is typing">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="size-1.5 rounded-full bg-muted-foreground/50"
+          style={{ animation: `lexi-bounce 1.2s ease-in-out ${i * 0.2}s infinite` }}
+        />
+      ))}
+      <style>{`
+        @keyframes lexi-bounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  )
+}
+
+// ─── Message bubble ───────────────────────────────────────────────────────────
+
 /**
- * Builds a short prompt prefix so lesson questions are answered with the current step in mind.
+ * Renders a single chat bubble with optional 👍/👎 feedback for assistant messages.
  */
-function buildLessonPrompt({
-  lessonLabel,
-  stepIndex,
-  stepCount,
-  blocks,
-  question,
-}: LessonAssistantWidgetProps & { question: string }): string {
-  const context = blocks
-    .map(blockContext)
-    .filter(Boolean)
-    .join('\n\n')
-    .slice(0, 1800)
+function MessageBubble({
+  message,
+  onFeedback,
+}: {
+  message: Message
+  onFeedback?: (id: string, value: 1 | -1) => void
+}) {
+  const isUser = message.role === 'user'
 
-  return [
-    'You are Appex, a helpful AI learning mentor inside AppEx.',
-    'Answer the learner question clearly and briefly. Use the lesson context when relevant, but do not invent facts if the context is not enough.',
-    `Lesson: ${lessonLabel}`,
-    `Current step: ${stepIndex + 1} of ${stepCount}`,
-    context ? `Current step content:\n${context}` : null,
-    `Learner question:\n${question}`,
-  ]
-    .filter(Boolean)
-    .join('\n\n')
+  return (
+    <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && <LexiAvatar className="mt-0.5 size-6" />}
+
+      <div className={cn('max-w-[85%]', isUser ? 'items-end' : 'items-start', 'flex flex-col gap-1')}>
+        <div
+          className={cn(
+            'rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words',
+            isUser
+              ? 'rounded-tr-sm bg-primary text-primary-foreground'
+              : 'rounded-tl-sm bg-muted text-foreground'
+          )}
+        >
+          {message.content}
+        </div>
+
+        {/* 👍/👎 only for assistant messages that are fully rendered */}
+        {!isUser && message.content && onFeedback && (
+          <div className="flex gap-1 pl-1">
+            <button
+              type="button"
+              onClick={() => onFeedback(message.id, 1)}
+              aria-label="Helpful"
+              className={cn(
+                'rounded p-1 text-muted-foreground/50 transition-colors hover:text-green-500',
+                message.feedback === 1 && 'text-green-500'
+              )}
+            >
+              <ThumbsUp className="size-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onFeedback(message.id, -1)}
+              aria-label="Not helpful"
+              className={cn(
+                'rounded p-1 text-muted-foreground/50 transition-colors hover:text-red-400',
+                message.feedback === -1 && 'text-red-400'
+              )}
+            >
+              <ThumbsDown className="size-3" />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
+// ─── Main widget ──────────────────────────────────────────────────────────────
+
 /**
- * Floating in-lesson AI helper for quick questions without leaving the lesson flow.
+ * Floating in-lesson Lexi chat widget. Streams Claude responses in real-time.
  */
 export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
-  const [open, setOpen] = useState(false)
-  const [sessionId, setSessionId] = useState<string | undefined>()
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { lessonLabel, moduleLabel, stepIndex, stepCount, blocks } = props
 
-  const intro = useMemo(
-    () => `Ask about this lesson, examples, or what to do on step ${props.stepIndex + 1}.`,
-    [props.stepIndex]
-  )
+  const [open, setOpen] = useState(false)
+  const [threadId, setThreadId] = useState<string | undefined>()
+  const [messages, setMessages] = useState<Message[]>([])
+  const [streaming, setStreaming] = useState(false)
+  const [streamingContent, setStreamingContent] = useState('')
+  const [inputText, setInputText] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  /** Auto-scroll to bottom on new content. */
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [messages, streamingContent])
+
+  /** Auto-resize textarea on content change. */
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = '0px'
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+  }, [inputText])
 
   /**
-   * Sends the learner question to the existing AI chat endpoint with hidden lesson context.
+   * Records 👍/👎 feedback on an assistant message locally and on the server.
    */
-  async function handleSend(question: string, model: AIModel) {
-    const userMessage: ChatMessage = {
-      id: `lesson-user-${Date.now()}`,
-      role: 'user',
-      content: question,
+  const handleFeedback = useCallback((messageId: string, value: 1 | -1) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, feedback: value } : m))
+    )
+    submitLexiFeedback(messageId, value).catch(() => {
+      /* fire-and-forget; don't surface feedback errors to learner */
+    })
+  }, [])
+
+  /**
+   * Sends the learner's question to Lexi and streams the response into the UI.
+   */
+  async function handleSend() {
+    const question = inputText.trim()
+    if (!question || streaming) return
+
+    const lessonCtx: LexiLessonCtx = {
+      lessonLabel,
+      moduleLabel,
+      stepIndex,
+      stepCount,
+      contentSummary: extractContentSummary(blocks),
     }
 
+    // Optimistic user message (will get a real ID from the server)
+    const tempId = `tmp-${Date.now()}`
+    setMessages((prev) => [...prev, { id: tempId, role: 'user', content: question }])
+    setInputText('')
     setError(null)
-    setSending(true)
-    setMessages((current) => [...current, userMessage])
+    setStreaming(true)
+    setStreamingContent('')
 
-    try {
-      const response = await chatApi.sendMessage({
-        sessionId,
-        modelId: model.id,
-        content: buildLessonPrompt({ ...props, question }),
-      })
-      setSessionId(response.sessionId)
-      setMessages((current) => [
-        ...current,
+    let assistantContent = ''
+    let assistantMessageId: string | undefined
+
+    await streamLexiMessage(
+      { threadId, content: question, lessonCtx },
+      {
+        onThread(id, userMessageId) {
+          setThreadId(id)
+          // Replace temp ID with the real server-assigned user-message ID
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, id: userMessageId } : m))
+          )
+        },
+        onDelta(chunk) {
+          assistantContent += chunk
+          setStreamingContent(assistantContent)
+        },
+        onDone(messageId) {
+          assistantMessageId = messageId
+        },
+        onError(message) {
+          setError(message)
+          // Remove the optimistic user message on error
+          setMessages((prev) => prev.filter((m) => m.id !== tempId))
+        },
+      }
+    )
+
+    setStreaming(false)
+
+    if (assistantContent) {
+      setMessages((prev) => [
+        ...prev,
         {
-          id: response.assistantMessage.id,
+          id: assistantMessageId ?? `ai-${Date.now()}`,
           role: 'assistant',
-          content: response.assistantMessage.content,
+          content: assistantContent,
+          feedback: null,
         },
       ])
-    } catch (err) {
-      setMessages((current) => current.filter((msg) => msg.id !== userMessage.id))
-      setError(err instanceof ApiError ? err.message : 'Could not ask assistant.')
-    } finally {
-      setSending(false)
     }
+    setStreamingContent('')
+
+    // Re-focus input after response
+    setTimeout(() => textareaRef.current?.focus(), 50)
   }
+
+  /**
+   * Enter submits; Shift+Enter inserts a newline.
+   */
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter' || e.shiftKey) return
+    e.preventDefault()
+    handleSend()
+  }
+
+  const canSend = Boolean(inputText.trim()) && !streaming
 
   return (
     <>
+      {/* Floating trigger bubble */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -179,19 +372,26 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           'ring-2 ring-primary/30 hover:ring-primary/50',
           open && 'pointer-events-none scale-75 opacity-0'
         )}
-        aria-label="Open Appex learning mentor"
+        aria-label="Open Lexi AI learning mentor"
       >
-        <AppexAssistantAvatar className="size-10" />
-        <span className="text-sm font-semibold text-foreground">Appex</span>
+        <LexiAvatar className="size-10" />
+        <div className="text-left">
+          <p className="text-sm font-semibold leading-none text-foreground">Lexi</p>
+          <p className="text-xs text-muted-foreground">Your AI learning mentor</p>
+        </div>
       </button>
 
+      {/* Chat panel */}
       {open ? (
         <div className="fixed bottom-16 right-4 z-30 flex h-[min(560px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-20 sm:right-6 sm:w-[420px]">
+          {/* Header */}
           <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3">
-            <AppexAssistantAvatar className="size-9" />
+            <LexiAvatar className="size-9" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Appex</p>
-              <p className="truncate text-xs text-muted-foreground">Your AI learning mentor</p>
+              <p className="text-sm font-semibold">Lexi</p>
+              <p className="truncate text-xs text-muted-foreground">
+                Your AI mentor for this course — ask about the lesson, get unstuck, or plan your next step.
+              </p>
             </div>
             <button
               type="button"
@@ -203,19 +403,36 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-            {messages.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border/80 bg-muted/30 px-4 py-5 text-sm leading-relaxed text-muted-foreground">
-                {intro}
-              </div>
+          {/* Message list */}
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {messages.length === 0 && !streaming ? (
+              <EmptyState />
             ) : (
-              <ChatMessageList messages={messages} />
-            )}
-            {sending ? (
-              <div className="mt-4 flex justify-center py-2" aria-label="Assistant thinking">
-                <PlatformLoader variant="compact" />
+              <div className="flex flex-col gap-4">
+                {messages.map((msg) => (
+                  <MessageBubble
+                    key={msg.id}
+                    message={msg}
+                    onFeedback={msg.role === 'assistant' ? handleFeedback : undefined}
+                  />
+                ))}
+
+                {/* Streaming assistant message */}
+                {streaming && (
+                  <div className="flex gap-2 justify-start">
+                    <LexiAvatar className="mt-0.5 size-6" />
+                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
+                      {streamingContent ? (
+                        <span className="whitespace-pre-wrap break-words">{streamingContent}</span>
+                      ) : (
+                        <TypingDots />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            ) : null}
+            )}
+
             {error ? (
               <p className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {error}
@@ -223,23 +440,53 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
             ) : null}
           </div>
 
+          {/* Input area */}
           <div className="border-t border-border/70 bg-muted/20 p-3">
-            <ChatInput onSend={handleSend} disabled={sending} />
-            <div className="mt-2 flex justify-end">
-              <Button
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1 rounded-xl border bg-card px-3 py-2 shadow-sm">
+                <Textarea
+                  ref={textareaRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about this lesson…"
+                  disabled={streaming}
+                  rows={1}
+                  className="max-h-[160px] min-h-[36px] w-full resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+                />
+              </div>
+
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={handleSend}
+                disabled={!canSend}
+                aria-label="Send message"
+                className={cn(
+                  'flex size-9 shrink-0 items-center justify-center rounded-full transition-all duration-200',
+                  canSend
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
+                    : 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'
+                )}
+              >
+                <Send className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-1.5 flex items-center justify-between">
+              <p className="text-xs text-muted-foreground/50">Claude · Lexi</p>
+              <button
+                type="button"
                 onClick={() => {
                   setMessages([])
-                  setSessionId(undefined)
+                  setThreadId(undefined)
                   setError(null)
+                  setStreamingContent('')
                 }}
-                disabled={sending || messages.length === 0}
+                disabled={streaming || messages.length === 0}
+                className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground disabled:opacity-40"
               >
                 Clear chat
-              </Button>
+              </button>
             </div>
           </div>
         </div>

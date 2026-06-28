@@ -126,10 +126,7 @@ export default function SkillDetailPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const first = skill.modules.flatMap((m) => m.lessons).find((l) => !l.locked)
-                        if (first) navigate(`/skills/${skill.id}/lessons/${first.id}`)
-                      }}
+                      onClick={() => navigate(`/academy/courses/${skill.id}`)}
                       className="inline-flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold transition-all hover:bg-muted active:scale-[0.98] sm:w-auto sm:px-8"
                     >
                       Review course
