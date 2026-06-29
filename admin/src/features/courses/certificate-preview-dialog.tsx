@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { buildCertificateSvg } from '@appex/certificate/certificate-download'
+import { buildCertificateSvg } from '@appex/certificate/certificate-svg'
 import {
   Dialog,
   DialogContent,
