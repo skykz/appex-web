@@ -3,20 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Users,
   BookOpen,
-  Layers,
-  GraduationCap,
-  MessageSquare,
   CheckCircle2,
   CreditCard,
   DollarSign,
-  Coins,
-  Mail,
   Activity,
-  FileText,
 } from 'lucide-react'
 import { dashboardApi } from '@features/dashboard/api'
 import { StatCard } from '@features/dashboard/stat-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@shared/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
 import { Skeleton } from '@shared/ui/skeleton'
 
@@ -53,10 +47,14 @@ export function DashboardPage() {
           <Skeleton className="h-9 w-48" />
           <Skeleton className="h-4 w-72 max-w-full" />
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-28 w-full rounded-xl" />
           ))}
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Skeleton className="h-56 rounded-xl" />
+          <Skeleton className="h-56 rounded-xl" />
         </div>
       </div>
     )
@@ -71,36 +69,39 @@ export function DashboardPage() {
   }
 
   const t = data.totals
+  const activeRate =
+    t.users > 0 ? Math.round((t.activeToday / t.users) * 100) : 0
 
   return (
     <div className="space-y-8">
       <PageHeader
         badge="Admin"
         title="Dashboard"
-        description="Live metrics and recent activity from Supabase."
+        description="Key growth and learning metrics at a glance."
       />
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard label="Total users" value={t.users} icon={Users} tone="blue" />
         <StatCard
           label="Active today"
           value={t.activeToday}
           icon={Activity}
-          hint="Checked in today"
+          hint={`${activeRate}% of users checked in`}
           tone="orange"
         />
         <StatCard label="Skills (courses)" value={t.skills} icon={BookOpen} tone="violet" />
-        <StatCard label="Modules" value={t.modules} icon={Layers} tone="slate" />
-        <StatCard label="Lessons" value={t.lessons} icon={GraduationCap} tone="cyan" />
         <StatCard
           label="Lessons completed"
           value={t.lessonsCompleted}
           icon={CheckCircle2}
           tone="emerald"
         />
-        <StatCard label="Chat sessions" value={t.chatSessions} icon={MessageSquare} tone="violet" />
-        <StatCard label="Chat messages" value={t.chatMessages} icon={FileText} tone="cyan" />
-        <StatCard label="Active subs" value={t.activeSubscriptions} icon={CreditCard} tone="amber" />
+        <StatCard
+          label="Active subscriptions"
+          value={t.activeSubscriptions}
+          icon={CreditCard}
+          tone="amber"
+        />
         <StatCard
           label="Total revenue"
           value={formatCurrency(t.revenue)}
@@ -108,20 +109,13 @@ export function DashboardPage() {
           hint="All-time billing"
           tone="orange"
         />
-        <StatCard
-          label="Credits pool"
-          value={t.creditsRemaining}
-          icon={Coins}
-          hint="Remaining user credits"
-          tone="emerald"
-        />
-        <StatCard label="Support inbox" value={t.contactMessages} icon={Mail} tone="rose" />
-      </div>
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <section className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="border-b border-border/50 pb-4">
             <CardTitle>Recent signups</CardTitle>
+            <CardDescription>Latest learner accounts</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {data.recentUsers.length === 0 ? (
@@ -150,6 +144,7 @@ export function DashboardPage() {
         <Card className="border-border/70 shadow-sm">
           <CardHeader className="border-b border-border/50 pb-4">
             <CardTitle>Recent lesson completions</CardTitle>
+            <CardDescription>Latest finished lessons</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
             {data.recentLessonsCompleted.length === 0 ? (
@@ -178,47 +173,7 @@ export function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader className="border-b border-border/50 pb-4">
-          <CardTitle>Signups — last 14 days</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SignupBars data={data.signupsByDay} />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-/** Renders a simple bar chart for daily signup counts over the last two weeks. */
-function SignupBars({ data }: { data: Array<{ date: string; count: number }> }) {
-  if (data.length === 0) {
-    return <div className="text-sm text-muted-foreground">No signups recorded.</div>
-  }
-  const max = Math.max(1, ...data.map((d) => d.count))
-  return (
-    <div className="flex h-40 items-end gap-2">
-      {data.map((d) => (
-        <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
-          <div className="flex w-full flex-1 items-end">
-            <div
-              className="w-full rounded-t-md shadow-sm transition-transform hover:scale-[1.02]"
-              style={{
-                height: `${(d.count / max) * 100}%`,
-                background: 'linear-gradient(180deg, hsl(45 96% 88%) 0%, hsl(32 95% 52%) 100%)',
-                boxShadow: '0 2px 8px rgba(201, 118, 3, 0.2)',
-              }}
-              title={`${d.count} signups`}
-            />
-          </div>
-          <div className="text-[10px] text-muted-foreground">
-            {new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-          </div>
-          <div className="text-xs font-medium">{d.count}</div>
-        </div>
-      ))}
+      </section>
     </div>
   )
 }

@@ -5,15 +5,9 @@ export interface DashboardStats {
     users: number
     activeToday: number
     skills: number
-    modules: number
-    lessons: number
-    chatSessions: number
-    chatMessages: number
     lessonsCompleted: number
     activeSubscriptions: number
     revenue: number
-    creditsRemaining: number
-    contactMessages: number
   }
   recentUsers: Array<{
     id: string
@@ -27,7 +21,6 @@ export interface DashboardStats {
     lesson_title: string
     completed_at: string
   }>
-  signupsByDay: Array<{ date: string; count: number }>
 }
 
 export const dashboardApi = {

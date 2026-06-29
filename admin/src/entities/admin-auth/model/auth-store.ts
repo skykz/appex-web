@@ -1,9 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { ADMIN_TOKEN_KEY } from '@shared/api/http-client'
+import { ADMIN_REFRESH_TOKEN_KEY, ADMIN_TOKEN_KEY } from '@shared/api/http-client'
 import type { AdminUser } from './types'
-
-const REFRESH_KEY = 'appex_admin_refresh_token'
 
 interface AdminAuthState {
   user: AdminUser | null
@@ -19,12 +17,12 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       isAuthenticated: false,
       setAuth: ({ user, accessToken, refreshToken }) => {
         localStorage.setItem(ADMIN_TOKEN_KEY, accessToken)
-        localStorage.setItem(REFRESH_KEY, refreshToken)
+        localStorage.setItem(ADMIN_REFRESH_TOKEN_KEY, refreshToken)
         set({ user, isAuthenticated: true })
       },
       logout: () => {
         localStorage.removeItem(ADMIN_TOKEN_KEY)
-        localStorage.removeItem(REFRESH_KEY)
+        localStorage.removeItem(ADMIN_REFRESH_TOKEN_KEY)
         set({ user: null, isAuthenticated: false })
       },
     }),

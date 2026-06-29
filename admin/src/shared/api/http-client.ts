@@ -1,7 +1,45 @@
+import type { AdminAuthResponse } from '@entities/admin-auth/model/types'
 import { config } from '@shared/config'
 import { notifySessionExpired } from '@shared/session/session-expired'
 
 const TOKEN_KEY = 'appex_admin_access_token'
+const REFRESH_TOKEN_KEY = 'appex_admin_refresh_token'
+
+/** Single-flight refresh so parallel 401s do not race multiple `/auth/refresh` calls. */
+let refreshInFlight: Promise<boolean> | null = null
+
+/**
+ * Exchanges a stored admin refresh token for new access/refresh tokens in localStorage.
+ * @returns true when a new access token is available; false if refresh is impossible or failed.
+ */
+async function tryRefreshSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight
+
+  refreshInFlight = (async () => {
+    try {
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+      if (!refreshToken) return false
+
+      const response = await fetch(`${config.apiUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!response.ok) return false
+
+      const data = (await response.json()) as AdminAuthResponse
+      localStorage.setItem(TOKEN_KEY, data.accessToken)
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken)
+      return true
+    } catch {
+      return false
+    } finally {
+      refreshInFlight = null
+    }
+  })()
+
+  return refreshInFlight
+}
 
 /** GET-only: transient upstream / rate-limit responses worth a short backoff retry. */
 function shouldRetryIdempotentGet(status: number): boolean {
@@ -60,24 +98,33 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const { body, auth = true, headers, retryableGet, ...rest } = options
   const method = (rest.method ?? 'GET').toString().toUpperCase()
   const enableGetRetry = method === 'GET' && retryableGet !== false
-  const h = new Headers(headers)
-  h.set('Content-Type', 'application/json')
 
-  if (auth) {
-    const token = localStorage.getItem(TOKEN_KEY)
-    if (token) h.set('Authorization', `Bearer ${token}`)
+  /** Builds request headers with the latest access token from localStorage. */
+  function buildHeaders(): Headers {
+    const h = new Headers(headers)
+    h.set('Content-Type', 'application/json')
+    if (auth) {
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (token) h.set('Authorization', `Bearer ${token}`)
+    }
+    return h
   }
 
-  const res = await fetchWithGetRetry(
-    config.apiUrl + endpoint,
-    {
-      ...rest,
-      method,
-      headers: h,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    },
-    enableGetRetry
-  )
+  const fetchInit = (): RequestInit => ({
+    ...rest,
+    method,
+    headers: buildHeaders(),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+
+  let res = await fetchWithGetRetry(config.apiUrl + endpoint, fetchInit(), enableGetRetry)
+
+  if (res.status === 401 && auth && localStorage.getItem(REFRESH_TOKEN_KEY)) {
+    const refreshed = await tryRefreshSession()
+    if (refreshed) {
+      res = await fetchWithGetRetry(config.apiUrl + endpoint, fetchInit(), enableGetRetry)
+    }
+  }
 
   if (res.status === 204) return undefined as T
 
@@ -85,7 +132,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const data = text ? (safeJson(text) as unknown) : undefined
 
   if (!res.ok) {
-    // Session invalid: clear + redirect + toast is registered from AdminLayout (see session-expired).
+    // Session invalid after optional refresh: clear + redirect + toast (see session-expired).
     if (res.status === 401 && auth) {
       notifySessionExpired()
     }
@@ -121,3 +168,4 @@ export const httpClient = {
 }
 
 export const ADMIN_TOKEN_KEY = TOKEN_KEY
+export const ADMIN_REFRESH_TOKEN_KEY = REFRESH_TOKEN_KEY
