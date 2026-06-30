@@ -16,6 +16,7 @@ export {
 } from './schema.js'
 
 export { isLikelyImageBadgeUrl } from './media-badge.js'
+export { fileTypeBadge } from './file-type-badge.js'
 
 export {
   quizLearnerBlockSchema,
@@ -31,3 +32,7 @@ export {
   normalizeLessonBlockForEditor,
   normalizeLessonContentSteps,
 } from './normalize-editor.js'
+export {
+  parseLessonInlineMarkdown,
+  type LessonInlineSegment,
+} from './inline-markdown.js'

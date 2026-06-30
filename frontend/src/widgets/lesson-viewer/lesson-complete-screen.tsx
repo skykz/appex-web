@@ -6,7 +6,7 @@ import { Button } from '@shared/ui'
 interface LessonCompleteScreenProps {
   lessonLabel: string
   /** Runs when the learner leaves feedback (rating optional); may show streak next depending on result. */
-  onContinue: () => void | Promise<void>
+  onContinue: (payload?: { rating?: number; feedback?: string }) => void | Promise<void>
 }
 
 /**
@@ -18,6 +18,7 @@ export function LessonCompleteScreen({
 }: LessonCompleteScreenProps) {
   const [rating, setRating] = useState(0)
   const [hoveredStar, setHoveredStar] = useState(0)
+  const [feedbackText, setFeedbackText] = useState('')
   const [busy, setBusy] = useState(false)
 
   /**
@@ -27,7 +28,10 @@ export function LessonCompleteScreen({
     if (busy) return
     setBusy(true)
     try {
-      await onContinue()
+      await onContinue({
+        rating: rating > 0 ? rating : undefined,
+        feedback: feedbackText.trim() || undefined,
+      })
     } finally {
       setBusy(false)
     }
@@ -75,6 +79,8 @@ export function LessonCompleteScreen({
           <textarea
             placeholder="Share your thoughts"
             rows={4}
+            value={feedbackText}
+            onChange={(event) => setFeedbackText(event.target.value)}
             className="mt-6 w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-900 shadow-inner outline-none placeholder:text-zinc-500 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
           />
         </div>

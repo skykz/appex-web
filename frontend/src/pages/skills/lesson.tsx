@@ -4,6 +4,7 @@ import {
   LessonViewer,
   buildLessonContentFromApi,
   lessonApi,
+  resolveModuleCompletion,
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
 import { skillsApi, type SkillDetail } from '@features/skills'
@@ -63,11 +64,11 @@ export default function SkillLessonPage() {
   /**
    * Marks lesson complete and checks streak; streak UI only on first check-in of the UTC day.
    */
-  async function onAfterFeedbackCommit() {
+  async function onAfterFeedbackCommit(feedback?: { rating?: number; feedback?: string }) {
     if (!Number.isFinite(numericLessonId)) {
       return { showDayStreak: false }
     }
-    await lessonApi.complete(numericLessonId)
+    await lessonApi.complete(numericLessonId, feedback)
     const streak = await streakApi.checkIn()
     void queryClient.invalidateQueries({ queryKey: ['streak'] })
     return { showDayStreak: streak.firstCheckInToday === true }
@@ -121,11 +122,15 @@ export default function SkillLessonPage() {
     )
   }
 
+  const moduleCompletion = resolveModuleCompletion(skill, numericLessonId)
+
   return (
     <div className="flex min-h-dvh flex-1 flex-col">
       <LessonViewer
         content={content}
+        quizAttempts={data.quizAttempts ?? []}
         lessonLabel={data.label}
+        moduleCompletion={moduleCompletion}
         initialStepIndex={data.progress.stepIndex}
         lessonCompleted={data.progress.completed}
         onStepChange={persistStep}

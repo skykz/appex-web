@@ -39,6 +39,7 @@ import {
 } from './billing.controller.js'
 import { evaluateAdminRefund, processAdminRefund } from '../billing/refund.controller.js'
 import { getLessonEngagement } from './lesson-engagement.controller.js'
+import { uploadLessonAsset } from './uploads.controller.js'
 
 const router = Router()
 
@@ -89,5 +90,7 @@ router.get('/lesson-submissions/unread-count', ...guard, getLessonSubmissionsUnr
 router.post('/lesson-submissions/read-all', ...guard, markAllLessonSubmissionsRead)
 router.get('/lesson-submissions', ...guard, listLessonSubmissions)
 router.patch('/lesson-submissions/:id', ...guard, patchLessonSubmission)
+
+router.post('/uploads/lesson-file', ...guard, uploadLessonAsset)
 
 export default router

@@ -103,4 +103,13 @@
     color: hsl(var(--sidebar-foreground));
     border-color: hsl(var(--sidebar-border));
   }
+
+  /**
+   * Lesson preview canvas — always renders like the learner app (light), even when the OS prefers dark.
+   */
+  .learner-preview-canvas {
+    color-scheme: light;
+    color: #18181b;
+    background-color: #ffffff;
+  }
 }

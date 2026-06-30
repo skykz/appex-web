@@ -26,12 +26,14 @@ import {
 import { Button } from '@shared/ui/button'
 import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
+import { LessonMarkdownTextarea } from '@shared/ui/lesson-markdown-textarea'
 import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
 import { DialogDescription, DialogHeader, DialogTitle } from '@shared/ui/dialog'
 import { ApiError } from '@shared/api/http-client'
 import { MediaBadgeField } from '@shared/ui/media-badge-field'
 import { ImageSrcField } from '@shared/ui/image-src-field'
+import { FileSrcField } from '@shared/ui/file-src-field'
 import { LessonPreviewDialog } from './lesson-preview-dialog'
 
 /**
@@ -358,7 +360,7 @@ function StepBlocksEditor({
           <option value="list">List</option>
           <option value="image">Image</option>
           <option value="video">Video</option>
-          <option value="file">File / link</option>
+          <option value="file">Download file</option>
           <option value="quiz">Quiz</option>
           <option value="submission">Student submission</option>
           <option value="callout">Callout</option>
@@ -432,6 +434,15 @@ function BlockRow({
   )
 }
 
+/** Hint shown under text fields that support `**bold**` markdown. */
+function InlineMarkdownHint() {
+  return (
+    <p className="text-xs text-muted-foreground">
+      Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">**bold text**</code> for emphasis, or paste from Word — bold formatting is kept.
+    </p>
+  )
+}
+
 function BlockFields({
   form,
   stepIdx,
@@ -446,25 +457,29 @@ function BlockFields({
 
   if (type === 'list') {
     return (
-      <Controller
-        control={form.control}
-        name={`${base}.items` as const}
-        render={({ field }) => {
-          const items = Array.isArray(field.value) ? field.value : []
-          return (
-            <Textarea
-              rows={3}
-              placeholder="One item per line"
-              value={items.join('\n')}
-              onChange={(e) =>
-                field.onChange(
-                  e.target.value.split('\n').map((s) => s.trimEnd()).filter(Boolean)
-                )
-              }
-            />
-          )
-        }}
-      />
+      <div className="grid gap-1">
+        <Controller
+          control={form.control}
+          name={`${base}.items` as const}
+          render={({ field }) => {
+            const items = Array.isArray(field.value) ? field.value : []
+            return (
+              <LessonMarkdownTextarea
+                rows={3}
+                placeholder="One item per line"
+                pasteMode="list"
+                value={items.join('\n')}
+                onValueChange={(next) =>
+                  field.onChange(
+                    next.split('\n').map((s) => s.trimEnd()).filter(Boolean)
+                  )
+                }
+              />
+            )
+          }}
+        />
+        <InlineMarkdownHint />
+      </div>
     )
   }
   if (type === 'image') {
@@ -506,19 +521,22 @@ function BlockFields({
     )
   }
   if (type === 'file') {
+    const fileValue = form.watch(base) as Extract<LessonBlock, { type: 'file' }>
     return (
-      <div className="grid gap-2">
-        <Input
-          placeholder="File URL (https://… or /path/to/file.pdf)"
-          {...form.register(`${base}.url` as const)}
-        />
-        <Input placeholder="Label (e.g. Workbook.pdf)" {...form.register(`${base}.label` as const)} />
-        <Textarea
-          rows={2}
-          placeholder="Short description (optional)"
-          {...form.register(`${base}.description` as const)}
-        />
-      </div>
+      <FileSrcField
+        url={fileValue?.url ?? ''}
+        label={fileValue?.label ?? ''}
+        description={fileValue?.description ?? ''}
+        onUrlChange={(nextUrl) =>
+          form.setValue(`${base}.url` as const, nextUrl, { shouldDirty: true })
+        }
+        onLabelChange={(nextLabel) =>
+          form.setValue(`${base}.label` as const, nextLabel, { shouldDirty: true })
+        }
+        onDescriptionChange={(nextDescription) =>
+          form.setValue(`${base}.description` as const, nextDescription, { shouldDirty: true })
+        }
+      />
     )
   }
   if (type === 'quiz') {
@@ -695,7 +713,20 @@ function BlockFields({
           <option value="warn">Warning</option>
         </Select>
         <Input placeholder="Title (optional)" {...form.register(`${base}.title` as const)} />
-        <Textarea rows={3} placeholder="Body" {...form.register(`${base}.content` as const)} />
+        <Controller
+          control={form.control}
+          name={`${base}.content` as const}
+          render={({ field }) => (
+            <LessonMarkdownTextarea
+              rows={3}
+              placeholder="Body"
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
+        />
+        <InlineMarkdownHint />
       </div>
     )
   }
@@ -722,14 +753,49 @@ function BlockFields({
   }
   if (type === 'mentor-message') {
     return (
-      <Textarea rows={2} placeholder="Mentor message" {...form.register(`${base}.text` as const)} />
+      <div className="grid gap-1">
+        <Controller
+          control={form.control}
+          name={`${base}.text` as const}
+          render={({ field }) => (
+            <LessonMarkdownTextarea
+              rows={2}
+              placeholder="Mentor message"
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
+        />
+        <InlineMarkdownHint />
+      </div>
     )
   }
-  // text, bold-text, heading
+  if (type === 'text' || type === 'bold-text') {
+    return (
+      <div className="grid gap-1">
+        <Controller
+          control={form.control}
+          name={`${base}.content` as const}
+          render={({ field }) => (
+            <LessonMarkdownTextarea
+              rows={3}
+              placeholder={type === 'bold-text' ? 'Bold paragraph' : 'Paragraph text'}
+              value={field.value ?? ''}
+              onValueChange={field.onChange}
+              onBlur={field.onBlur}
+            />
+          )}
+        />
+        <InlineMarkdownHint />
+      </div>
+    )
+  }
+  // heading
   return (
     <Textarea
-      rows={type === 'heading' ? 1 : 3}
-      placeholder={type === 'heading' ? 'Heading text' : 'Paragraph text'}
+      rows={1}
+      placeholder="Heading text"
       {...form.register(`${base}.content` as const)}
     />
   )

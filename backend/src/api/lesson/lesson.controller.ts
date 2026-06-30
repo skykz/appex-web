@@ -8,6 +8,11 @@ import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
 import { canAccessSkill } from '../../services/access.service.js'
 import { recordLessonOpen } from '../../services/lesson-open.service.js'
 import { mintCertificate } from '../../services/certificate.service.js'
+import {
+  gradeQuizAnswer,
+  getQuizBlockMode,
+  loadLatestQuizAttemptsForUser,
+} from '../../services/quiz-attempt.service.js'
 
 const progressSchema = z.object({
   stepIndex: z.number().int().min(0),
@@ -116,6 +121,12 @@ export async function getLesson(
       }
     }
 
+    const quizAttempts = await loadLatestQuizAttemptsForUser(
+      userId,
+      lessonId,
+      lesson.content
+    )
+
     res.json({
       id: lesson.id,
       label: lesson.label,
@@ -125,6 +136,7 @@ export async function getLesson(
         stepIndex,
         completed,
       },
+      quizAttempts,
     })
   } catch (err) {
     next(err)
@@ -341,71 +353,14 @@ export async function checkQuizAnswer(
     const steps = visible.lesson.content as Array<{ blocks?: unknown[] }>
     const step = steps[body.stepIndex]
     const block = step?.blocks?.[body.blockIndex]
-    if (!block || typeof block !== 'object' || !('type' in block)) {
+    if (!block || !getQuizBlockMode(block)) {
       throw new AppError(400, 'Invalid quiz location')
     }
-    const t = (block as { type: string }).type
-    const rawMode =
-      t === 'quiz' ? (block as unknown as { mode?: string }).mode : undefined
-    const mode =
-      typeof rawMode === 'string'
-        ? rawMode
-        : t === 'quiz-single'
-          ? 'single'
-          : t === 'quiz-multi'
-            ? 'multi'
-            : null
 
-    if (mode !== 'single' && mode !== 'multi' && mode !== 'open') {
-      throw new AppError(400, 'Block is not a quiz')
-    }
-
-    let isCorrect = false
-    let explanation: string | undefined
-    let correctIndices: number[] = []
-
-    if (mode === 'open') {
-      const b = block as unknown as { explanation?: string }
-      explanation = b.explanation
-      const text = (body.openAnswer ?? '').trim()
-      if (!text) throw new AppError(400, 'Please enter an answer')
-      isCorrect = true
-      await supabaseAdmin.from('lesson_quiz_attempts').insert({
-        user_id: userId,
-        lesson_id: lessonId,
-        step_index: body.stepIndex,
-        block_index: body.blockIndex,
-        selected_indices: [],
-        is_correct: isCorrect,
-        open_response: text,
-      })
-      res.json({
-        correct: isCorrect,
-        explanation: explanation ?? null,
-      })
-      return
-    }
-
-    if (mode === 'single') {
-      const b = block as unknown as {
-        correctIndex: number
-        explanation?: string
-      }
-      explanation = b.explanation
-      correctIndices = [b.correctIndex]
-      isCorrect =
-        body.selectedIndices.length === 1 && body.selectedIndices[0] === b.correctIndex
-    } else {
-      const b = block as unknown as {
-        correctIndices: number[]
-        explanation?: string
-      }
-      explanation = b.explanation
-      correctIndices = b.correctIndices
-      const want = new Set(b.correctIndices)
-      const got = new Set(body.selectedIndices)
-      isCorrect = want.size === got.size && [...want].every((x) => got.has(x))
-    }
+    const { isCorrect, meta } = gradeQuizAnswer(block, {
+      selectedIndices: body.selectedIndices,
+      openAnswer: body.openAnswer,
+    })
 
     await supabaseAdmin.from('lesson_quiz_attempts').insert({
       user_id: userId,
@@ -414,12 +369,13 @@ export async function checkQuizAnswer(
       block_index: body.blockIndex,
       selected_indices: body.selectedIndices,
       is_correct: isCorrect,
+      ...(meta.mode === 'open' ? { open_response: (body.openAnswer ?? '').trim() } : {}),
     })
 
     res.json({
       correct: isCorrect,
-      explanation: explanation ?? null,
-      correctIndices,
+      explanation: meta.explanation,
+      correctIndices: meta.correctIndices,
     })
   } catch (err) {
     next(err)

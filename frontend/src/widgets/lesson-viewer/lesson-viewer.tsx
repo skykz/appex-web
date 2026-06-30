@@ -1,10 +1,9 @@
 import type React from 'react'
 import { useState, useEffect } from 'react'
-import { ExternalLink, FileText, Flag, X } from 'lucide-react'
+import { Flag, X } from 'lucide-react'
+import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { cn } from '@shared/lib'
 import {
-  Avatar,
-  AvatarFallback,
   Button,
   Dialog,
   DialogContent,
@@ -12,7 +11,9 @@ import {
   DialogDescription,
 } from '@shared/ui'
 import { type LessonContent, type LessonBlock } from './lesson-types'
+import type { SavedQuizAttempt } from './api'
 import { LessonCompleteScreen } from './lesson-complete-screen'
+import { ModuleCompleteScreen } from './module-complete-screen'
 import { DayStreakScreen } from './day-streak-screen'
 import {
   CalloutBlockView,
@@ -22,14 +23,23 @@ import {
 } from './lesson-interactive-blocks'
 import { LessonIssueReportDialog } from './lesson-issue-report-dialog'
 import { LessonAssistantWidget } from './lesson-assistant-widget'
+import { LessonImageBlock } from './lesson-image-block'
 import { renderLinkedText } from './render-linked-text'
+import { MentorMessageBlock, UserMessageBlock } from './lesson-chat-message-blocks'
 
 type Phase = 'lesson' | 'complete' | 'streak'
 
 interface LessonViewerProps {
   content: LessonContent
+  /** Latest saved quiz results keyed by step/block for resume UI. */
+  quizAttempts?: SavedQuizAttempt[]
   /** Shown in the header and completion screens (e.g. lesson label from CMS). */
   lessonLabel?: string
+  /** When set, the last step shows module completion instead of lesson completion. */
+  moduleCompletion?: {
+    moduleLabel: string
+    moduleTitle?: string
+  } | null
   /** Restores the learner to their last saved step when opening an in-progress lesson. */
   initialStepIndex?: number
   /** When true, the step bar reflects full lesson completion while the learner reviews from step 1. */
@@ -43,12 +53,17 @@ interface LessonViewerProps {
    * After the learner confirms the feedback screen: mark lesson complete and check streak.
    * Return `showDayStreak: true` only for the first streak activity of the day to show the celebration screen.
    */
-  onAfterFeedbackCommit: () => Promise<{ showDayStreak: boolean }>
+  onAfterFeedbackCommit: (feedback?: {
+    rating?: number
+    feedback?: string
+  }) => Promise<{ showDayStreak: boolean }>
 }
 
 export function LessonViewer({
   content,
+  quizAttempts = [],
   lessonLabel = 'Lesson 1',
+  moduleCompletion = null,
   initialStepIndex = 0,
   lessonCompleted = false,
   onStepChange,
@@ -73,6 +88,7 @@ export function LessonViewer({
   const isFirst = stepIndex === 0
   const isLast = stepIndex === totalSteps - 1
   const currentBlocks = content.steps[stepIndex].blocks
+  const quizAttemptMap = buildQuizAttemptMap(quizAttempts)
 
   function handleBack() {
     if (!isFirst) {
@@ -95,8 +111,8 @@ export function LessonViewer({
   /**
    * Persists completion then either opens the streak celebration (first activity today) or exits the flow.
    */
-  async function handleFeedbackContinue() {
-    const { showDayStreak } = await onAfterFeedbackCommit()
+  async function handleFeedbackContinue(feedback?: { rating?: number; feedback?: string }) {
+    const { showDayStreak } = await onAfterFeedbackCommit(feedback)
     if (showDayStreak) {
       setPhase('streak')
       return
@@ -106,6 +122,16 @@ export function LessonViewer({
 
   // Post-lesson screens
   if (phase === 'complete') {
+    if (moduleCompletion) {
+      return (
+        <ModuleCompleteScreen
+          moduleLabel={moduleCompletion.moduleLabel}
+          moduleTitle={moduleCompletion.moduleTitle}
+          onContinue={handleFeedbackContinue}
+        />
+      )
+    }
+
     return (
       <LessonCompleteScreen
         lessonLabel={lessonLabel}
@@ -218,6 +244,7 @@ export function LessonViewer({
           {renderBlocks(currentBlocks, {
             lessonId: content.lessonId,
             stepIndex,
+            quizAttemptMap,
           })}
         </div>
       </div>
@@ -317,7 +344,22 @@ function videoPresentation(
   return { mode: 'video', href: t }
 }
 
-type BlockContext = { lessonId: number; stepIndex: number }
+type BlockContext = {
+  lessonId: number
+  stepIndex: number
+  quizAttemptMap: Map<string, SavedQuizAttempt>
+}
+
+/**
+ * Indexes saved quiz attempts by `stepIndex:blockIndex` for fast lookup while rendering blocks.
+ */
+function buildQuizAttemptMap(attempts: SavedQuizAttempt[]): Map<string, SavedQuizAttempt> {
+  const map = new Map<string, SavedQuizAttempt>()
+  for (const attempt of attempts) {
+    map.set(`${attempt.stepIndex}:${attempt.blockIndex}`, attempt)
+  }
+  return map
+}
 
 /**
  * Renders text content with blank lines as paragraph breaks, preserving intentional line breaks.
@@ -386,18 +428,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
     }
 
     if (block.type === 'image') {
-      elements.push(
-        <div
-          key={`img-${i}`}
-          className="mt-4 overflow-hidden rounded-2xl bg-muted/40"
-        >
-          <img
-            src={block.src}
-            alt={block.alt ?? ''}
-            className="h-auto w-full object-cover"
-          />
-        </div>
-      )
+      elements.push(<LessonImageBlock key={`img-${i}`} src={block.src} alt={block.alt} />)
       i++
       continue
     }
@@ -441,29 +472,12 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     if (block.type === 'file') {
       elements.push(
-        <a
+        <LessonFileDownloadCard
           key={`file-${i}`}
-          href={block.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group mt-5 flex items-start gap-3 rounded-2xl border border-blue-500/70 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:border-blue-400 hover:bg-zinc-900 first:mt-0"
-        >
-          <FileText className="mt-0.5 size-5 shrink-0 text-blue-300" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold leading-snug">{block.label}</span>
-            {block.description ? (
-              <span className="mt-1 block text-xs leading-relaxed text-zinc-400">
-                {block.description}
-              </span>
-            ) : null}
-            <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-300">
-              <ExternalLink className="size-3.5 shrink-0" aria-hidden />
-              <span className="truncate underline decoration-blue-300/60 underline-offset-4 group-hover:decoration-blue-200">
-                {block.url}
-              </span>
-            </span>
-          </span>
-        </a>
+          url={block.url}
+          label={block.label}
+          description={block.description}
+        />
       )
       i++
       continue
@@ -476,11 +490,12 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
     ) {
       elements.push(
         <QuizBlockView
-          key={`quiz-${i}`}
+          key={`quiz-${ctx.stepIndex}-${i}`}
           lessonId={ctx.lessonId}
           stepIndex={ctx.stepIndex}
           blockIndex={i}
           block={block}
+          restoredAttempt={ctx.quizAttemptMap.get(`${ctx.stepIndex}:${i}`) ?? null}
         />
       )
       i++
@@ -489,7 +504,11 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     if (block.type === 'submission') {
       elements.push(
-        <SubmissionBlockView key={`sub-${i}`} lessonId={ctx.lessonId} block={block} />
+        <SubmissionBlockView
+          key={`sub-${ctx.stepIndex}-${i}`}
+          lessonId={ctx.lessonId}
+          block={block}
+        />
       )
       i++
       continue
@@ -551,22 +570,9 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     if (block.type === 'user-message') {
       elements.push(
-        <div
-          key={`user-${i}`}
-          className="mt-8 flex flex-col items-end gap-1.5"
-        >
-          <span className="text-xs text-muted-foreground">{block.name}</span>
-          <div className="flex items-end gap-2.5">
-            <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
-              {block.text}
-            </div>
-            <Avatar className="size-9 shrink-0">
-              <AvatarFallback className="bg-gradient-to-br from-violet-400 to-fuchsia-400 text-xs font-semibold text-white">
-                {block.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-          </div>
-        </div>
+        <UserMessageBlock key={`user-${i}`} name={block.name}>
+          {block.text}
+        </UserMessageBlock>
       )
       i++
       continue
@@ -574,22 +580,9 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
 
     if (block.type === 'mentor-message') {
       elements.push(
-        <div
-          key={`mentor-${i}`}
-          className="mt-5 flex flex-col items-start gap-1.5"
-        >
-          <span className="text-xs text-muted-foreground">Mentor</span>
-          <div className="flex items-end gap-2.5">
-            <Avatar className="size-9 shrink-0">
-              <AvatarFallback className="bg-gradient-to-br from-blue-400 to-indigo-400 text-xs font-semibold text-white">
-                M
-              </AvatarFallback>
-            </Avatar>
-            <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-[15px] leading-relaxed">
-              {renderLinkedText(block.text, `mentor-${i}`)}
-            </div>
-          </div>
-        </div>
+        <MentorMessageBlock key={`mentor-${i}`}>
+          {renderLinkedText(block.text, `mentor-${i}`)}
+        </MentorMessageBlock>
       )
       i++
       continue

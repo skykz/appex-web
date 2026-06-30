@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Copy, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button, Input, Textarea } from '@shared/ui'
 import type { LessonBlock } from './lesson-types'
-import { lessonApi } from './api'
+import { lessonApi, type SavedQuizAttempt } from './api'
 import { renderLinkedText } from './render-linked-text'
 
 type QuizBlock =
@@ -96,12 +96,15 @@ export function QuizBlockView({
   stepIndex,
   blockIndex,
   block,
+  restoredAttempt = null,
 }: {
   lessonId: number
   stepIndex: number
   blockIndex: number
   block: QuizBlock
+  restoredAttempt?: SavedQuizAttempt | null
 }) {
+  const qc = useQueryClient()
   const mode = getQuizInteractionMode(block)
   const [selected, setSelected] = useState<number[]>([])
   const [openText, setOpenText] = useState('')
@@ -110,6 +113,33 @@ export function QuizBlockView({
     explanation: string | null
     correctIndices?: number[]
   } | null>(null)
+
+  /** Restores saved answers when revisiting a step, or clears state for a fresh quiz. */
+  useEffect(() => {
+    if (!restoredAttempt) {
+      setSelected([])
+      setOpenText('')
+      setResult(null)
+      return
+    }
+
+    setSelected(restoredAttempt.selectedIndices ?? [])
+    setOpenText(restoredAttempt.openAnswer ?? '')
+    setResult({
+      correct: restoredAttempt.correct,
+      explanation: restoredAttempt.explanation,
+      correctIndices: restoredAttempt.correctIndices ?? [],
+    })
+  }, [
+    lessonId,
+    stepIndex,
+    blockIndex,
+    restoredAttempt?.correct,
+    restoredAttempt?.explanation,
+    restoredAttempt?.openAnswer,
+    restoredAttempt?.selectedIndices?.join(','),
+    restoredAttempt?.correctIndices?.join(','),
+  ])
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -125,7 +155,10 @@ export function QuizBlockView({
             blockIndex,
             selectedIndices: selected,
           }),
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      setResult(data)
+      void qc.invalidateQueries({ queryKey: ['lesson', lessonId] })
+    },
   })
 
   /**

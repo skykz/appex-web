@@ -1,65 +1,13 @@
 import type { ReactNode } from 'react'
 import type { LessonBlockLearner } from '@appex/lesson-schema'
-import { ExternalLink, FileText } from 'lucide-react'
+import { LessonFileDownloadCard } from '@shared/ui/lesson-file-download-card'
 import { cn } from '@shared/lib'
+import { renderInlineText } from '@shared/lib/render-inline-text'
 import { CopyPromptCard } from '@shared/ui/copy-prompt-card'
-
-const URL_PATTERN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
-const TRAILING_PUNCTUATION_PATTERN = /[),.!?:;]+$/
-
-/**
- * Splits punctuation from the end of a URL so preview links do not swallow commas or periods.
- */
-function splitTrailingPunctuation(url: string): { hrefText: string; trailing: string } {
-  const match = url.match(TRAILING_PUNCTUATION_PATTERN)
-  if (!match) return { hrefText: url, trailing: '' }
-
-  return {
-    hrefText: url.slice(0, -match[0].length),
-    trailing: match[0],
-  }
-}
-
-/**
- * Mirrors the learner view by making pasted URLs visibly clickable in preview text.
- */
-function renderLinkedText(text: string, keyPrefix = 'linked-text'): ReactNode[] {
-  const nodes: ReactNode[] = []
-  let lastIndex = 0
-
-  for (const match of text.matchAll(URL_PATTERN)) {
-    const rawUrl = match[0]
-    const index = match.index ?? 0
-
-    if (index > lastIndex) {
-      nodes.push(text.slice(lastIndex, index))
-    }
-
-    const { hrefText, trailing } = splitTrailingPunctuation(rawUrl)
-    const href = hrefText.startsWith('www.') ? `https://${hrefText}` : hrefText
-
-    nodes.push(
-      <a
-        key={`${keyPrefix}-${index}`}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="font-semibold text-primary underline decoration-primary/45 underline-offset-4 transition-colors hover:text-primary/80 hover:decoration-primary"
-      >
-        {hrefText}
-      </a>
-    )
-
-    if (trailing) nodes.push(trailing)
-    lastIndex = index + rawUrl.length
-  }
-
-  if (lastIndex < text.length) {
-    nodes.push(text.slice(lastIndex))
-  }
-
-  return nodes
-}
+import {
+  PreviewMentorMessageBlock,
+  PreviewUserMessageBlock,
+} from '@shared/ui/lesson-chat-message-blocks'
 
 /**
  * Resolves a YouTube page or short link to a standard embed URL for an iframe (matches learner app).
@@ -155,11 +103,11 @@ function renderTextParagraphs(
         {group.map((run, runIdx) =>
           run.bold ? (
             <strong key={runIdx} className="font-semibold">
-              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+              {renderInlineText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
             </strong>
           ) : (
             <span key={runIdx}>
-              {renderLinkedText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
+              {renderInlineText(run.content, `${keyPrefix}-${idx}-${runIdx}`)}
             </span>
           )
         )}
@@ -208,7 +156,7 @@ function CalloutPreview({
   return (
     <div className={cn('mt-5 rounded-xl border px-4 py-3 text-[15px] leading-relaxed first:mt-0', tone)}>
       {title ? <p className="mb-1 text-sm font-semibold">{title}</p> : null}
-      <p className="whitespace-pre-wrap">{renderLinkedText(content, 'callout-preview')}</p>
+      <p className="whitespace-pre-wrap">{renderInlineText(content, 'callout-preview')}</p>
     </div>
   )
 }
@@ -308,27 +256,12 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
 
     if (block.type === 'file') {
       elements.push(
-        <a
+        <LessonFileDownloadCard
           key={`file-${i}`}
-          href={block.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group mt-5 flex items-start gap-3 rounded-2xl border border-blue-500/70 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:border-blue-400 hover:bg-zinc-900 first:mt-0"
-        >
-          <FileText className="mt-0.5 size-5 shrink-0 text-blue-300" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold leading-snug">{block.label}</span>
-            {block.description ? (
-              <span className="mt-1 block text-xs leading-relaxed text-zinc-400">{block.description}</span>
-            ) : null}
-            <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-300">
-              <ExternalLink className="size-3.5 shrink-0" aria-hidden />
-              <span className="truncate underline decoration-blue-300/60 underline-offset-4 group-hover:decoration-blue-200">
-                {block.url}
-              </span>
-            </span>
-          </span>
-        </a>
+          url={block.url}
+          label={block.label}
+          description={block.description}
+        />
       )
       i++
       continue
@@ -405,7 +338,7 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
         <ul key={`list-${i}`} className="ml-6 mt-4 flex list-disc flex-col gap-1.5">
           {block.items.map((item, idx) => (
             <li key={idx} className="text-[15px] leading-relaxed">
-              {renderLinkedText(item, `list-${i}-${idx}`)}
+              {renderInlineText(item, `list-${i}-${idx}`)}
             </li>
           ))}
         </ul>
@@ -416,17 +349,9 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
 
     if (block.type === 'user-message') {
       elements.push(
-        <div key={`user-${i}`} className="mt-8 flex flex-col items-end gap-1.5">
-          <span className="text-xs text-muted-foreground">{block.name}</span>
-          <div className="flex items-end gap-2.5">
-            <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-3 text-[15px] leading-relaxed text-primary-foreground">
-              {block.text}
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 text-xs font-semibold text-white">
-              {block.name.charAt(0)}
-            </div>
-          </div>
-        </div>
+        <PreviewUserMessageBlock key={`user-${i}`} name={block.name}>
+          {block.text}
+        </PreviewUserMessageBlock>
       )
       i++
       continue
@@ -434,17 +359,9 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
 
     if (block.type === 'mentor-message') {
       elements.push(
-        <div key={`mentor-${i}`} className="mt-5 flex flex-col items-start gap-1.5">
-          <span className="text-xs text-muted-foreground">Mentor</span>
-          <div className="flex items-end gap-2.5">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-indigo-400 text-xs font-semibold text-white">
-              M
-            </div>
-            <div className="max-w-[80%] rounded-2xl rounded-bl-md bg-muted px-4 py-3 text-[15px] leading-relaxed">
-              {renderLinkedText(block.text, `mentor-${i}`)}
-            </div>
-          </div>
-        </div>
+        <PreviewMentorMessageBlock key={`mentor-${i}`}>
+          {renderInlineText(block.text, `mentor-${i}`)}
+        </PreviewMentorMessageBlock>
       )
       i++
       continue

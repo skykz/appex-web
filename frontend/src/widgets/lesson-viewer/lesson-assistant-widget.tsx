@@ -13,7 +13,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { X, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Textarea } from '@shared/ui'
-import lexiAvatarUrl from '@/assets/lexi-avatar.png'
+import { useAuthStore } from '@entities/user'
+import { LiveChatBubble } from './lesson-chat-message-blocks'
 import {
   streamLexiMessage,
   submitLexiFeedback,
@@ -40,6 +41,8 @@ interface Message {
 }
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
+
+import lexiAvatarUrl from '@/assets/lexi-avatar.png'
 
 /**
  * Lexi avatar — falls back to a branded initial when the image fails to load.
@@ -180,32 +183,22 @@ function TypingDots() {
  */
 function MessageBubble({
   message,
+  userLabel,
   onFeedback,
 }: {
   message: Message
+  userLabel: string
   onFeedback?: (id: string, value: 1 | -1) => void
 }) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={cn('flex gap-2', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && <LexiAvatar className="mt-0.5 size-6" />}
-
-      <div className={cn('max-w-[85%]', isUser ? 'items-end' : 'items-start', 'flex flex-col gap-1')}>
-        <div
-          className={cn(
-            'rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words',
-            isUser
-              ? 'rounded-tr-sm bg-primary text-primary-foreground'
-              : 'rounded-tl-sm bg-muted text-foreground'
-          )}
-        >
-          {message.content}
-        </div>
-
-        {/* 👍/👎 only for assistant messages that are fully rendered */}
-        {!isUser && message.content && onFeedback && (
-          <div className="flex gap-1 pl-1">
+    <LiveChatBubble
+      role={isUser ? 'user' : 'assistant'}
+      label={isUser ? userLabel : 'Lexi'}
+      footer={
+        !isUser && message.content && onFeedback ? (
+          <div className="flex gap-1 px-1">
             <button
               type="button"
               onClick={() => onFeedback(message.id, 1)}
@@ -229,9 +222,11 @@ function MessageBubble({
               <ThumbsDown className="size-3" />
             </button>
           </div>
-        )}
-      </div>
-    </div>
+        ) : undefined
+      }
+    >
+      {message.content}
+    </LiveChatBubble>
   )
 }
 
@@ -242,6 +237,8 @@ function MessageBubble({
  */
 export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
   const { lessonLabel, moduleLabel, stepIndex, stepCount, blocks } = props
+  const userName = useAuthStore((state) => state.user?.name?.trim())
+  const userLabel = userName || 'You'
 
   const [open, setOpen] = useState(false)
   const [threadId, setThreadId] = useState<string | undefined>()
@@ -408,28 +405,26 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
             {messages.length === 0 && !streaming ? (
               <EmptyState />
             ) : (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-5">
                 {messages.map((msg) => (
                   <MessageBubble
                     key={msg.id}
                     message={msg}
+                    userLabel={userLabel}
                     onFeedback={msg.role === 'assistant' ? handleFeedback : undefined}
                   />
                 ))}
 
                 {/* Streaming assistant message */}
-                {streaming && (
-                  <div className="flex gap-2 justify-start">
-                    <LexiAvatar className="mt-0.5 size-6" />
-                    <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
-                      {streamingContent ? (
-                        <span className="whitespace-pre-wrap break-words">{streamingContent}</span>
-                      ) : (
-                        <TypingDots />
-                      )}
-                    </div>
-                  </div>
-                )}
+                {streaming ? (
+                  <LiveChatBubble role="assistant" label="Lexi">
+                    {streamingContent ? (
+                      streamingContent
+                    ) : (
+                      <TypingDots />
+                    )}
+                  </LiveChatBubble>
+                ) : null}
               </div>
             )}
 

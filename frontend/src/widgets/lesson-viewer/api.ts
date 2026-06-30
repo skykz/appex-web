@@ -10,6 +10,17 @@ interface LessonResponse {
     stepIndex: number
     completed: boolean
   }
+  quizAttempts: SavedQuizAttempt[]
+}
+
+export interface SavedQuizAttempt {
+  stepIndex: number
+  blockIndex: number
+  selectedIndices: number[]
+  openAnswer: string | null
+  correct: boolean
+  explanation: string | null
+  correctIndices: number[]
 }
 
 interface LessonProgress {

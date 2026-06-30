@@ -121,7 +121,7 @@ export function LessonPreviewDialog({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-5xl rounded-2xl border border-border/50 bg-card/40 px-4 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 lg:px-10 dark:ring-white/[0.06]">
+          <div className="learner-preview-canvas mx-auto max-w-5xl rounded-2xl border border-zinc-200 bg-white px-4 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 lg:px-10">
             <LessonPreviewBlocks blocks={current.blocks} />
           </div>
         </div>
