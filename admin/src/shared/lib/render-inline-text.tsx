@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { parseLessonInlineMarkdown } from '@appex/lesson-schema'
 
 /**
- * Renders lesson text with `**bold**` spans and auto-linked URLs (admin preview).
+ * Renders lesson text with `**bold**`, `""italic""`, and auto-linked URLs (admin preview).
  */
 export function renderInlineText(text: string, keyPrefix = 'inline-text'): ReactNode[] {
   const segments = parseLessonInlineMarkdown(text)
@@ -21,6 +21,15 @@ export function renderInlineText(text: string, keyPrefix = 'inline-text'): React
         <strong key={key} className="font-semibold">
           {renderInlineText(segment.value, key)}
         </strong>
+      )
+      return
+    }
+
+    if (segment.kind === 'italic') {
+      nodes.push(
+        <em key={key} className="italic">
+          {renderInlineText(segment.value, key)}
+        </em>
       )
       return
     }

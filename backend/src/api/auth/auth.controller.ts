@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase, supabaseAdmin } from '../../db/supabase.js'
 import { env } from '../../config/env.js'
 import { sendPostSignupEmailsAsync } from '../../services/lifecycle-email.service.js'
+import { sendPasswordResetEmail } from '../../services/password-reset.service.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const loginSchema = z.object({
@@ -270,7 +271,7 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
 }
 
 /**
- * Sends a Supabase password recovery email. Response is always neutral to avoid email enumeration.
+ * Sends a branded Mailgun password-reset email (Supabase recovery link). Response is always neutral to avoid email enumeration.
  */
 export async function forgotPassword(
   req: Request,
@@ -281,12 +282,10 @@ export async function forgotPassword(
     const body = forgotPasswordSchema.parse(req.body)
     const redirectTo = passwordResetRedirectUrl(req, body.intent)
 
-    const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
-      redirectTo,
-    })
-
-    if (error) {
-      console.warn('resetPasswordForEmail:', error.message)
+    try {
+      await sendPasswordResetEmail({ email: body.email, redirectTo })
+    } catch (err) {
+      console.error('[forgot-password] send failed', err)
     }
 
     res.json({

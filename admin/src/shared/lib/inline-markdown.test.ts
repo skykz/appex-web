@@ -27,4 +27,26 @@ describe('parseLessonInlineMarkdown', () => {
       { kind: 'text', value: ' ok' },
     ])
   })
+
+  it('parses italic spans', () => {
+    expect(parseLessonInlineMarkdown('Send an ""Email"" today')).toEqual([
+      { kind: 'text', value: 'Send an ' },
+      { kind: 'italic', value: 'Email' },
+      { kind: 'text', value: ' today' },
+    ])
+  })
+
+  it('parses bold and italic in the same line', () => {
+    expect(parseLessonInlineMarkdown('**Goal:** use ""Email""')).toEqual([
+      { kind: 'bold', value: 'Goal:' },
+      { kind: 'text', value: ' use ' },
+      { kind: 'italic', value: 'Email' },
+    ])
+  })
+
+  it('parses bold italic spans', () => {
+    expect(parseLessonInlineMarkdown('*""Email""*')).toEqual([
+      { kind: 'bold', value: '""Email""' },
+    ])
+  })
 })

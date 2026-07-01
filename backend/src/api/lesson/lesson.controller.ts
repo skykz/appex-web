@@ -107,7 +107,7 @@ export async function getLesson(
     const completed = progress?.completed ?? false
     let stepIndex = progress?.step_index ?? 0
 
-    // Completed lessons reopen at the first step; completion, ratings, and quiz history stay intact.
+    // Completed lessons reopen at step 1 for review; quiz answers are not restored so learners can retake tests.
     if (completed && stepIndex !== 0) {
       stepIndex = 0
       const { error: resetError } = await supabaseAdmin
@@ -121,11 +121,9 @@ export async function getLesson(
       }
     }
 
-    const quizAttempts = await loadLatestQuizAttemptsForUser(
-      userId,
-      lessonId,
-      lesson.content
-    )
+    const quizAttempts = completed
+      ? []
+      : await loadLatestQuizAttemptsForUser(userId, lessonId, lesson.content)
 
     res.json({
       id: lesson.id,

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { LessonBlockLearner } from '@appex/lesson-schema'
 import { LessonFileDownloadCard } from '@shared/ui/lesson-file-download-card'
+import { LessonLinkCard } from '@shared/ui/lesson-link-card'
 import { cn } from '@shared/lib'
 import { renderInlineText } from '@shared/lib/render-inline-text'
 import { CopyPromptCard } from '@shared/ui/copy-prompt-card'
@@ -258,6 +259,19 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
       elements.push(
         <LessonFileDownloadCard
           key={`file-${i}`}
+          url={block.url}
+          label={block.label}
+          description={block.description}
+        />
+      )
+      i++
+      continue
+    }
+
+    if (block.type === 'link') {
+      elements.push(
+        <LessonLinkCard
+          key={`link-${i}`}
           url={block.url}
           label={block.label}
           description={block.description}

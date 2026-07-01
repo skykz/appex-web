@@ -15,7 +15,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 /**
- * Collects email and requests a Supabase password reset link (neutral success copy).
+ * Collects email and requests a branded password reset link via the API (neutral success copy).
  */
 export default function ForgotPasswordPage() {
   const {

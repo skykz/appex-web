@@ -48,6 +48,12 @@ export const lessonBlockLearnerSchema = z.union([
     label: z.string(),
     description: z.string().optional(),
   }),
+  z.object({
+    type: z.literal('link'),
+    url: urlOrPath,
+    label: z.string(),
+    description: z.string().optional(),
+  }),
   quizLearnerBlockSchema,
   z.object({
     type: z.literal('submission'),

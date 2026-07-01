@@ -2,6 +2,7 @@ import type React from 'react'
 import { useState, useEffect } from 'react'
 import { Flag, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
+import { LessonLinkCard } from './lesson-link-card'
 import { cn } from '@shared/lib'
 import {
   Button,
@@ -88,7 +89,8 @@ export function LessonViewer({
   const isFirst = stepIndex === 0
   const isLast = stepIndex === totalSteps - 1
   const currentBlocks = content.steps[stepIndex].blocks
-  const quizAttemptMap = buildQuizAttemptMap(quizAttempts)
+  /** Completed lessons are review/retake mode — do not restore prior quiz results. */
+  const quizAttemptMap = buildQuizAttemptMap(lessonCompleted ? [] : quizAttempts)
 
   function handleBack() {
     if (!isFirst) {
@@ -474,6 +476,19 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
       elements.push(
         <LessonFileDownloadCard
           key={`file-${i}`}
+          url={block.url}
+          label={block.label}
+          description={block.description}
+        />
+      )
+      i++
+      continue
+    }
+
+    if (block.type === 'link') {
+      elements.push(
+        <LessonLinkCard
+          key={`link-${i}`}
           url={block.url}
           label={block.label}
           description={block.description}

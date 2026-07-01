@@ -121,6 +121,9 @@ function extractContentSummary(blocks: LessonBlock[]): string {
       case 'file':
         text = `Resource: ${block.label}${block.description ? ` — ${block.description}` : ''}`
         break
+      case 'link':
+        text = `Link: ${block.label} (${block.url})${block.description ? ` — ${block.description}` : ''}`
+        break
       case 'image':
         text = block.alt ? `Image: ${block.alt}` : null
         break

@@ -109,6 +109,12 @@ export const lessonBlockSchema = z.union([
     label: z.string().min(1).max(120),
     description: z.string().max(500).optional(),
   }),
+  z.object({
+    type: z.literal('link'),
+    url: urlOrPath,
+    label: z.string().min(1).max(120),
+    description: z.string().max(500).optional(),
+  }),
   quizBlockSchema,
   z.object({
     type: z.literal('submission'),

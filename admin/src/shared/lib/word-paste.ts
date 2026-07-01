@@ -3,25 +3,29 @@ import type { ClipboardEvent } from 'react'
 export type WordPasteMode = 'text' | 'list'
 
 /**
- * Returns true when a Word/Office HTML element should render as bold lesson markdown.
+ * Strips the Windows CF_HTML clipboard header so DOMParser receives valid markup.
  */
-function isBoldElement(element: Element): boolean {
-  const tag = element.tagName.toLowerCase()
-  if (tag === 'b' || tag === 'strong') return true
-  if (tag !== 'span' && tag !== 'p') return false
-
-  const style = (element.getAttribute('style') ?? '').toLowerCase()
-  if (/mso-bidi-font-weight\s*:\s*bold/.test(style)) return true
-  if (/font-weight\s*:\s*bold/.test(style)) return true
-
-  const weight = style.match(/font-weight\s*:\s*(\d+)/)?.[1]
-  if (weight && Number(weight) >= 600) return true
-
-  return false
+function stripCfHtmlHeader(html: string): string {
+  const htmlStart = html.search(/<html[\s>]/i)
+  if (htmlStart > 0) return html.slice(htmlStart)
+  return html
 }
 
 /**
- * Serializes a Word/HTML DOM subtree into lesson markdown (`**bold**`, line breaks).
+ * Removes Office XML wrapper tags that Word injects into pasted HTML.
+ */
+function stripOfficeXmlTags(html: string): string {
+  return html
+    .replace(/<!\[if[\s\S]*?endif\]>/gi, '')
+    .replace(/<\/?o:[^>]*>/gi, '')
+    .replace(/<\/?w:[^>]*>/gi, '')
+    .replace(/<\/?m:[^>]*>/gi, '')
+    .replace(/<\/?v:[^>]*>/gi, '')
+}
+
+/**
+ * Serializes a Word/HTML DOM subtree into plain lesson text (paragraphs, lists, line breaks).
+ * Bold and italic from Word are flattened to normal text.
  */
 function serializeNode(node: Node): string {
   if (node.nodeType === Node.TEXT_NODE) {
@@ -46,12 +50,6 @@ function serializeNode(node: Node): string {
 
   if (tag === 'ul' || tag === 'ol' || tag === 'tbody' || tag === 'table') {
     return serializeChildren(element)
-  }
-
-  if (isBoldElement(element)) {
-    const inner = serializeChildren(element).trim()
-    if (!inner) return ''
-    return `**${inner}**`
   }
 
   return serializeChildren(element)
@@ -84,14 +82,15 @@ function normalizeLessonText(text: string, mode: WordPasteMode): string {
   }
 
   normalized = normalized.replace(/\n{3,}/g, '\n\n')
+  normalized = normalized.trimStart()
   return normalized.trimEnd()
 }
 
 /**
- * Converts Word/Google Docs clipboard HTML into lesson markdown supported by the app.
+ * Converts Word/Google Docs clipboard HTML into plain lesson text (structure preserved, no bold/italic markers).
  */
 export function convertWordHtmlToLessonText(html: string, mode: WordPasteMode = 'text'): string {
-  const trimmed = html.trim()
+  const trimmed = stripOfficeXmlTags(stripCfHtmlHeader(html.trim()))
   if (!trimmed) return ''
 
   const doc = new DOMParser().parseFromString(trimmed, 'text/html')
@@ -113,7 +112,7 @@ export function insertTextAtSelection(
 }
 
 /**
- * Intercepts Word rich-text paste and inserts lesson markdown at the caret.
+ * Intercepts Word rich-text paste and inserts plain lesson text at the caret.
  */
 export function applyWordPasteToTextarea(
   event: ClipboardEvent<HTMLTextAreaElement>,
@@ -128,6 +127,7 @@ export function applyWordPasteToTextarea(
   if (!converted) return
 
   event.preventDefault()
+  event.stopPropagation()
 
   const textarea = event.currentTarget
   const { nextValue, cursor } = insertTextAtSelection(

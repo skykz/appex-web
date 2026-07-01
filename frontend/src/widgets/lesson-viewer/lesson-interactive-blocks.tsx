@@ -114,14 +114,16 @@ export function QuizBlockView({
     correctIndices?: number[]
   } | null>(null)
 
-  /** Restores saved answers when revisiting a step, or clears state for a fresh quiz. */
+  /** Clears local state when the learner navigates to a different quiz block. */
   useEffect(() => {
-    if (!restoredAttempt) {
-      setSelected([])
-      setOpenText('')
-      setResult(null)
-      return
-    }
+    setSelected([])
+    setOpenText('')
+    setResult(null)
+  }, [lessonId, stepIndex, blockIndex])
+
+  /** Restores saved answers when resuming an in-progress lesson (not on refetch with no saved attempt). */
+  useEffect(() => {
+    if (!restoredAttempt) return
 
     setSelected(restoredAttempt.selectedIndices ?? [])
     setOpenText(restoredAttempt.openAnswer ?? '')
@@ -131,9 +133,6 @@ export function QuizBlockView({
       correctIndices: restoredAttempt.correctIndices ?? [],
     })
   }, [
-    lessonId,
-    stepIndex,
-    blockIndex,
     restoredAttempt?.correct,
     restoredAttempt?.explanation,
     restoredAttempt?.openAnswer,

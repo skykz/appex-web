@@ -361,6 +361,7 @@ function StepBlocksEditor({
           <option value="image">Image</option>
           <option value="video">Video</option>
           <option value="file">Download file</option>
+          <option value="link">Link</option>
           <option value="quiz">Quiz</option>
           <option value="submission">Student submission</option>
           <option value="callout">Callout</option>
@@ -434,11 +435,13 @@ function BlockRow({
   )
 }
 
-/** Hint shown under text fields that support `**bold**` markdown. */
+/** Hint shown under text fields that support `**bold**` and `""italic""` markdown. */
 function InlineMarkdownHint() {
   return (
     <p className="text-xs text-muted-foreground">
-      Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">**bold text**</code> for emphasis, or paste from Word — bold formatting is kept.
+      Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">**bold text**</code> or{' '}
+      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{'""italic text""'}</code> for emphasis.
+      Paste from Word keeps paragraphs and lists only — bold/italic are pasted as plain text.
     </p>
   )
 }
@@ -516,6 +519,22 @@ function BlockFields({
           rows={2}
           placeholder="Caption (optional)"
           {...form.register(`${base}.caption` as const)}
+        />
+      </div>
+    )
+  }
+  if (type === 'link') {
+    return (
+      <div className="grid gap-2">
+        <Input
+          placeholder="Link URL (https://…)"
+          {...form.register(`${base}.url` as const)}
+        />
+        <Input placeholder="Label (e.g. Figma prototype)" {...form.register(`${base}.label` as const)} />
+        <Textarea
+          rows={2}
+          placeholder="Short description (optional)"
+          {...form.register(`${base}.description` as const)}
         />
       </div>
     )
@@ -814,6 +833,8 @@ function defaultBlock(type: LessonBlock['type']): LessonBlock {
       return { type: 'video', src: '' }
     case 'file':
       return { type: 'file', url: '', label: '' }
+    case 'link':
+      return { type: 'link', url: '', label: '' }
     case 'quiz':
       return {
         type: 'quiz',

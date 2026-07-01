@@ -1,10 +1,13 @@
 const URL_PATTERN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
+const BOLD_ITALIC_PATTERN = /\*""([^"\n]+)""\*/g
 const BOLD_PATTERN = /\*\*([^*\n]+)\*\*/g
+const ITALIC_PATTERN = /""([^"\n]+)""/g
 const TRAILING_PUNCTUATION_PATTERN = /[),.!?:;]+$/
 
 export type LessonInlineSegment =
   | { kind: 'text'; value: string }
   | { kind: 'bold'; value: string }
+  | { kind: 'italic'; value: string }
   | { kind: 'link'; href: string; label: string }
 
 /**
@@ -21,7 +24,7 @@ function splitTrailingPunctuation(url: string): { hrefText: string; trailing: st
 }
 
 /**
- * Parses URLs inside a plain text chunk (no `**bold**` markers).
+ * Parses URLs inside a plain text chunk (no emphasis markers).
  */
 function parseUrlSegments(text: string): LessonInlineSegment[] {
   if (!text) return []
@@ -54,23 +57,22 @@ function parseUrlSegments(text: string): LessonInlineSegment[] {
 }
 
 /**
- * Parses lesson inline markdown: `**bold**` spans and auto-linked URLs.
- * Used by the learner app and admin lesson preview.
+ * Parses `""italic""` spans inside a plain text chunk.
  */
-export function parseLessonInlineMarkdown(text: string): LessonInlineSegment[] {
+function parseItalicSegments(text: string): LessonInlineSegment[] {
   if (!text) return []
 
   const segments: LessonInlineSegment[] = []
   let lastIndex = 0
 
-  for (const match of text.matchAll(BOLD_PATTERN)) {
+  for (const match of text.matchAll(ITALIC_PATTERN)) {
     const index = match.index ?? 0
 
     if (index > lastIndex) {
       segments.push(...parseUrlSegments(text.slice(lastIndex, index)))
     }
 
-    segments.push({ kind: 'bold', value: match[1] ?? '' })
+    segments.push({ kind: 'italic', value: match[1] ?? '' })
     lastIndex = index + match[0].length
   }
 
@@ -83,4 +85,73 @@ export function parseLessonInlineMarkdown(text: string): LessonInlineSegment[] {
   }
 
   return segments
+}
+
+/**
+ * Parses inline emphasis markers (`*""bold italic""*`, `**bold**`, `""italic""`) in a text chunk.
+ */
+function parseEmphasisSegments(text: string): LessonInlineSegment[] {
+  if (!text) return []
+
+  const segments: LessonInlineSegment[] = []
+  let lastIndex = 0
+
+  const patterns: Array<{
+    regex: RegExp
+    map: (value: string) => LessonInlineSegment
+  }> = [
+    {
+      regex: BOLD_ITALIC_PATTERN,
+      map: (value) => ({ kind: 'bold', value: `""${value}""` }),
+    },
+    {
+      regex: BOLD_PATTERN,
+      map: (value) => ({ kind: 'bold', value }),
+    },
+  ]
+
+  for (;;) {
+    let nextMatch: RegExpMatchArray | null = null
+    let nextPattern: (typeof patterns)[number] | null = null
+
+    for (const pattern of patterns) {
+      pattern.regex.lastIndex = lastIndex
+      const match = pattern.regex.exec(text)
+      if (!match) continue
+      if (!nextMatch || (match.index ?? 0) < (nextMatch.index ?? 0)) {
+        nextMatch = match
+        nextPattern = pattern
+      }
+    }
+
+    if (!nextMatch || !nextPattern) break
+
+    const index = nextMatch.index ?? 0
+
+    if (index > lastIndex) {
+      segments.push(...parseItalicSegments(text.slice(lastIndex, index)))
+    }
+
+    segments.push(nextPattern.map(nextMatch[1] ?? ''))
+    lastIndex = index + nextMatch[0].length
+  }
+
+  if (lastIndex < text.length) {
+    segments.push(...parseItalicSegments(text.slice(lastIndex)))
+  }
+
+  if (segments.length === 0) {
+    return parseItalicSegments(text)
+  }
+
+  return segments
+}
+
+/**
+ * Parses lesson inline markdown: `**bold**`, `""italic""`, and auto-linked URLs.
+ * Used by the learner app and admin lesson preview.
+ */
+export function parseLessonInlineMarkdown(text: string): LessonInlineSegment[] {
+  if (!text) return []
+  return parseEmphasisSegments(text)
 }

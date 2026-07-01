@@ -9,7 +9,7 @@ type LessonMarkdownTextareaProps = Omit<ComponentProps<typeof Textarea>, 'onPast
 }
 
 /**
- * Textarea for lesson copy that converts Word rich-text paste into `**bold**` markdown.
+ * Textarea for lesson copy that converts Word rich-text paste into plain text (structure preserved).
  */
 export function LessonMarkdownTextarea({
   value,
