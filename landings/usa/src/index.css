@@ -106,6 +106,12 @@ body.overlay-open {
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 @keyframes slide-quiz-in {

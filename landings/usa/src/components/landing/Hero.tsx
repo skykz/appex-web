@@ -75,8 +75,8 @@ export default function Hero() {
       <div className="relative max-w-6xl mx-auto">
         {/* Floating elements */}
 
-        {/* Top-left photo: small on mobile, big on desktop */}
-        <div className="absolute left-2 sm:left-0 top-2 md:top-8 lg:top-12 z-20 animate-[fade-up_0.8s_ease-out_0.1s_both]">
+        {/* Top-left photo — desktop only so mobile stays centered without overflow */}
+        <div className="hidden md:block absolute left-0 top-8 lg:top-12 z-20 animate-[fade-up_0.8s_ease-out_0.1s_both]">
           <div
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg -rotate-[8deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[230px] md:h-[250px]"
             style={{ border: "3px solid white" }}
@@ -90,8 +90,8 @@ export default function Hero() {
           <ChatGPTLogo size={36} />
         </div>
 
-        {/* Right side photo: small on mobile, big on desktop */}
-        <div className="absolute right-2 sm:right-0 top-2 md:top-auto md:bottom-40 lg:bottom-24 z-20 animate-[fade-up_0.8s_ease-out_0.3s_both]">
+        {/* Right side photo — desktop only */}
+        <div className="hidden md:block absolute right-0 bottom-40 lg:bottom-24 z-20 animate-[fade-up_0.8s_ease-out_0.3s_both]">
           <div
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg rotate-[6deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[260px] md:h-[230px]"
             style={{ border: "3px solid white" }}
@@ -150,8 +150,8 @@ export default function Hero() {
           </svg>
         </div>
 
-        {/* Center content — extra pt on mobile so it doesn't overlap floating photos */}
-        <div className="relative z-10 text-center max-w-3xl mx-auto pt-32 sm:pt-24 md:pt-12 pb-16 md:pb-24">
+        {/* Center content */}
+        <div className="relative z-10 text-center max-w-3xl mx-auto pt-8 md:pt-12 pb-16 md:pb-24 px-2">
           {/* Claude logo above headline */}
           <div className="inline-flex items-center justify-center mb-6 md:mb-8 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(218,119,86,0.4)]" style={{ border: "1px solid hsl(var(--border))" }}>
             <ClaudeLogo size={42} />

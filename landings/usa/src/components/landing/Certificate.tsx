@@ -33,7 +33,7 @@ export default function Certificate() {
     <section className="bg-background py-16 md:py-24 px-4 md:px-10">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         {/* Left — certificate mockup */}
-        <div className="relative">
+        <div className="relative overflow-hidden">
           {/* Soft ambient glow */}
           <div className="absolute -inset-6 bg-gradient-to-br from-primary/15 via-transparent to-primary/5 rounded-3xl blur-2xl" />
 

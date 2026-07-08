@@ -74,34 +74,65 @@ export default function Reviews() {
         </p>
       </div>
 
-      {/* Mobile: swipeable scroll | Desktop: faster auto-marquee */}
-      <div className="group">
+      {/* Mobile: centered vertical stack — no horizontal swipe */}
+      <div className="md:hidden flex flex-col items-center gap-4 px-4">
+        {reviews.map((r, i) => (
+          <div
+            key={i}
+            className="w-full max-w-[340px] bg-card border border-border rounded-2xl p-5"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <img
+                src={r.img}
+                alt={r.name}
+                className="w-9 h-9 rounded-full object-cover"
+                loading="lazy"
+                width={512}
+                height={512}
+              />
+              <div>
+                <p className="text-foreground text-[13px] font-semibold">{r.name}</p>
+                <p className="text-muted-foreground text-[11px]">{r.date}</p>
+              </div>
+            </div>
+
+            <Stars />
+
+            <p className="text-muted-foreground text-[13px] leading-relaxed mt-3 font-body">
+              {r.text}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: auto-marquee */}
+      <div className="hidden md:block group">
         <div
-          className="flex gap-4 md:gap-5 pl-4 md:pl-5 overflow-x-auto md:overflow-visible snap-x snap-mandatory md:snap-none [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:animate-marquee md:group-hover:[animation-play-state:paused] pb-4 md:pb-0"
+          className="flex gap-5 pl-5 overflow-visible animate-marquee group-hover:[animation-play-state:paused]"
         >
           {doubled.map((r, i) => (
             <div
               key={i}
-              className="flex-shrink-0 w-[300px] md:w-[360px] bg-card border border-border rounded-2xl p-5 md:p-7 snap-center md:snap-none"
+              className="flex-shrink-0 w-[360px] bg-card border border-border rounded-2xl p-7"
             >
-              <div className="flex items-center gap-3 mb-3 md:mb-4">
+              <div className="flex items-center gap-3 mb-4">
                 <img
                   src={r.img}
                   alt={r.name}
-                  className="w-9 h-9 md:w-10 md:h-10 rounded-full object-cover"
+                  className="w-10 h-10 rounded-full object-cover"
                   loading="lazy"
                   width={512}
                   height={512}
                 />
                 <div>
-                  <p className="text-foreground text-[13px] md:text-sm font-semibold">{r.name}</p>
-                  <p className="text-muted-foreground text-[11px] md:text-xs">{r.date}</p>
+                  <p className="text-foreground text-sm font-semibold">{r.name}</p>
+                  <p className="text-muted-foreground text-xs">{r.date}</p>
                 </div>
               </div>
 
               <Stars />
 
-              <p className="text-muted-foreground text-[13px] md:text-[15px] leading-relaxed mt-3 md:mt-4 font-body">
+              <p className="text-muted-foreground text-[15px] leading-relaxed mt-4 font-body">
                 {r.text}
               </p>
             </div>

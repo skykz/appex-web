@@ -13,7 +13,7 @@ import Footer from "@/components/landing/Footer";
 
 export default function Index() {
   return (
-    <>
+    <div className="overflow-x-hidden w-full max-w-[100vw]">
       <Navbar />
       <Hero />
       <RoleTicker />
@@ -26,6 +26,6 @@ export default function Index() {
       <Reviews />
       <FAQ />
       <Footer />
-    </>
+    </div>
   );
 }

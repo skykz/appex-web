@@ -60,10 +60,10 @@ function ChatClaudeIcon() {
 
 function PhoneMockup() {
   return (
-    <div className="relative w-full max-w-[340px] mx-auto px-4 sm:px-0 opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">
+    <div className="relative w-full max-w-[340px] mx-auto px-4 sm:px-0 overflow-hidden opacity-0 animate-[fade-up_0.8s_ease-out_0.2s_forwards]">
       {/* Floating: "Live demo" badge */}
       <div
-        className="absolute -top-3 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]"
+        className="absolute top-0 left-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]"
         style={{ border: "1px solid hsl(var(--border))", color: "#0D0D0D" }}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -167,7 +167,7 @@ function PhoneMockup() {
 
       {/* Floating: stat badge */}
       <div
-        className="absolute -bottom-3 -right-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]"
+        className="absolute bottom-0 right-2 flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-semibold bg-white shadow-[0_8px_20px_-8px_rgba(0,0,0,0.15)]"
         style={{ border: "1px solid hsl(var(--border))", color: "#0D0D0D" }}
       >
         <svg className="w-3.5 h-3.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -184,7 +184,7 @@ export default function Features() {
     <section className="bg-background relative py-16 md:py-24 px-4 md:px-10">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         {/* Left — copy */}
-        <div>
+        <div className="text-center md:text-left">
           <div className="inline-block mb-5 rounded-full px-4 py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase text-primary" style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)" }}>
             The Appex method
           </div>
@@ -199,9 +199,9 @@ export default function Features() {
             Forget endless videos and dense textbooks. Every Appex lesson is built around what you'll actually do with Claude tomorrow — and the kind of work that pays.
           </p>
 
-          <div className="flex flex-col gap-6 md:gap-7 mb-8 md:mb-10">
+          <div className="flex flex-col gap-6 md:gap-7 mb-8 md:mb-10 items-center md:items-stretch">
             {features.map((f) => (
-              <div key={f.title} className="flex gap-4 items-start">
+              <div key={f.title} className="flex gap-4 items-start text-left max-w-md md:max-w-none">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-primary"
                   style={{ background: "rgba(249,115,22,0.12)", border: "1px solid rgba(249,115,22,0.25)" }}
