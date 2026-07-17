@@ -2,8 +2,8 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
+  BookOpen,
   Check,
-  ChevronRight,
   Clock3,
   Download,
   Flag,
@@ -301,31 +301,50 @@ export default function CoursePage() {
                       const isCompleted = state === 'completed'
                       const isCurrent = state === 'current'
                       const levelNumber = lessonIndex + 1
+                      const hasEmoji = Boolean((lesson.emoji || '').trim())
                       const content = (
                         <>
+                          {/* Lesson icon tile — state-driven: check when done, book/emoji otherwise, lock when locked. */}
                           <div
                             className={cn(
-                              'relative flex size-16 shrink-0 items-center justify-center rounded-2xl border shadow-sm transition-transform',
-                              isCompleted
-                                ? 'border-emerald-400/40 bg-emerald-500 text-white'
-                                : isCurrent
-                                  ? 'border-primary/40 bg-primary text-primary-foreground shadow-primary/20'
-                                  : isLocked
-                                    ? 'border-dashed bg-muted/60 text-muted-foreground'
-                                    : 'border-border bg-background text-foreground group-hover:scale-105'
+                              'relative flex size-14 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200',
+                              isCompleted &&
+                                'border-transparent bg-linear-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-500/25',
+                              isCurrent &&
+                                'border-transparent bg-linear-to-br from-primary to-orange-500 text-white shadow-md shadow-primary/25 group-hover:scale-105',
+                              isLocked && 'border-border/60 bg-muted text-muted-foreground/60',
+                              !isCompleted &&
+                                !isCurrent &&
+                                !isLocked &&
+                                'border-border bg-background text-primary group-hover:scale-105 group-hover:border-primary/40'
                             )}
                           >
-                            <EmojiOrImageBadge
-                              value={lesson.emoji}
-                              frameClassName="flex size-10 items-center justify-center rounded-xl bg-transparent text-2xl"
-                            />
-                            <span className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full border bg-background text-[10px] font-bold text-foreground shadow-sm">
+                            {isCompleted ? (
+                              <Check className="size-7" strokeWidth={2.75} aria-hidden />
+                            ) : isLocked ? (
+                              <Lock className="size-5" aria-hidden />
+                            ) : hasEmoji ? (
+                              <EmojiOrImageBadge
+                                value={lesson.emoji}
+                                frameClassName="flex size-9 items-center justify-center rounded-lg bg-transparent text-2xl shadow-none"
+                              />
+                            ) : (
+                              <BookOpen className="size-6" aria-hidden />
+                            )}
+                            <span
+                              className={cn(
+                                'absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-bold shadow-sm',
+                                isCompleted || isCurrent
+                                  ? 'bg-background text-foreground ring-1 ring-black/5'
+                                  : 'border border-border bg-background text-muted-foreground'
+                              )}
+                            >
                               {levelNumber}
                             </span>
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                               <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wide">
                                 {lesson.label}
                               </span>
@@ -346,10 +365,15 @@ export default function CoursePage() {
                                 </span>
                               ) : null}
                             </div>
-                            <p className="line-clamp-2 text-sm font-bold leading-snug">
+                            <p
+                              className={cn(
+                                'line-clamp-2 text-sm font-bold leading-snug',
+                                isLocked && 'text-muted-foreground'
+                              )}
+                            >
                               {lesson.title}
                             </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
+                            <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                               {isLocked
                                 ? 'Finish earlier levels to unlock.'
                                 : isCompleted
@@ -360,39 +384,30 @@ export default function CoursePage() {
                             </p>
                           </div>
 
-                          <div className="shrink-0 self-center">
-                            {isLocked ? (
-                              <Lock className="size-4 text-muted-foreground/50" aria-hidden />
-                            ) : isCompleted ? (
-                              <span className="flex size-8 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600">
-                                <Check className="size-4" strokeWidth={3} aria-hidden />
+                          {/* Trailing affordance — only the actionable states get a play CTA. */}
+                          {!isLocked && !isCompleted ? (
+                            <div className="shrink-0 self-center">
+                              <span className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/25 transition-transform group-hover:scale-110">
+                                <Play className="size-4 fill-current" aria-hidden />
                               </span>
-                            ) : (
-                              <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                                {isCurrent ? (
-                                  <Play className="size-4 fill-current" aria-hidden />
-                                ) : (
-                                  <ChevronRight className="size-4" aria-hidden />
-                                )}
-                              </span>
-                            )}
-                          </div>
+                            </div>
+                          ) : null}
                         </>
                       )
 
                       return (
                         <li key={lesson.id} className="list-none">
                           {isLocked ? (
-                            <div className="group flex min-h-32 cursor-not-allowed items-center gap-3 rounded-3xl border border-dashed bg-background/55 p-4 opacity-70 backdrop-blur">
+                            <div className="flex h-full min-h-[7.5rem] cursor-not-allowed items-center gap-3 rounded-3xl border border-border/50 bg-background/40 p-4">
                               {content}
                             </div>
                           ) : (
                             <Link
                               to={`/academy/courses/${courseId}/lessons/${lesson.id}`}
                               className={cn(
-                                'group flex min-h-32 items-center gap-3 rounded-3xl border bg-background/75 p-4 shadow-sm backdrop-blur transition-all',
+                                'group flex h-full min-h-[7.5rem] items-center gap-3 rounded-3xl border bg-background/80 p-4 shadow-sm backdrop-blur transition-all duration-200',
                                 isCurrent
-                                  ? 'border-primary/45 ring-4 ring-primary/10'
+                                  ? 'border-primary/50 ring-4 ring-primary/10 hover:shadow-md'
                                   : 'border-white/70 hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-md dark:border-white/10'
                               )}
                             >

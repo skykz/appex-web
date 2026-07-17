@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react'
-import { Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Avatar, AvatarFallback } from '@shared/ui'
 
 /**
- * Lexi's mark — a sparkle on the warm-orange brand gradient. Reads honestly as an
- * AI mentor (no fake face) and needs no image asset.
+ * Lexi's mark — a simple friendly face (dot eyes + a smile) on the warm-orange brand
+ * gradient. Reads honestly as a mentor character next to messages (not a generic brand
+ * sparkle, and no fake AI-generated photo). Needs no image asset.
  */
-function LexiMark({ className }: { className?: string }) {
+export function LexiMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
@@ -16,7 +16,17 @@ function LexiMark({ className }: { className?: string }) {
       )}
       aria-hidden
     >
-      <Sparkles className="size-1/2" strokeWidth={2.25} />
+      <svg viewBox="0 0 24 24" className="size-1/2" fill="none">
+        <circle cx="8.5" cy="10.5" r="1.6" fill="currentColor" />
+        <circle cx="15.5" cy="10.5" r="1.6" fill="currentColor" />
+        <path
+          d="M7.5 15c1.2 1.4 3 2.1 4.5 2.1s3.3-.7 4.5-2.1"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          fill="none"
+        />
+      </svg>
     </span>
   )
 }

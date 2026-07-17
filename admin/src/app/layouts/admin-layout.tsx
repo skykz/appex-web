@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -12,6 +12,8 @@ import {
   Inbox,
   Upload,
   CreditCard,
+  Menu,
+  X,
 } from 'lucide-react'
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
@@ -37,6 +39,7 @@ export function AdminLayout() {
   const logout = useAdminAuthStore((s) => s.logout)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   /**
    * Registers global 401 handling: clears persisted auth, drops React Query cache, and sends the operator to login with return path.
@@ -52,6 +55,16 @@ export function AdminLayout() {
     return () => setSessionExpiredHandler(null)
   }, [logout, navigate, queryClient])
 
+  /** Close the mobile drawer on Escape for keyboard users. */
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMobileNavOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [mobileNavOpen])
+
   /** Clears admin session and returns the operator to the login screen. */
   function handleLogout() {
     logout()
@@ -63,8 +76,25 @@ export function AdminLayout() {
   return (
     <div className="flex min-h-screen">
       <CommandPalette />
-      <aside className="admin-sidebar-surface flex w-64 shrink-0 flex-col border-r shadow-[4px_0_28px_-14px_rgba(15,23,42,0.1)]">
-        <div className="flex h-[4.25rem] items-center border-b border-[hsl(var(--sidebar-border))] px-5">
+
+      {/* Mobile backdrop — click to dismiss the drawer */}
+      {mobileNavOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-neutral-950/40 backdrop-blur-sm lg:hidden"
+          aria-hidden
+          onClick={() => setMobileNavOpen(false)}
+        />
+      ) : null}
+
+      <aside
+        className={cn(
+          'admin-sidebar-surface flex w-64 shrink-0 flex-col border-r shadow-[4px_0_28px_-14px_rgba(15,23,42,0.1)]',
+          // Off-canvas drawer below lg; static in-flow sidebar at lg and up.
+          'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0 lg:transition-none',
+          mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        <div className="flex h-[4.25rem] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-5">
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm ring-1 ring-orange-600/20">
               <Zap className="size-4" aria-hidden />
@@ -76,12 +106,21 @@ export function AdminLayout() {
               <div className="text-xs text-muted-foreground">Admin console</div>
             </div>
           </div>
+          <button
+            type="button"
+            className="-mr-2 flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+            onClick={() => setMobileNavOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X className="size-5" aria-hidden />
+          </button>
         </div>
         <nav className="flex-1 space-y-0.5 p-3">
           {nav.map((n) => (
             <NavLink
               key={n.to}
               to={n.to}
+              onClick={() => setMobileNavOpen(false)}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150',
@@ -119,8 +158,28 @@ export function AdminLayout() {
           </Button>
         </div>
       </aside>
-      <main className="admin-main-bg flex-1 overflow-auto">
-        <div className="mx-auto min-h-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <main className="admin-main-bg flex min-w-0 flex-1 flex-col overflow-auto">
+        {/* Mobile top bar — hamburger + brand, hidden at lg where the sidebar is always visible */}
+        <div className="admin-sidebar-surface sticky top-0 z-30 flex h-[4.25rem] items-center gap-3 border-b px-4 lg:hidden">
+          <button
+            type="button"
+            className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={mobileNavOpen}
+          >
+            <Menu className="size-5" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 items-center justify-center rounded-lg bg-orange-500 text-white shadow-sm ring-1 ring-orange-600/20">
+              <Zap className="size-4" aria-hidden />
+            </div>
+            <span className="text-sm font-bold tracking-tight text-[hsl(var(--sidebar-accent-foreground))]">
+              AppEx
+            </span>
+          </div>
+        </div>
+        <div className="mx-auto min-h-full w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
           <Outlet />
         </div>
       </main>

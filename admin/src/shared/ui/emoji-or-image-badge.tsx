@@ -7,12 +7,24 @@ interface EmojiOrImageBadgeProps {
   frameClassName?: string
   /** Extra classes for the emoji text span. */
   emojiClassName?: string
+  /**
+   * Meaningful description of what the badge represents (e.g. a course title).
+   * Supply this only when the badge is NOT accompanied by adjacent visible text —
+   * otherwise leave it undefined so the badge stays decorative and avoids
+   * redundant screen-reader announcements.
+   */
+  label?: string
 }
 
 /**
  * Renders a catalog/lesson “emoji” field as either text/emoji or a thumbnail when the value is a URL or data URL.
  */
-export function EmojiOrImageBadge({ value, frameClassName, emojiClassName }: EmojiOrImageBadgeProps) {
+export function EmojiOrImageBadge({
+  value,
+  frameClassName,
+  emojiClassName,
+  label,
+}: EmojiOrImageBadgeProps) {
   const v = (value || '').trim()
   if (!v) return null
   const box = cn(
@@ -22,12 +34,12 @@ export function EmojiOrImageBadge({ value, frameClassName, emojiClassName }: Emo
   if (isLikelyImageBadgeUrl(v)) {
     return (
       <div className={box}>
-        <img src={v} alt="" className="h-full w-full object-cover" loading="lazy" />
+        <img src={v} alt={label ?? ''} className="h-full w-full object-cover" loading="lazy" />
       </div>
     )
   }
   return (
-    <div className={cn(box, 'text-xl', emojiClassName)} aria-hidden>
+    <div className={cn(box, 'text-xl', emojiClassName)} aria-hidden={!label} aria-label={label}>
       {v}
     </div>
   )

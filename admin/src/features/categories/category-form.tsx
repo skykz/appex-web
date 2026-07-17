@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { categoriesApi, type Category } from './api'
 import { Button } from '@shared/ui/button'
+import { Checkbox } from '@shared/ui/checkbox'
 import { Input } from '@shared/ui/input'
 import { Label } from '@shared/ui/label'
 import { ApiError } from '@shared/api/http-client'
@@ -88,7 +89,7 @@ export function CategoryForm({ initial, onDone }: Props) {
         <Input id="order" type="number" min={0} {...register('order')} />
       </div>
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-sm">
-        <input type="checkbox" className="mt-1" {...register('is_visible')} />
+        <Checkbox className="mt-1" {...register('is_visible')} />
         <span>
           <span className="block font-medium">Visible to learners</span>
           <span className="block text-xs leading-relaxed text-muted-foreground">

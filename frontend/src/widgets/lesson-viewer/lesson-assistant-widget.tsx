@@ -10,11 +10,11 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, ThumbsUp, ThumbsDown, Send, Sparkles } from 'lucide-react'
+import { X, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Textarea } from '@shared/ui'
 import { useAuthStore } from '@entities/user'
-import { LiveChatBubble } from './lesson-chat-message-blocks'
+import { LiveChatBubble, LexiMark } from './lesson-chat-message-blocks'
 import {
   streamLexiMessage,
   submitLexiFeedback,
@@ -43,21 +43,20 @@ interface Message {
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
 /**
- * Lexi avatar — a branded sparkle mark on the warm-orange gradient. Lexi is an AI
- * mentor, so an illustrated glyph reads honestly as an assistant (no fake face) and
- * ships as pure CSS/SVG — no image asset to download.
+ * Lexi avatar — the same friendly face mark used in chat bubbles, with a ring/shadow
+ * so it reads well as a standalone mark (trigger bubble, panel header, empty state).
  */
 function LexiAvatar({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-sm ring-2 ring-primary/30',
+        'shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-primary/30',
         className
       )}
       role="img"
       aria-label="Lexi AI learning mentor"
     >
-      <Sparkles className="size-1/2" strokeWidth={2.25} aria-hidden />
+      <LexiMark />
     </span>
   )
 }

@@ -92,7 +92,13 @@ export function CategoriesPage() {
       className: 'w-32 text-right',
       render: (c) => (
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(c)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setEditing(c)}
+            aria-label={`Edit category ${c.label}`}
+          >
             <Pencil className="h-4 w-4" />
           </Button>
           <Button
@@ -103,6 +109,7 @@ export function CategoriesPage() {
               setDeleteTarget(c)
               setDeleteError(null)
             }}
+            aria-label={`Delete category ${c.label}`}
           >
             <Trash2 className="h-4 w-4 text-destructive" />
           </Button>

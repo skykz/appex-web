@@ -9,6 +9,7 @@ import { lessonEmoji } from '@appex/lesson-schema'
 import { coursesApi, type Course, type CourseInput } from './api'
 import { categoriesApi } from '@features/categories/api'
 import { Button } from '@shared/ui/button'
+import { Checkbox } from '@shared/ui/checkbox'
 import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
 import { Label } from '@shared/ui/label'
@@ -216,7 +217,7 @@ export function CourseForm({ initial, onDone, onCreated }: Props) {
           </div>
         </div>
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
-          <input type="checkbox" className="mt-1" {...register('is_visible')} />
+          <Checkbox className="mt-1" {...register('is_visible')} />
           <span>
             <span className="block font-medium">Visible to learners</span>
             <span className="block text-xs leading-relaxed text-muted-foreground">

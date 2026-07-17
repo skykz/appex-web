@@ -11,7 +11,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Eye } from 'lucide-react'
+import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Eye } from 'lucide-react'
 import {
   lessonEditorFormSchema,
   normalizeLessonContentSteps,
@@ -24,6 +24,7 @@ import {
   type LessonStep,
 } from './api'
 import { Button } from '@shared/ui/button'
+import { Checkbox } from '@shared/ui/checkbox'
 import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
 import { LessonMarkdownTextarea } from '@shared/ui/lesson-markdown-textarea'
@@ -156,7 +157,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <label className="flex h-8 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium shadow-sm">
-                <input type="checkbox" className="size-3.5" {...form.register('is_visible')} />
+                <Checkbox {...form.register('is_visible')} />
                 Visibility
               </label>
               <Button
@@ -254,7 +255,9 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
               <div key={step.id} className="rounded-lg border bg-muted/20 p-4">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-medium">
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex size-6 items-center justify-center rounded-md bg-muted text-xs font-semibold tabular-nums text-muted-foreground">
+                      {stepIdx + 1}
+                    </span>
                     Step {stepIdx + 1}
                   </div>
                   <div className="flex gap-1">
@@ -264,6 +267,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
                       size="icon"
                       disabled={stepIdx === 0}
                       onClick={() => moveStep(stepIdx, stepIdx - 1)}
+                      aria-label={`Move step ${stepIdx + 1} up`}
                     >
                       <ArrowUp className="h-4 w-4" />
                     </Button>
@@ -273,6 +277,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
                       size="icon"
                       disabled={stepIdx === stepFields.length - 1}
                       onClick={() => moveStep(stepIdx, stepIdx + 1)}
+                      aria-label={`Move step ${stepIdx + 1} down`}
                     >
                       <ArrowDown className="h-4 w-4" />
                     </Button>
@@ -287,6 +292,7 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
                         }
                         removeStep(stepIdx)
                       }}
+                      aria-label={`Delete step ${stepIdx + 1}`}
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
@@ -413,6 +419,7 @@ function BlockRow({
             size="icon"
             disabled={blockIdx === 0}
             onClick={() => onMove(-1)}
+            aria-label={`Move ${typeLabel} block up`}
           >
             <ArrowUp className="h-3.5 w-3.5" />
           </Button>
@@ -422,10 +429,17 @@ function BlockRow({
             size="icon"
             disabled={blockIdx === total - 1}
             onClick={() => onMove(1)}
+            aria-label={`Move ${typeLabel} block down`}
           >
             <ArrowDown className="h-3.5 w-3.5" />
           </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onRemove}
+            aria-label={`Delete ${typeLabel} block`}
+          >
             <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </Button>
         </div>
@@ -671,8 +685,7 @@ function BlockFields({
                           key={idx}
                           className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={correct.has(idx)}
                             onChange={() => {
                               const next = new Set(correct)
@@ -711,8 +724,7 @@ function BlockFields({
           name={`${base}.acceptAttachment` as const}
           render={({ field }) => (
             <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={Boolean(field.value)}
                 onChange={(e) => field.onChange(e.target.checked)}
               />

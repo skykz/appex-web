@@ -26,11 +26,13 @@ export async function fetchContactMessages(params: {
   page?: number
   limit?: number
   unreadOnly?: boolean
+  search?: string
 }): Promise<ContactListResponse> {
   const sp = new URLSearchParams()
   if (params.page != null) sp.set('page', String(params.page))
   if (params.limit != null) sp.set('limit', String(params.limit))
   if (params.unreadOnly) sp.set('unread', '1')
+  if (params.search) sp.set('search', params.search)
   const q = sp.toString()
   return httpClient.get<ContactListResponse>(`/admin/contact-messages${q ? `?${q}` : ''}`)
 }

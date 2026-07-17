@@ -7,6 +7,7 @@ const ALLOWED_PREFIXES = [
   '/categories',
   '/courses',
   '/users',
+  '/billing',
   '/support',
   '/submissions',
 ] as const
