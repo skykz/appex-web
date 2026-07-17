@@ -206,11 +206,17 @@ export interface LandingCheckoutInput {
     fbp?: string
     fbc?: string
   }
+  /** GA4 attribution stored on the session for the server-side Measurement Protocol purchase. */
+  ga4?: {
+    clientId?: string
+  }
   /** Creative/UTM attribution stamped on the session for Purchase reporting. */
   attribution?: {
     variant?: string
     utmSource?: string
     utmCampaign?: string
+    /** Google Ads click id — for server-side Google Ads conversion attribution. */
+    gclid?: string
   }
 }
 
@@ -275,10 +281,12 @@ export async function createLandingCheckoutSession(
       ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),
       ...(input.meta?.fbp ? { fbp: input.meta.fbp } : {}),
       ...(input.meta?.fbc ? { fbc: input.meta.fbc } : {}),
+      ...(input.ga4?.clientId ? { ga4_client_id: input.ga4.clientId } : {}),
       // Creative/UTM attribution for Purchase reporting (which ad drove the sale).
       ...(input.attribution?.variant ? { variant: input.attribution.variant } : {}),
       ...(input.attribution?.utmSource ? { utm_source: input.attribution.utmSource } : {}),
       ...(input.attribution?.utmCampaign ? { utm_campaign: input.attribution.utmCampaign } : {}),
+      ...(input.attribution?.gclid ? { gclid: input.attribution.gclid } : {}),
     },
     subscription_data: {
       metadata: {

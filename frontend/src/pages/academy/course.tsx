@@ -163,37 +163,37 @@ export default function CoursePage() {
             Back to Home
           </Link>
 
-          <section className="relative overflow-hidden rounded-[2rem] border bg-card/85 p-5 shadow-xl shadow-black/[0.04] ring-1 ring-white/60 backdrop-blur dark:ring-white/10 sm:p-6 lg:p-8">
+          <section className="relative overflow-hidden rounded-3xl border bg-card/85 p-4 shadow-xl shadow-black/[0.04] ring-1 ring-white/60 backdrop-blur dark:ring-white/10 sm:rounded-[2rem] sm:p-6 lg:p-8">
             <div className="absolute -right-16 -top-20 size-56 rounded-full bg-primary/10 blur-2xl" aria-hidden />
             <div className="absolute -bottom-24 left-20 size-64 rounded-full bg-orange-400/10 blur-2xl" aria-hidden />
 
-            <div className="relative grid gap-6 lg:grid-cols-[1fr_18rem] lg:items-end">
-              <div className="flex min-w-0 items-start gap-4">
+            <div className="relative grid gap-4 lg:grid-cols-[1fr_18rem] lg:items-end lg:gap-6">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <EmojiOrImageBadge
                   value={course.emoji}
-                  frameClassName="size-16 shrink-0 rounded-2xl bg-linear-to-br from-background to-muted text-3xl shadow-inner ring-1 ring-border"
+                  frameClassName="size-12 shrink-0 rounded-2xl bg-linear-to-br from-background to-muted text-2xl shadow-inner ring-1 ring-border sm:size-16 sm:text-3xl"
                 />
                 <div className="min-w-0">
-                  <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/[0.08] px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary">
+                  <div className="mb-1.5 inline-flex items-center gap-1.5 rounded-full bg-primary/[0.08] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary sm:mb-2 sm:px-3 sm:py-1 sm:text-xs">
                     <Map className="size-3.5" aria-hidden />
                     Learning map
                   </div>
-                  <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
                     {course.title}
                   </h1>
-                  <p className="text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed">
+                  <p className="text-muted-foreground mt-1.5 max-w-2xl text-[13px] leading-relaxed sm:mt-2 sm:text-sm">
                     {course.description}
                   </p>
-                  <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-semibold sm:mt-4 sm:gap-2 sm:text-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-muted-foreground sm:px-3">
                       <Trophy className="size-3.5" aria-hidden />
                       {course.progress}% complete
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-muted-foreground sm:px-3">
                       <Clock3 className="size-3.5" aria-hidden />
                       {course.duration}
                     </span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-muted-foreground sm:px-3">
                       <Flag className="size-3.5" aria-hidden />
                       {completedLessons}/{totalLessons} levels cleared
                     </span>
@@ -201,20 +201,20 @@ export default function CoursePage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-background/75 p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              <div className="rounded-2xl border bg-background/75 p-3.5 shadow-sm sm:p-4">
+                <div className="mb-2.5 flex items-center justify-between gap-3 sm:mb-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">
                     Course progress
                   </p>
-                  <p className="text-2xl font-bold tabular-nums">{course.progress}%</p>
+                  <p className="text-lg font-bold tabular-nums sm:text-2xl">{course.progress}%</p>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-muted">
+                <div className="h-2 overflow-hidden rounded-full bg-muted sm:h-3">
                   <div
                     className="h-full rounded-full bg-linear-to-r from-indigo-500 via-violet-500 to-orange-400"
                     style={{ width: `${course.progress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-[11px] text-muted-foreground sm:text-xs">
                   Clear each level to unlock the next area.
                 </p>
                 {course.certificate && (
@@ -237,7 +237,7 @@ export default function CoursePage() {
           </section>
         </div>
 
-        <div className="grid min-w-0 gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="grid grid-cols-1 gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="flex min-w-0 flex-col gap-6">
             {course.modules.length === 0 ? (
               <div className="rounded-[2rem] border border-dashed bg-muted/30 p-10 text-center">

@@ -110,39 +110,39 @@ export function LessonIssueReportDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-xl p-0">
-        <DialogHeader className="border-b border-border/70 px-5 pb-4 pr-14 pt-5 text-left">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
+        <DialogHeader className="border-b border-border/70 px-5 pb-3 pr-14 pt-4 text-left">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
               <Flag className="size-4" aria-hidden />
             </div>
             <div className="min-w-0">
               <DialogTitle className="text-base">Report an issue</DialogTitle>
-              <DialogDescription className="mt-1 text-left leading-relaxed">
+              <DialogDescription className="sr-only">
                 Tell us about content mistakes, broken media, confusing text, or technical
                 errors. We log this with your account and lesson so we can fix it.
               </DialogDescription>
+              <p className="truncate text-xs text-muted-foreground">
+                Lesson <span className="font-mono text-foreground">{lessonId}</span> ·{' '}
+                {lessonLabel} · Step {stepIndex + 1} of {stepCount}
+              </p>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 px-5 py-5 sm:px-6">
-          <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            Lesson <span className="font-mono text-foreground">{lessonId}</span> ·{' '}
-            {lessonLabel} · Step {stepIndex + 1} of {stepCount}
-          </p>
-          <div className="space-y-2.5">
+        <div className="space-y-3 px-5 py-4 sm:px-6">
+          <div className="space-y-2">
             <Label>What is the issue?</Label>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2">
               {ISSUE_VARIANTS.map((variant) => {
                 const checked = selectedVariants.includes(variant)
                 return (
                   <label
                     key={variant}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5 py-2 text-[13px] font-medium leading-tight transition-colors hover:border-primary/40 hover:bg-primary/5"
                   >
                     <input
                       type="checkbox"
-                      className="size-4 rounded border-border accent-primary"
+                      className="size-4 shrink-0 rounded border-border accent-primary"
                       checked={checked}
                       onChange={() => toggleVariant(variant)}
                       disabled={sending || sent}
@@ -153,14 +153,14 @@ export function LessonIssueReportDialog({
               })}
             </div>
           </div>
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             <Label htmlFor="lesson-issue-details">More details optional</Label>
             <Textarea
               id="lesson-issue-details"
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Add exact sentence, timestamp, or anything else that helps us fix it faster..."
-              rows={4}
+              rows={3}
               className="resize-none"
               disabled={sending || sent}
             />
@@ -178,7 +178,7 @@ export function LessonIssueReportDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="gap-2 border-t border-border/70 bg-muted/20 px-5 py-4 sm:gap-2">
+        <DialogFooter className="gap-2 border-t border-border/70 bg-muted/20 px-5 py-3 sm:gap-2">
           <Button
             type="button"
             variant="outline"

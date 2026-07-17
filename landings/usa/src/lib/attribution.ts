@@ -26,6 +26,11 @@ export type Attribution = {
   fbclid?: string
   /** Epoch ms when fbclid was first captured — needed to synthesize `_fbc`. */
   fbclid_ts?: number
+  /** Google Ads click id from `?gclid=` (first touch) — for Google Ads attribution. */
+  gclid?: string
+  /** Google Ads iOS/web-to-app click ids (`?wbraid=` / `?gbraid=`). */
+  wbraid?: string
+  gbraid?: string
 }
 
 /** Fields exported as flat string params (excludes the internal timestamp). */
@@ -37,6 +42,9 @@ const ATTR_KEYS: (keyof Attribution)[] = [
   'utm_content',
   'utm_term',
   'fbclid',
+  'gclid',
+  'wbraid',
+  'gbraid',
 ]
 
 /** Reads a stored attribution snapshot, or null if none captured yet. */
@@ -65,6 +73,11 @@ function readFromUrl(): Attribution {
     if (fbclid) {
       attr.fbclid = fbclid.slice(0, 512)
       attr.fbclid_ts = Date.now()
+    }
+    // Google Ads click ids (gclid, or wbraid/gbraid for iOS/app campaigns).
+    for (const key of ['gclid', 'wbraid', 'gbraid'] as const) {
+      const val = params.get(key)
+      if (val) attr[key] = val.slice(0, 512)
     }
   } catch {
     /* ignore malformed URL */

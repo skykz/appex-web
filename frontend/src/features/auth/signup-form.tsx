@@ -66,7 +66,7 @@ export function SignupForm() {
   const isPending = isSubmitting || createUser.isPending
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="signup-name">Name</Label>
         <Input
@@ -76,7 +76,7 @@ export function SignupForm() {
           autoComplete="name"
           aria-invalid={!!errors.name}
           aria-describedby={errors.name ? 'signup-name-error' : undefined}
-          className="rounded-xl"
+          className="h-11 rounded-xl"
           {...register('name')}
         />
         {errors.name && (
@@ -95,7 +95,7 @@ export function SignupForm() {
           autoComplete="email"
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? 'signup-email-error' : undefined}
-          className="rounded-xl"
+          className="h-11 rounded-xl"
           {...register('email')}
         />
         {errors.email && (
@@ -118,7 +118,7 @@ export function SignupForm() {
             autoComplete="new-password"
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'signup-password-error' : undefined}
-            className="rounded-xl pr-10"
+            className="h-11 rounded-xl pr-10"
             {...register('password')}
           />
           <button
@@ -148,7 +148,7 @@ export function SignupForm() {
           aria-describedby={
             errors.confirmPassword ? 'signup-confirm-password-error' : undefined
           }
-          className="rounded-xl"
+          className="h-11 rounded-xl"
           {...register('confirmPassword')}
         />
         {errors.confirmPassword && (
@@ -164,7 +164,7 @@ export function SignupForm() {
 
       <Button
         type="submit"
-        className="w-full rounded-xl"
+        className="mt-1 h-11 w-full rounded-xl text-sm font-semibold shadow-md"
         disabled={isPending}
       >
         {isPending ? 'Creating account...' : 'Create Account'}

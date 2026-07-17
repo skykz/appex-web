@@ -36,22 +36,22 @@ export default function AuthPage() {
   return (
     <>
       {/* Logo & Brand */}
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-3">
         <div
           className={cn(
-            'flex size-16 items-center justify-center rounded-2xl text-white shadow-lg',
+            'flex size-12 items-center justify-center rounded-2xl text-white shadow-lg',
             'bg-linear-to-br from-orange-500 to-amber-500',
             'ring-2 ring-orange-400/25',
             'transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]'
           )}
         >
-          <Zap className="size-8" />
+          <Zap className="size-6" />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
             {tab === 'signin' ? 'Welcome back' : 'Create an account'}
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm leading-relaxed sm:text-base">
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
             {tab === 'signin'
               ? 'Sign in to pick up where you left off.'
               : 'A few details and you’re ready to go.'}
@@ -69,14 +69,14 @@ export default function AuthPage() {
       ) : null}
 
       {/* Tab Switcher */}
-      <div className="flex rounded-2xl border border-border/60 bg-muted/40 p-1.5 shadow-inner">
+      <div className="flex rounded-xl border border-border/60 bg-muted/40 p-1 shadow-inner">
         <button
           type="button"
           onClick={() => setTab('signin')}
           className={cn(
-            'flex-1 rounded-xl py-3 text-center text-sm font-semibold transition-all duration-200',
+            'flex-1 rounded-lg py-2 text-center text-[13px] font-semibold transition-all duration-200',
             tab === 'signin'
-              ? 'bg-background text-foreground shadow-md ring-1 ring-border/60'
+              ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
@@ -86,9 +86,9 @@ export default function AuthPage() {
           type="button"
           onClick={() => setTab('signup')}
           className={cn(
-            'flex-1 rounded-xl py-3 text-center text-sm font-semibold transition-all duration-200',
+            'flex-1 rounded-lg py-2 text-center text-[13px] font-semibold transition-all duration-200',
             tab === 'signup'
-              ? 'bg-background text-foreground shadow-md ring-1 ring-border/60'
+              ? 'bg-background text-foreground shadow-sm ring-1 ring-border/60'
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
@@ -97,7 +97,7 @@ export default function AuthPage() {
       </div>
 
       {/* Form Card */}
-      <div className="rounded-2xl border border-border/80 bg-card/90 p-6 shadow-xl ring-1 ring-border/40 backdrop-blur-sm sm:p-8">
+      <div className="rounded-2xl border border-border/80 bg-card/90 p-5 shadow-xl ring-1 ring-border/40 backdrop-blur-sm sm:p-6">
         {tab === 'signin' ? <SigninForm /> : <SignupForm />}
       </div>
 

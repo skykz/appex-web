@@ -3,6 +3,7 @@ import { LegalLink } from "@/components/legal/LegalLink";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
+import { ga4BeginCheckout, getGa4ClientId } from "@/lib/ga4";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
@@ -304,33 +305,66 @@ export default function Paywall() {
 
   const handleGetPlan = async () => {
     if (checkoutLoading) return;
+    // No quiz email means the paywall was opened directly (fresh tab / bookmark)
+    // without completing the funnel. Don't fire checkout events or create an
+    // orphan Stripe session with an empty email — send them to collect an email.
+    if (!quizEmail) {
+      window.alert("Please complete the quiz so we can set up your account.");
+      window.location.href = "/quiz";
+      return;
+    }
     const plan = PAYWALL_PLANS[selected];
     const interval = plan.id;
     setCheckoutLoading(true);
 
-    // Fire InitiateCheckout and reuse its event_id + Meta cookies for the
-    // server-side Purchase so Meta deduplicates the two into one conversion.
+    // Report the RECURRING (renewal) price as the conversion value, matching the
+    // server-side Purchase, so value-based bidding sees true subscriber worth and
+    // the browser/server events agree on value for clean dedup.
+    const conversionValue = Number(plan.renewalPrice);
+
+    // Fire InitiateCheckout / begin_checkout and reuse the Meta event_id + cookies
+    // and the GA4 client_id for the server-side Purchase, so both Meta and GA4
+    // deduplicate/attribute the two hits into one conversion.
     const eventId = trackInitiateCheckout({
-      value: Number(plan.introPrice),
+      value: conversionValue,
       currency: "USD",
       plan: interval,
     });
+    ga4BeginCheckout({ value: conversionValue, currency: "USD", plan: interval });
+    // Persist the chosen plan/value so the success page fires the browser Purchase
+    // with the same value the server reports.
+    try {
+      sessionStorage.setItem(
+        "appexCheckout",
+        JSON.stringify({ plan: interval, value: conversionValue, currency: "USD" })
+      );
+    } catch {
+      /* storage disabled — success page falls back to server-only Purchase */
+    }
     const { fbp, fbc } = getMetaBrowserIds();
 
-    const result = await createLandingCheckout({
-      email: quizEmail ?? "",
-      name: quizName,
-      interval,
-      meta: { event_id: eventId, fbp, fbc },
-    });
-    setCheckoutLoading(false);
+    try {
+      const ga4ClientId = await getGa4ClientId();
+      const result = await createLandingCheckout({
+        email: quizEmail ?? "",
+        name: quizName,
+        interval,
+        meta: { event_id: eventId, fbp, fbc },
+        ga4: { client_id: ga4ClientId },
+      });
 
-    if ("error" in result) {
-      window.alert(result.error);
-      return;
+      if ("error" in result) {
+        window.alert(result.error);
+        return;
+      }
+      window.location.href = result.url;
+    } catch {
+      // Network/CORS failure rejects the promise — surface it and re-enable the
+      // button (the finally below) instead of leaving it stuck on "Redirecting…".
+      window.alert("Could not reach the payment server. Please try again.");
+    } finally {
+      setCheckoutLoading(false);
     }
-
-    window.location.href = result.url;
   };
 
   const handleSignIn = () => {

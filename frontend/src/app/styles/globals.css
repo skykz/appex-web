@@ -476,3 +476,75 @@
     animation: none !important;
   }
 }
+
+/* ---- Lesson-complete celebration ----------------------------------------- */
+
+/* Trophy/medal badge: bouncy pop-in with a slight rotate settle. */
+@keyframes celebrate-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-12deg);
+  }
+  60% {
+    transform: scale(1.15) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Content lines rise in, staggered via inline animation-delay. */
+@keyframes celebrate-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* One confetti piece: fall + drift + spin, then fade near the end. */
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -10%, 0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-x, 0), 105vh, 0)
+      rotate(var(--confetti-r, 540deg));
+  }
+}
+
+.celebrate-badge {
+  animation: celebrate-badge-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.celebrate-rise {
+  animation: celebrate-rise 0.5s ease-out both;
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  will-change: transform, opacity;
+  animation: confetti-fall var(--confetti-duration, 2.6s) linear
+    var(--confetti-delay, 0s) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrate-badge,
+  .celebrate-rise {
+    animation: none !important;
+  }
+  .confetti-piece {
+    display: none !important;
+  }
+}

@@ -174,6 +174,14 @@ export type MetaAttribution = {
 };
 
 /**
+ * GA4 attribution passed to the backend so the server-side Measurement Protocol
+ * `purchase` attributes to the same GA4 client/session as the browser events.
+ */
+export type Ga4Attribution = {
+  client_id?: string | null;
+};
+
+/**
  * Starts Stripe Checkout for a USA landing lead (payment-first, no signup required).
  */
 export async function createLandingCheckout(args: {
@@ -181,6 +189,7 @@ export async function createLandingCheckout(args: {
   name?: string;
   interval: LandingPlanId;
   meta?: MetaAttribution;
+  ga4?: Ga4Attribution;
 }): Promise<{ url: string } | { error: string }> {
   const base = getApiBaseUrl();
   if (!base) {
@@ -190,6 +199,7 @@ export async function createLandingCheckout(args: {
     return { error: "Please complete the quiz with your email before choosing a plan." };
   }
 
+  const attribution = getAttributionParams();
   try {
     const res = await fetch(`${base}/landing/checkout`, {
       method: "POST",
@@ -202,10 +212,13 @@ export async function createLandingCheckout(args: {
         meta_event_id: args.meta?.event_id || undefined,
         fbp: args.meta?.fbp || undefined,
         fbc: args.meta?.fbc || undefined,
-        // First-touch creative/UTM tags → Stripe metadata → server Purchase attribution.
-        variant: getAttributionParams().variant || undefined,
-        utm_source: getAttributionParams().utm_source || undefined,
-        utm_campaign: getAttributionParams().utm_campaign || undefined,
+        ga4_client_id: args.ga4?.client_id || undefined,
+        // First-touch creative/UTM tags + Google Ads click id → Stripe metadata →
+        // server Purchase attribution (Meta CAPI + GA4 MP / Google Ads).
+        variant: attribution.variant || undefined,
+        utm_source: attribution.utm_source || undefined,
+        utm_campaign: attribution.utm_campaign || undefined,
+        gclid: attribution.gclid || undefined,
       }),
     });
 

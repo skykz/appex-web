@@ -5,7 +5,6 @@ import {
   Home,
   Puzzle,
   Wand2,
-  Zap,
   BookOpen,
   ChevronRight,
   ChevronsUpDown,
@@ -23,6 +22,7 @@ import {
   type SubscriptionTier,
 } from '@entities/subscription'
 import { cn } from '@shared/lib'
+import { Logo } from '@shared/ui/logo'
 import {
   Sidebar,
   SidebarContent,
@@ -109,11 +109,8 @@ export function AppSidebar() {
                 className="group min-w-0 flex-1 md:h-12 md:p-0"
               >
                 <Link to="/home">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm">
-                    <Zap className="size-4" />
-                  </div>
-                  <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-bold">AppEx</span>
+                  <div className="grid min-w-0 flex-1 text-left leading-tight">
+                    <Logo className="truncate text-lg" />
                     <span
                       className="truncate text-xs text-muted-foreground"
                       title={subscription.planLabel}

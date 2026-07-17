@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
-import { SidebarProvider, SidebarInset, SidebarTrigger, PageLoader } from '@shared/ui'
+import { SidebarProvider, SidebarInset, SidebarTrigger, PageLoader, Logo } from '@shared/ui'
 import { useCurrentUser } from '@entities/user'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
@@ -26,9 +26,7 @@ export function RootLayout() {
 
           {/* App branding with subtle animation */}
           <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-500">
-            <span className="text-lg font-bold bg-linear-to-r from-foreground to-foreground/80 bg-clip-text">
-              AppEx
-            </span>
+            <Logo className="text-lg" />
           </div>
 
           {/* Spacer for potential right-side actions */}

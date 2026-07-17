@@ -48,7 +48,7 @@ export function SigninForm() {
   const isPending = isSubmitting || login.isPending
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="signin-email">Email</Label>
         <Input
@@ -58,7 +58,7 @@ export function SigninForm() {
           autoComplete="email"
           aria-invalid={!!errors.email}
           aria-describedby={errors.email ? 'signin-email-error' : undefined}
-          className="h-12 rounded-xl"
+          className="h-11 rounded-xl"
           {...register('email')}
         />
         {errors.email && (
@@ -86,7 +86,7 @@ export function SigninForm() {
             autoComplete="current-password"
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'signin-password-error' : undefined}
-            className="h-12 rounded-xl pr-10"
+            className="h-11 rounded-xl pr-10"
             {...register('password')}
           />
           <button
@@ -107,7 +107,7 @@ export function SigninForm() {
 
       <Button
         type="submit"
-        className="h-12 w-full rounded-xl text-base font-semibold shadow-md"
+        className="mt-1 h-11 w-full rounded-xl text-sm font-semibold shadow-md"
         disabled={isPending}
       >
         {isPending ? 'Signing in...' : 'Sign in'}

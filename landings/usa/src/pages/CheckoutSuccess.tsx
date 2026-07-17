@@ -1,10 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import {
   completeLandingCheckoutAccount,
   fetchLandingCheckoutStatus,
 } from "@/lib/landing-api";
+import { trackPurchase } from "@/lib/meta-pixel";
+import { ga4Purchase } from "@/lib/ga4";
+
+/**
+ * Fires the browser Purchase (Meta) + purchase (GA4) exactly once on the success
+ * page. Both share keys with their server-side twin so the platforms dedup:
+ * Meta by the session-derived eventID, GA4 by transaction_id = the Stripe
+ * session id. Value/plan come from the plan the user picked at checkout.
+ */
+function firePurchaseOnce(sessionId: string): void {
+  try {
+    const raw = sessionStorage.getItem("appexCheckout");
+    const c = raw ? (JSON.parse(raw) as { plan?: string; value?: number; currency?: string }) : {};
+    const value = typeof c.value === "number" ? c.value : 0;
+    const currency = c.currency || "USD";
+    trackPurchase({ stripeSessionId: sessionId, value, currency, plan: c.plan });
+    ga4Purchase({ transactionId: sessionId, value, currency, plan: c.plan });
+  } catch {
+    /* never block the success page on tracking */
+  }
+}
 
 const ORANGE = "#F97316";
 const BLACK = "#111111";
@@ -43,6 +64,21 @@ export default function CheckoutSuccess() {
       return "";
     }
   }, []);
+
+  // Fire the browser Purchase once, on arrival at the success page — reaching
+  // this URL means Stripe already took payment (it's the success_url). Guarded so
+  // React re-renders / effect re-runs don't double-fire.
+  const purchaseFired = useRef(false);
+  useEffect(() => {
+    if (!sessionId || purchaseFired.current) return;
+    if (sessionStorage.getItem("appexPurchaseFired") === sessionId) {
+      purchaseFired.current = true;
+      return;
+    }
+    purchaseFired.current = true;
+    sessionStorage.setItem("appexPurchaseFired", sessionId);
+    firePurchaseOnce(sessionId);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId) return;

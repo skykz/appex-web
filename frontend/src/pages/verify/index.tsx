@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BadgeCheck, ShieldX, Zap } from 'lucide-react'
-import { PageLoader } from '@shared/ui'
+import { BadgeCheck, ShieldX } from 'lucide-react'
+import { PageLoader, Logo } from '@shared/ui'
 import { skillsApi } from '@features/skills'
 import { formatIssuedDate } from '@features/skills/certificate-download'
 
@@ -54,11 +54,8 @@ export default function VerifyCertificatePage() {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-linear-to-b from-orange-50/60 via-background to-background px-4 py-12">
       <div className="w-full max-w-lg rounded-3xl border bg-card p-8 shadow-xl">
-        <div className="mb-6 flex items-center gap-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-linear-to-br from-orange-500 to-amber-500 text-primary-foreground shadow-sm">
-            <Zap className="size-4" />
-          </div>
-          <span className="text-lg font-bold tracking-tight">AppEx</span>
+        <div className="mb-6">
+          <Logo className="text-xl" />
         </div>
 
         {valid && data.valid ? (

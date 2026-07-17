@@ -222,3 +222,37 @@ export function trackInitiateCheckout(params: {
   )
   return eventId
 }
+
+/**
+ * Deterministic Purchase event id shared between the browser Purchase (success
+ * page) and the server CAPI Purchase. Meta only dedups events of the SAME name
+ * with the same id — so both Purchases must derive the id identically from the
+ * Stripe session id. (Sharing the InitiateCheckout id would NOT dedup a Purchase.)
+ */
+export function purchaseEventId(stripeSessionId: string): string {
+  return `purchase_${stripeSessionId}`
+}
+
+/**
+ * Purchase (browser) — fired on the post-payment success page. Shares its
+ * `eventID` (derived from the Stripe session id) with the server CAPI Purchase
+ * so Meta deduplicates the two into one conversion.
+ */
+export function trackPurchase(params: {
+  stripeSessionId: string
+  value: number
+  currency: string
+  plan?: string
+}): void {
+  track(
+    'Purchase',
+    {
+      value: params.value,
+      currency: params.currency,
+      ...(params.plan
+        ? { content_type: 'product', content_ids: [params.plan], content_name: `Appex ${params.plan}` }
+        : {}),
+    },
+    { eventId: purchaseEventId(params.stripeSessionId) }
+  )
+}

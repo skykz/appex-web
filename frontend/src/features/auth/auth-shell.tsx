@@ -27,7 +27,7 @@ export function AuthShell({ maxWidthClassName, className }: AuthShellProps) {
       </div>
       <div
         className={cn(
-          'relative w-full max-w-md space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-500',
+          'relative w-full max-w-md space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-500',
           maxWidthClassName
         )}
       >

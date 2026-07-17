@@ -12,7 +12,8 @@ import {
   upsertSubscriptionFromStripe,
 } from './stripe.service.js'
 import { sendPostPaymentEmailsAsync } from './lifecycle-email.service.js'
-import { sendPurchaseEventAsync } from './meta-capi.service.js'
+import { sendPurchaseEventAsync as sendMetaPurchaseAsync } from './meta-capi.service.js'
+import { sendPurchaseEventAsync as sendGa4PurchaseAsync } from './ga4-mp.service.js'
 import { env } from '../config/env.js'
 
 export type LandingProvisionResult = {
@@ -135,9 +136,13 @@ async function attachUserIdToStripeResources(args: {
 }
 
 /**
- * Derives the Purchase amount (major currency units) from the checkout session.
- * `amount_total` is in the smallest unit (cents) and reflects the first invoice
- * after any intro coupon — the amount the customer was actually charged.
+ * Derives the Purchase value (major currency units) reported to Meta/GA4.
+ *
+ * We report the RECURRING subscription price, not the discounted intro amount, so
+ * value-based bidding optimizes toward true subscriber worth — and so the value
+ * is consistent across every sale regardless of which intro coupon applied. Falls
+ * back to the actual charged amount (`amount_total`) only if the recurring unit
+ * price is somehow unavailable, so a real sale never reports $0.
  */
 function purchaseAmountFromSession(
   session: Stripe.Checkout.Session,
@@ -146,50 +151,73 @@ function purchaseAmountFromSession(
   value: number
   currency: string
 } {
-  // Prefer the session total (what the customer was actually charged this cycle,
-  // after any intro coupon). Fall back to the subscription's unit price if the
-  // session total is missing/zero, so Purchase never reports $0 for a real sale.
-  let cents =
-    typeof session.amount_total === 'number' && session.amount_total > 0
-      ? session.amount_total
-      : 0
-  let currency = session.currency ?? null
+  const item = subscription.items?.data?.[0]
+  const recurringUnit = item?.price?.unit_amount
+  let cents = typeof recurringUnit === 'number' && recurringUnit > 0 ? recurringUnit : 0
+  let currency = item?.price?.currency ?? null
 
   if (!cents) {
-    const item = subscription.items?.data?.[0]
-    const unit = item?.price?.unit_amount
-    if (typeof unit === 'number' && unit > 0) cents = unit
-    currency = currency ?? item?.price?.currency ?? null
+    // Fallback: the amount actually charged this cycle (post-coupon first invoice).
+    if (typeof session.amount_total === 'number' && session.amount_total > 0) {
+      cents = session.amount_total
+    }
+    currency = currency ?? session.currency ?? null
   }
 
   return { value: Math.round(cents) / 100, currency: (currency ?? 'usd').toUpperCase() }
 }
 
 /**
- * Fires the server-side Meta Purchase event for a landing checkout, reusing the
- * browser InitiateCheckout event_id + cookies from session metadata for dedup.
- * No-op unless CAPI is configured; never throws (fire-and-forget).
+ * Fires the server-side conversion events for a landing checkout — Meta Purchase
+ * (Conversions API) and GA4 purchase (Measurement Protocol) — reusing the browser
+ * ids from session metadata for dedup/attribution. Each is independently gated by
+ * its own config; both are fire-and-forget and never throw.
  */
 function firePurchaseEvent(
   session: Stripe.Checkout.Session,
   subscription: Stripe.Subscription,
   email: string
 ): void {
-  if (!env.metaCapiEnabled) return
+  const md = session.metadata ?? {}
   const { value, currency } = purchaseAmountFromSession(session, subscription)
-  sendPurchaseEventAsync({
-    eventId: session.metadata?.meta_event_id ?? null,
-    email,
-    value,
-    currency,
-    plan: session.metadata?.interval ?? null,
-    fbp: session.metadata?.fbp ?? null,
-    fbc: session.metadata?.fbc ?? null,
-    variant: session.metadata?.variant ?? null,
-    utmSource: session.metadata?.utm_source ?? null,
-    utmCampaign: session.metadata?.utm_campaign ?? null,
-    eventSourceUrl: env.USA_LANDING_URL,
-  })
+  const plan = md.interval ?? null
+  const variant = md.variant ?? null
+  const utmSource = md.utm_source ?? null
+  const utmCampaign = md.utm_campaign ?? null
+  const gclid = md.gclid ?? null
+
+  if (env.metaCapiEnabled) {
+    sendMetaPurchaseAsync({
+      // Deterministic, session-derived id shared with the BROWSER Purchase on the
+      // success page — Meta dedups same-name events by id, so both Purchases must
+      // use this. (The InitiateCheckout id would not dedup a Purchase.)
+      eventId: `purchase_${session.id}`,
+      email,
+      value,
+      currency,
+      plan,
+      fbp: md.fbp ?? null,
+      fbc: md.fbc ?? null,
+      variant,
+      utmSource,
+      utmCampaign,
+      eventSourceUrl: env.USA_LANDING_URL,
+    })
+  }
+
+  if (env.ga4MpEnabled) {
+    sendGa4PurchaseAsync({
+      clientId: md.ga4_client_id ?? null,
+      transactionId: session.id,
+      value,
+      currency,
+      plan,
+      variant,
+      utmSource,
+      utmCampaign,
+      gclid,
+    })
+  }
 }
 
 /**

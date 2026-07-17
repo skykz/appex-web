@@ -18,6 +18,7 @@ import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
+import { initGa4, ga4PageView, ga4ViewItem } from "@/lib/ga4";
 import { captureAttribution } from "@/lib/attribution";
 
 const queryClient = new QueryClient();
@@ -30,16 +31,19 @@ function RouteAnalytics() {
   const location = useLocation();
 
   useEffect(() => {
-    // Capture first-touch creative/UTM tags BEFORE the pixel fires its first event.
+    // Capture first-touch creative/UTM tags BEFORE any pixel fires its first event.
     captureAttribution();
     initMetaPixel();
+    initGa4();
   }, []);
 
   useEffect(() => {
     captureAttribution();
     trackPageView();
+    ga4PageView(location.pathname);
     if (location.pathname === "/" || location.pathname.startsWith("/ai-skills-for/")) {
       trackViewContent({ content_name: location.pathname });
+      ga4ViewItem({ item_name: location.pathname });
     }
   }, [location.pathname]);
 

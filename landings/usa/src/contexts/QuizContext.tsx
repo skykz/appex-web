@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
+import { ga4QuizStart, ga4QuizComplete } from "@/lib/ga4";
 
 export interface QuizAnswers {
   gender: string;
@@ -123,6 +124,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       quizCompleteFired.current = true;
       sessionStorage.setItem("appexQuizCompleteFired", "1");
       trackQuizComplete();
+      ga4QuizComplete();
     }
   }, [currentStep]);
 
@@ -131,6 +133,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       quizStartFired.current = true;
       sessionStorage.setItem("appexQuizStartFired", "1");
       trackQuizStart();
+      ga4QuizStart();
     }
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }, []);

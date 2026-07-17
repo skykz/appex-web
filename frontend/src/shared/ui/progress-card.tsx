@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, Sparkles } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Skeleton } from './skeleton'
 
@@ -152,12 +152,9 @@ export const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
               />
             )}
 
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
-              <div className="bg-primary text-primary-foreground flex size-11 items-center justify-center rounded-xl shadow-md ring-2 ring-primary/20">
-                <Sparkles className="size-5" strokeWidth={2} aria-hidden />
-              </div>
+            <div className="absolute inset-0 flex items-center justify-center">
               <span
-                className="text-foreground text-sm font-bold tabular-nums"
+                className="text-foreground text-3xl font-bold tabular-nums"
                 aria-live="polite"
               >
                 {pct}%

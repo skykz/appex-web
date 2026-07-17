@@ -28,6 +28,9 @@ const submitQuizSchema = z.object({
   utm_content: z.string().max(200).optional(),
   utm_term: z.string().max(200).optional(),
   fbclid: z.string().max(512).optional(),
+  gclid: z.string().max(512).optional(),
+  wbraid: z.string().max(512).optional(),
+  gbraid: z.string().max(512).optional(),
 })
 
 /**
@@ -67,6 +70,9 @@ const ATTRIBUTION_FIELDS = [
   'utm_content',
   'utm_term',
   'fbclid',
+  'gclid',
+  'wbraid',
+  'gbraid',
 ] as const
 
 /** Extracts the non-empty attribution fields from a request body. */
@@ -259,10 +265,14 @@ const landingCheckoutSchema = z.object({
   meta_event_id: z.string().max(128).optional(),
   fbp: z.string().max(500).optional(),
   fbc: z.string().max(500).optional(),
+  // GA4 client id for the server-side Measurement Protocol purchase (dedup/attribution).
+  ga4_client_id: z.string().max(128).optional(),
   // Creative/UTM tags for Purchase attribution (fallback to the stored lead).
   variant: z.string().max(64).optional(),
   utm_source: z.string().max(200).optional(),
   utm_campaign: z.string().max(200).optional(),
+  // Google Ads click id — for server-side Google Ads conversion attribution.
+  gclid: z.string().max(500).optional(),
 })
 
 /**
@@ -284,7 +294,8 @@ export async function createLandingCheckout(
     let variant = body.variant
     let utmSource = body.utm_source
     let utmCampaign = body.utm_campaign
-    if (!variant || !utmSource || !utmCampaign) {
+    let gclid = body.gclid
+    if (!variant || !utmSource || !utmCampaign || !gclid) {
       // maybeSingle() + ignored error keeps checkout on the happy path even if
       // this best-effort attribution lookup fails — never block a real payment.
       const { data: lead } = await supabaseAdmin
@@ -297,6 +308,7 @@ export async function createLandingCheckout(
       variant = variant || stored.variant
       utmSource = utmSource || stored.utm_source
       utmCampaign = utmCampaign || stored.utm_campaign
+      gclid = gclid || stored.gclid
     }
 
     const url = await createLandingCheckoutSession({
@@ -309,7 +321,8 @@ export async function createLandingCheckout(
         fbp: body.fbp,
         fbc: body.fbc,
       },
-      attribution: { variant, utmSource, utmCampaign },
+      ga4: { clientId: body.ga4_client_id },
+      attribution: { variant, utmSource, utmCampaign, gclid },
     })
 
     res.json({ url })

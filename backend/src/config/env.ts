@@ -116,6 +116,12 @@ const envSchema = z.object({
   META_CAPI_ACCESS_TOKEN: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Optional test event code — routes CAPI events to the Events Manager test stream. */
   META_TEST_EVENT_CODE: z.string().optional().transform((v) => (v ? v : undefined)),
+
+  // --- GA4 Measurement Protocol (server-side purchase for the ads funnel) ---
+  /** GA4 Measurement ID (G-XXXX) — same id as VITE_GA4_MEASUREMENT_ID on the landing. */
+  GA4_MEASUREMENT_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** GA4 Measurement Protocol API secret (Admin → Data Streams → Measurement Protocol). */
+  GA4_API_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -222,6 +228,9 @@ warnEmailLinksMisconfigured()
 /** Meta Conversions API is ready when both the pixel id and access token are set. */
 const metaCapiEnabled = Boolean(parsed.META_PIXEL_ID && parsed.META_CAPI_ACCESS_TOKEN)
 
+/** GA4 Measurement Protocol is ready when both the measurement id and API secret are set. */
+const ga4MpEnabled = Boolean(parsed.GA4_MEASUREMENT_ID && parsed.GA4_API_SECRET)
+
 export const env = {
   ...parsed,
   USA_LANDING_URL: parsed.USA_LANDING_URL ?? 'http://localhost:5175',
@@ -231,4 +240,5 @@ export const env = {
   mailgunSandbox,
   mailgunWebhooksEnabled: Boolean(parsed.MAILGUN_WEBHOOK_SIGNING_KEY),
   metaCapiEnabled,
+  ga4MpEnabled,
 }

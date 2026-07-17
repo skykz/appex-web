@@ -55,3 +55,4 @@ export {
 export { ProgressCard } from './progress-card'
 export { PlatformLoader, PageLoader, SectionLoader } from './platform-loader'
 export { Skeleton } from './skeleton'
+export { Logo } from './logo'

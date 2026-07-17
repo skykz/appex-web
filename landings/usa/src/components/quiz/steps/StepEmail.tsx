@@ -2,6 +2,7 @@ import { useQuiz } from "@/contexts/QuizContext";
 import ContinueButton from "../ContinueButton";
 import { useState } from "react";
 import { trackLead } from "@/lib/meta-pixel";
+import { ga4GenerateLead } from "@/lib/ga4";
 
 export default function StepEmail() {
   const { answers, setAnswer, nextStep } = useQuiz();
@@ -10,6 +11,7 @@ export default function StepEmail() {
 
   const handleContinue = () => {
     trackLead();
+    ga4GenerateLead();
     nextStep();
   };
 
