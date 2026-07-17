@@ -22,7 +22,7 @@ export function getQuizMenuLinks(args?: {
   const accountHref =
     args?.interval != null
       ? buildSigninCheckoutUrl({ email: args.email, interval: args.interval })
-      : buildSigninUrl({ email: args.email });
+      : buildSigninUrl({ email: args?.email });
 
   const lang = resolveLegalLang();
 

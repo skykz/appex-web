@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
+import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
@@ -272,7 +273,9 @@ export default function Paywall() {
   const timer = useCountdown(10);
   const data = getQuizData();
   const quizEmail = (data.email as string | undefined)?.trim().toLowerCase();
-  const quizName = (data.name as string | undefined)?.trim();
+  // The quiz stores the name under `userName` (StepName); keep `name` as a
+  // fallback in case another entry path sets it.
+  const quizName = ((data.userName ?? data.name) as string | undefined)?.trim();
   const planSavedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -286,7 +289,7 @@ export default function Paywall() {
       const saved = getQuizData();
       await submitLandingQuiz({
         email: quizEmail,
-        name: saved.name as string | undefined,
+        name: (saved.userName ?? saved.name) as string | undefined,
         answers: saved,
         selected_plan: planId,
       });
@@ -301,12 +304,24 @@ export default function Paywall() {
 
   const handleGetPlan = async () => {
     if (checkoutLoading) return;
-    const interval = PAYWALL_PLANS[selected].id;
+    const plan = PAYWALL_PLANS[selected];
+    const interval = plan.id;
     setCheckoutLoading(true);
+
+    // Fire InitiateCheckout and reuse its event_id + Meta cookies for the
+    // server-side Purchase so Meta deduplicates the two into one conversion.
+    const eventId = trackInitiateCheckout({
+      value: Number(plan.introPrice),
+      currency: "USD",
+      plan: interval,
+    });
+    const { fbp, fbc } = getMetaBrowserIds();
+
     const result = await createLandingCheckout({
       email: quizEmail ?? "",
       name: quizName,
       interval,
+      meta: { event_id: eventId, fbp, fbc },
     });
     setCheckoutLoading(false);
 

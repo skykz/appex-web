@@ -229,7 +229,12 @@ export default function AIChatPage() {
 
   return (
     <>
-      <div className="relative flex min-h-dvh w-full flex-col">
+      {/*
+        Fixed-height flex column so only the transcript scrolls and the composer
+        stays pinned. Height fills the viewport minus the mobile top header (3.5rem)
+        and bottom nav bar (4rem + safe area); on desktop (lg) neither is present.
+      */}
+      <div className="relative flex w-full flex-col overflow-hidden h-[calc(100dvh-3.5rem-4rem-env(safe-area-inset-bottom))] lg:h-dvh">
         {sendError && (
           <div
             className="flex items-center justify-between gap-3 border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive"

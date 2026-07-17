@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,8 +17,34 @@ import SettingsCheckoutReturn from "./pages/SettingsCheckoutReturn.tsx";
 import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
+import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
+import { captureAttribution } from "@/lib/attribution";
 
 const queryClient = new QueryClient();
+
+/**
+ * Fires Meta PageView on every route change, and ViewContent on content pages
+ * (landing home + role landings). Renders nothing; mounted inside the router.
+ */
+function RouteAnalytics() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Capture first-touch creative/UTM tags BEFORE the pixel fires its first event.
+    captureAttribution();
+    initMetaPixel();
+  }, []);
+
+  useEffect(() => {
+    captureAttribution();
+    trackPageView();
+    if (location.pathname === "/" || location.pathname.startsWith("/ai-skills-for/")) {
+      trackViewContent({ content_name: location.pathname });
+    }
+  }, [location.pathname]);
+
+  return null;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,6 +52,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <RouteAnalytics />
         <QuizProvider>
           <Routes>
             <Route path="/" element={<Index />} />

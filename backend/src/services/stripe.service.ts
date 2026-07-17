@@ -200,6 +200,18 @@ export interface LandingCheckoutInput {
   name?: string
   interval: BillingInterval
   landing?: string
+  /** Meta attribution stored on the session for server-side Purchase dedup. */
+  meta?: {
+    eventId?: string
+    fbp?: string
+    fbc?: string
+  }
+  /** Creative/UTM attribution stamped on the session for Purchase reporting. */
+  attribution?: {
+    variant?: string
+    utmSource?: string
+    utmCampaign?: string
+  }
 }
 
 /**
@@ -259,6 +271,14 @@ export async function createLandingCheckoutSession(
       interval: input.interval,
       email,
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
+      // Meta attribution for the server-side Purchase event (read in provisioning).
+      ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),
+      ...(input.meta?.fbp ? { fbp: input.meta.fbp } : {}),
+      ...(input.meta?.fbc ? { fbc: input.meta.fbc } : {}),
+      // Creative/UTM attribution for Purchase reporting (which ad drove the sale).
+      ...(input.attribution?.variant ? { variant: input.attribution.variant } : {}),
+      ...(input.attribution?.utmSource ? { utm_source: input.attribution.utmSource } : {}),
+      ...(input.attribution?.utmCampaign ? { utm_campaign: input.attribution.utmCampaign } : {}),
     },
     subscription_data: {
       metadata: {

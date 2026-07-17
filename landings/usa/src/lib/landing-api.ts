@@ -1,5 +1,6 @@
 import type { Answers } from "@/quiz/QuizContext";
 import { getLearnerAppUrl } from "@/lib/checkout-redirect";
+import { getAttributionParams } from "@/lib/attribution";
 
 const SESSION_KEY = "appexLandingSession";
 const LANDING_ID = "usa";
@@ -133,6 +134,8 @@ export async function submitLandingQuiz(
         landing: LANDING_ID,
         session_id: getOrCreateSessionId(),
         ...getUtmParams(),
+        // First-touch attribution (variant + utm + fbclid) wins over live-URL utm.
+        ...getAttributionParams(),
         ...payload,
         email,
       }),
@@ -161,12 +164,23 @@ export function planIndexToId(index: number): LandingPlanId {
 }
 
 /**
+ * Meta attribution passed through to the backend so the server-side Purchase
+ * (Conversions API) can deduplicate against the browser InitiateCheckout event.
+ */
+export type MetaAttribution = {
+  event_id?: string;
+  fbp?: string | null;
+  fbc?: string | null;
+};
+
+/**
  * Starts Stripe Checkout for a USA landing lead (payment-first, no signup required).
  */
 export async function createLandingCheckout(args: {
   email: string;
   name?: string;
   interval: LandingPlanId;
+  meta?: MetaAttribution;
 }): Promise<{ url: string } | { error: string }> {
   const base = getApiBaseUrl();
   if (!base) {
@@ -185,6 +199,13 @@ export async function createLandingCheckout(args: {
         email: args.email.trim().toLowerCase(),
         name: args.name?.trim() || undefined,
         interval: args.interval,
+        meta_event_id: args.meta?.event_id || undefined,
+        fbp: args.meta?.fbp || undefined,
+        fbc: args.meta?.fbc || undefined,
+        // First-touch creative/UTM tags → Stripe metadata → server Purchase attribution.
+        variant: getAttributionParams().variant || undefined,
+        utm_source: getAttributionParams().utm_source || undefined,
+        utm_campaign: getAttributionParams().utm_campaign || undefined,
       }),
     });
 

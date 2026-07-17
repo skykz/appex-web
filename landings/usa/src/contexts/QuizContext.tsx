@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
 
 export interface QuizAnswers {
   gender: string;
@@ -103,6 +104,12 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
 
   const [maxReachedStep, setMaxReachedStep] = useState(currentStep);
 
+  // Fire QuizStart once (first answer) and QuizComplete once (reached last step).
+  // The guard is persisted in sessionStorage so a reload/back-nav deep in the
+  // funnel (currentStep restored from storage) does not re-fire the event.
+  const quizStartFired = useRef<boolean>(sessionStorage.getItem("appexQuizStartFired") === "1");
+  const quizCompleteFired = useRef<boolean>(sessionStorage.getItem("appexQuizCompleteFired") === "1");
+
   useEffect(() => {
     sessionStorage.setItem("appexQuiz", JSON.stringify({ answers, currentStep }));
   }, [answers, currentStep]);
@@ -111,7 +118,20 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     if (currentStep > maxReachedStep) setMaxReachedStep(currentStep);
   }, [currentStep, maxReachedStep]);
 
+  useEffect(() => {
+    if (!quizCompleteFired.current && currentStep >= TOTAL_STEPS) {
+      quizCompleteFired.current = true;
+      sessionStorage.setItem("appexQuizCompleteFired", "1");
+      trackQuizComplete();
+    }
+  }, [currentStep]);
+
   const setAnswer = useCallback((key: keyof QuizAnswers, value: any) => {
+    if (!quizStartFired.current) {
+      quizStartFired.current = true;
+      sessionStorage.setItem("appexQuizStartFired", "1");
+      trackQuizStart();
+    }
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }, []);
 

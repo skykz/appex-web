@@ -108,11 +108,6 @@ export const MobileBottomBar = () => {
                 {item.title}
               </span>
 
-              {/* Active indicator - bottom bar */}
-              {isActive && (
-                <div className="absolute bottom-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary animate-in slide-in-from-bottom-1 duration-200" />
-              )}
-
               {/* Ripple effect on tap (visual feedback) */}
               <span className="absolute inset-0 rounded-lg overflow-hidden">
                 <span className="absolute inset-0 bg-primary/5 opacity-0 transition-opacity active:opacity-100 duration-75" />

@@ -238,8 +238,8 @@ export function LessonViewer({
               />
             ))}
           </div>
-          <p className="rounded-full border border-primary/20 bg-primary/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.14em] text-primary shadow-sm">
-            Step {stepIndex + 1} of {totalSteps}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Step <span className="text-primary">{stepIndex + 1}</span> of {totalSteps}
           </p>
         </div>
         <Button
@@ -253,8 +253,9 @@ export function LessonViewer({
         </Button>
       </div>
 
-      {/* Scrollable content — subtle panel so the lesson reads as a distinct surface */}
-      <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+      {/* Scrollable content — subtle panel so the lesson reads as a distinct surface.
+          Extra bottom padding keeps the last lines clear of the floating Lexi bubble. */}
+      <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 pt-6 pb-24 sm:px-8">
         <div className="flex flex-col gap-0 rounded-2xl border border-border/50 bg-card/40 px-3 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
           {renderBlocks(currentBlocks, {
             lessonId: content.lessonId,

@@ -165,16 +165,61 @@ export default function HomePage() {
                             {course.title}
                           </h3>
                         </div>
-                        <div className="flex items-end justify-between gap-2 border-t border-border/60 pt-3">
-                          <span className="text-muted-foreground text-xs font-medium">
-                            {course.progress > 0
-                              ? `${course.progress}%`
-                              : course.status === 'completed'
-                                ? 'Done'
-                                : 'Start'}
-                          </span>
-                          <div className="bg-primary/12 flex size-9 items-center justify-center rounded-full">
-                            <Play className="text-primary size-4 fill-current" />
+                        <div className="border-t border-border/60 pt-3">
+                          <div className="flex items-end justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              {(() => {
+                                const isDone = course.status === 'completed'
+                                const label = isDone
+                                  ? 'Completed'
+                                  : course.progress > 0
+                                    ? 'In progress'
+                                    : 'Not started'
+                                const value = isDone ? 100 : course.progress
+                                return (
+                                  <>
+                                    <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                                      <span className="text-muted-foreground truncate text-[11px] font-medium">
+                                        {label}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          'shrink-0 text-xs font-bold tabular-nums',
+                                          isDone
+                                            ? 'text-emerald-600 dark:text-emerald-400'
+                                            : value > 0
+                                              ? 'text-primary'
+                                              : 'text-muted-foreground'
+                                        )}
+                                      >
+                                        {value}%
+                                      </span>
+                                    </div>
+                                    <div
+                                      className="bg-muted h-1.5 w-full overflow-hidden rounded-full"
+                                      role="progressbar"
+                                      aria-valuenow={value}
+                                      aria-valuemin={0}
+                                      aria-valuemax={100}
+                                      aria-label={`${course.title}: ${value}% ${label.toLowerCase()}`}
+                                    >
+                                      <div
+                                        className={cn(
+                                          'h-full rounded-full transition-[width] duration-500 ease-out',
+                                          isDone
+                                            ? 'bg-emerald-500'
+                                            : 'bg-primary'
+                                        )}
+                                        style={{ width: `${Math.max(value, value > 0 ? 6 : 0)}%` }}
+                                      />
+                                    </div>
+                                  </>
+                                )
+                              })()}
+                            </div>
+                            <div className="bg-primary/12 flex size-9 shrink-0 items-center justify-center rounded-full">
+                              <Play className="text-primary size-4 fill-current" />
+                            </div>
                           </div>
                         </div>
                       </Link>
@@ -184,7 +229,7 @@ export default function HomePage() {
               </section>
 
               {activeCourseIds.length > 0 && (
-                <section className="pb-12 lg:pb-24">
+                <section className="lg:pb-24">
                   {activitiesLoading && activityCourses.length === 0 ? (
                     <SectionLoader className="py-8" label="Loading activity…" />
                   ) : (

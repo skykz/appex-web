@@ -19,7 +19,7 @@ export const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'border border-primary/20 bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/[0.92] hover:shadow-lg hover:shadow-primary/35 active:scale-[0.98]',
+          'border border-primary/20 bg-primary text-primary-foreground shadow-sm shadow-primary/20 hover:bg-primary/[0.92] hover:shadow-md hover:shadow-primary/30 active:scale-[0.98]',
         destructive:
           'border border-destructive/20 bg-destructive text-destructive-foreground shadow-md shadow-destructive/20 hover:bg-destructive/92 hover:shadow-lg active:scale-[0.98]',
         outline:
@@ -34,7 +34,7 @@ export const buttonVariants = cva(
         default: 'h-10 px-4 py-2',
         sm: 'h-9 rounded-md px-3',
         lg: 'h-11 rounded-md px-8',
-        xl: 'h-12 rounded-xl px-6 py-3 text-sm font-semibold',
+        xl: 'h-11 rounded-lg px-5 text-sm font-semibold',
         icon: 'size-10',
         'sm-icon': 'size-8 rounded-lg',
       },

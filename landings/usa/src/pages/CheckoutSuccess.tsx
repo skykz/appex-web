@@ -37,8 +37,8 @@ export default function CheckoutSuccess() {
     try {
       const raw = sessionStorage.getItem("appexQuiz");
       if (!raw) return "";
-      const parsed = JSON.parse(raw) as { answers?: { name?: string } };
-      return parsed.answers?.name?.trim() ?? "";
+      const parsed = JSON.parse(raw) as { answers?: { userName?: string; name?: string } };
+      return (parsed.answers?.userName ?? parsed.answers?.name)?.trim() ?? "";
     } catch {
       return "";
     }

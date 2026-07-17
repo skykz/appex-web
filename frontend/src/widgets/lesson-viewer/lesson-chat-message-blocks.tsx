@@ -1,7 +1,25 @@
 import type { ReactNode } from 'react'
+import { Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { Avatar, AvatarFallback, AvatarImage } from '@shared/ui'
-import lexiAvatarUrl from '@/assets/lexi-avatar.png'
+import { Avatar, AvatarFallback } from '@shared/ui'
+
+/**
+ * Lexi's mark — a sparkle on the warm-orange brand gradient. Reads honestly as an
+ * AI mentor (no fake face) and needs no image asset.
+ */
+function LexiMark({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        'flex size-full items-center justify-center bg-linear-to-br from-orange-500 to-amber-500 text-white',
+        className
+      )}
+      aria-hidden
+    >
+      <Sparkles className="size-1/2" strokeWidth={2.25} />
+    </span>
+  )
+}
 
 /** Gap between sender name and bubble; max width before text wraps. */
 const CHAT_LABEL_GAP = 'gap-1.5'
@@ -71,10 +89,7 @@ export function MentorMessageBlock({
     <div className={cn('mt-7 flex justify-start first:mt-0', className)}>
       <div className="flex max-w-full items-end gap-3">
         <Avatar className="size-10 shrink-0 ring-2 ring-background">
-          <AvatarImage src={lexiAvatarUrl} alt="" className="object-cover object-top" />
-          <AvatarFallback className="bg-linear-to-br from-sky-500 to-indigo-500 text-sm font-semibold text-white">
-            L
-          </AvatarFallback>
+          <LexiMark />
         </Avatar>
         <div
           className={cn(
@@ -119,12 +134,7 @@ export function LiveChatBubble({ role, label, children, footer }: LiveChatBubble
           {initial}
         </AvatarFallback>
       ) : (
-        <>
-          <AvatarImage src={lexiAvatarUrl} alt="" className="object-cover object-top" />
-          <AvatarFallback className="bg-linear-to-br from-sky-500 to-indigo-500 text-xs font-semibold text-white">
-            L
-          </AvatarFallback>
-        </>
+        <LexiMark />
       )}
     </Avatar>
   )

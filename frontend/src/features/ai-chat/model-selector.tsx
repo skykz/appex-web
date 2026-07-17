@@ -40,8 +40,8 @@ export function ModelSelector({
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         className={cn(
-          'inline-flex items-center gap-2 rounded-full px-3 py-1.5',
-          'text-sm font-medium text-muted-foreground',
+          'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1',
+          'text-xs font-medium text-muted-foreground',
           'bg-muted/60 transition-all duration-200',
           'hover:bg-muted active:scale-95'
         )}
@@ -50,7 +50,7 @@ export function ModelSelector({
         <span>{value.name}</span>
         <ChevronDown
           className={cn(
-            'size-3.5 transition-transform',
+            'size-3 transition-transform',
             open && 'rotate-180'
           )}
         />

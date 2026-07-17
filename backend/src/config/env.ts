@@ -101,6 +101,21 @@ const envSchema = z.object({
     .transform((v) => v === 'true' || v === '1'),
   /** Protects /api/cron/* (Vercel Cron sends Authorization: Bearer <secret>). */
   CRON_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
+
+  // --- Meta Conversions API (server-side Purchase for the ads funnel) ---
+  /**
+   * Meta Pixel id (same id as VITE_META_PIXEL_ID on the USA landing). Defaults to
+   * the live Appex pixel — public, so safe to bake in. CAPI still stays OFF until
+   * META_CAPI_ACCESS_TOKEN (a secret) is also set; see metaCapiEnabled below.
+   */
+  META_PIXEL_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : '1766890887825527')),
+  /** Conversions API access token (Events Manager → Settings → Conversions API). */
+  META_CAPI_ACCESS_TOKEN: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** Optional test event code — routes CAPI events to the Events Manager test stream. */
+  META_TEST_EVENT_CODE: z.string().optional().transform((v) => (v ? v : undefined)),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -204,6 +219,9 @@ function warnEmailLinksMisconfigured() {
 
 warnEmailLinksMisconfigured()
 
+/** Meta Conversions API is ready when both the pixel id and access token are set. */
+const metaCapiEnabled = Boolean(parsed.META_PIXEL_ID && parsed.META_CAPI_ACCESS_TOKEN)
+
 export const env = {
   ...parsed,
   USA_LANDING_URL: parsed.USA_LANDING_URL ?? 'http://localhost:5175',
@@ -212,4 +230,5 @@ export const env = {
   mailgunEnabled,
   mailgunSandbox,
   mailgunWebhooksEnabled: Boolean(parsed.MAILGUN_WEBHOOK_SIGNING_KEY),
+  metaCapiEnabled,
 }

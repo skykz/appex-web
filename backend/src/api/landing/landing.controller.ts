@@ -21,9 +21,13 @@ const submitQuizSchema = z.object({
   answers: z.record(z.unknown()).optional(),
   selected_plan: z.enum(PLAN_IDS).optional(),
   session_id: z.string().max(128).optional(),
+  variant: z.string().max(64).optional(),
   utm_source: z.string().max(200).optional(),
   utm_campaign: z.string().max(200).optional(),
   utm_medium: z.string().max(200).optional(),
+  utm_content: z.string().max(200).optional(),
+  utm_term: z.string().max(200).optional(),
+  fbclid: z.string().max(512).optional(),
 })
 
 /**
@@ -55,6 +59,59 @@ function mergeAnswers(
   return { ...base, ...coerceAnswers(incoming) }
 }
 
+const ATTRIBUTION_FIELDS = [
+  'variant',
+  'utm_source',
+  'utm_campaign',
+  'utm_medium',
+  'utm_content',
+  'utm_term',
+  'fbclid',
+] as const
+
+/** Extracts the non-empty attribution fields from a request body. */
+function pickAttribution(body: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const key of ATTRIBUTION_FIELDS) {
+    const val = body[key]
+    if (typeof val === 'string' && val) out[key] = val
+  }
+  return out
+}
+
+/**
+ * Stores creative/UTM attribution under `answers.__attribution` with first-touch
+ * semantics: existing values win, incoming only fills gaps. Avoids a schema
+ * migration while still capturing which creative drove each lead.
+ */
+function mergeAttribution(
+  answers: Record<string, unknown>,
+  incoming: Record<string, string>
+): Record<string, unknown> {
+  const prevRaw =
+    answers.__attribution && typeof answers.__attribution === 'object'
+      ? (answers.__attribution as Record<string, unknown>)
+      : {}
+  // Only keep non-empty stored values, so a stray empty string can't shadow a
+  // good incoming value under the first-touch (prev-wins) merge below.
+  const prev: Record<string, string> = {}
+  for (const [k, v] of Object.entries(prevRaw)) {
+    if (typeof v === 'string' && v) prev[k] = v
+  }
+  const merged = { ...incoming, ...prev } // first-touch: prev overrides incoming
+  if (Object.keys(merged).length === 0) return answers
+  return { ...answers, __attribution: merged }
+}
+
+/** Reads the stored attribution blob from a lead's answers jsonb. */
+function attributionFromAnswers(answers: unknown): Record<string, string> {
+  if (answers && typeof answers === 'object' && !Array.isArray(answers)) {
+    const blob = (answers as Record<string, unknown>).__attribution
+    if (blob && typeof blob === 'object') return blob as Record<string, string>
+  }
+  return {}
+}
+
 /**
  * Upserts a marketing quiz submission keyed by email + landing.
  * Public endpoint — used by the USA landing funnel before account creation.
@@ -78,11 +135,19 @@ export async function submitLandingQuiz(
 
     if (selectError) throw new AppError(500, selectError.message)
 
+    // Fold creative/UTM attribution into answers.__attribution (jsonb — no schema
+    // change needed). First-touch: keep any existing blob, fill missing fields.
+    const incomingAttribution = pickAttribution(body)
+    const answersWithAttribution = mergeAttribution(
+      mergeAnswers(existing?.answers as Record<string, unknown> | undefined, body.answers),
+      incomingAttribution
+    )
+
     const row = {
       email,
       name: body.name?.trim() || existing?.name || null,
       landing: body.landing,
-      answers: mergeAnswers(existing?.answers as Record<string, unknown> | undefined, body.answers),
+      answers: answersWithAttribution,
       selected_plan: body.selected_plan ?? undefined,
       session_id: body.session_id ?? existing?.session_id ?? null,
       utm_source: body.utm_source ?? existing?.utm_source ?? null,
@@ -188,6 +253,16 @@ const landingCheckoutSchema = z.object({
   name: z.string().max(200).optional(),
   landing: z.enum(LANDING_IDS).default('usa'),
   interval: z.enum(PLAN_IDS),
+  // Meta attribution for server-side Purchase deduplication (all optional).
+  // Capped at 500 — Stripe rejects metadata VALUES longer than 500 chars, which
+  // would 500 the whole checkout (fbc embeds a variable-length fbclid).
+  meta_event_id: z.string().max(128).optional(),
+  fbp: z.string().max(500).optional(),
+  fbc: z.string().max(500).optional(),
+  // Creative/UTM tags for Purchase attribution (fallback to the stored lead).
+  variant: z.string().max(64).optional(),
+  utm_source: z.string().max(200).optional(),
+  utm_campaign: z.string().max(200).optional(),
 })
 
 /**
@@ -204,11 +279,37 @@ export async function createLandingCheckout(
     const email = normalizeEmail(body.email)
     const interval = body.interval as BillingInterval
 
+    // Resolve creative/UTM attribution: request body first, else the stored
+    // first-touch blob on the quiz lead (deep-funnel checkout may lack the query).
+    let variant = body.variant
+    let utmSource = body.utm_source
+    let utmCampaign = body.utm_campaign
+    if (!variant || !utmSource || !utmCampaign) {
+      // maybeSingle() + ignored error keeps checkout on the happy path even if
+      // this best-effort attribution lookup fails — never block a real payment.
+      const { data: lead } = await supabaseAdmin
+        .from('landing_quiz_submissions')
+        .select('answers')
+        .eq('email', email)
+        .eq('landing', body.landing)
+        .maybeSingle()
+      const stored = attributionFromAnswers(lead?.answers)
+      variant = variant || stored.variant
+      utmSource = utmSource || stored.utm_source
+      utmCampaign = utmCampaign || stored.utm_campaign
+    }
+
     const url = await createLandingCheckoutSession({
       email,
       name: body.name,
       interval,
       landing: body.landing,
+      meta: {
+        eventId: body.meta_event_id,
+        fbp: body.fbp,
+        fbc: body.fbc,
+      },
+      attribution: { variant, utmSource, utmCampaign },
     })
 
     res.json({ url })

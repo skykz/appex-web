@@ -12,6 +12,8 @@ import {
   upsertSubscriptionFromStripe,
 } from './stripe.service.js'
 import { sendPostPaymentEmailsAsync } from './lifecycle-email.service.js'
+import { sendPurchaseEventAsync } from './meta-capi.service.js'
+import { env } from '../config/env.js'
 
 export type LandingProvisionResult = {
   userId: string
@@ -46,10 +48,13 @@ async function resolveDisplayName(
   const fromMeta = session.metadata?.name?.trim()
   if (fromMeta) return fromMeta
 
+  // Scope by landing too: (email, landing) is unique, so without the landing
+  // filter maybeSingle() would throw once a second landing exists.
   const { data: lead } = await supabaseAdmin
     .from('landing_quiz_submissions')
     .select('name')
     .eq('email', email)
+    .eq('landing', session.metadata?.landing ?? 'usa')
     .maybeSingle()
 
   if (lead?.name?.trim()) return lead.name.trim()
@@ -130,6 +135,64 @@ async function attachUserIdToStripeResources(args: {
 }
 
 /**
+ * Derives the Purchase amount (major currency units) from the checkout session.
+ * `amount_total` is in the smallest unit (cents) and reflects the first invoice
+ * after any intro coupon — the amount the customer was actually charged.
+ */
+function purchaseAmountFromSession(
+  session: Stripe.Checkout.Session,
+  subscription: Stripe.Subscription
+): {
+  value: number
+  currency: string
+} {
+  // Prefer the session total (what the customer was actually charged this cycle,
+  // after any intro coupon). Fall back to the subscription's unit price if the
+  // session total is missing/zero, so Purchase never reports $0 for a real sale.
+  let cents =
+    typeof session.amount_total === 'number' && session.amount_total > 0
+      ? session.amount_total
+      : 0
+  let currency = session.currency ?? null
+
+  if (!cents) {
+    const item = subscription.items?.data?.[0]
+    const unit = item?.price?.unit_amount
+    if (typeof unit === 'number' && unit > 0) cents = unit
+    currency = currency ?? item?.price?.currency ?? null
+  }
+
+  return { value: Math.round(cents) / 100, currency: (currency ?? 'usd').toUpperCase() }
+}
+
+/**
+ * Fires the server-side Meta Purchase event for a landing checkout, reusing the
+ * browser InitiateCheckout event_id + cookies from session metadata for dedup.
+ * No-op unless CAPI is configured; never throws (fire-and-forget).
+ */
+function firePurchaseEvent(
+  session: Stripe.Checkout.Session,
+  subscription: Stripe.Subscription,
+  email: string
+): void {
+  if (!env.metaCapiEnabled) return
+  const { value, currency } = purchaseAmountFromSession(session, subscription)
+  sendPurchaseEventAsync({
+    eventId: session.metadata?.meta_event_id ?? null,
+    email,
+    value,
+    currency,
+    plan: session.metadata?.interval ?? null,
+    fbp: session.metadata?.fbp ?? null,
+    fbc: session.metadata?.fbc ?? null,
+    variant: session.metadata?.variant ?? null,
+    utmSource: session.metadata?.utm_source ?? null,
+    utmCampaign: session.metadata?.utm_campaign ?? null,
+    eventSourceUrl: env.USA_LANDING_URL,
+  })
+}
+
+/**
  * Provisions (or reuses) a learner account after a USA landing Stripe Checkout completes.
  */
 export async function provisionFromLandingCheckoutSession(
@@ -194,6 +257,13 @@ export async function provisionFromLandingCheckoutSession(
   }
 
   sendPostPaymentEmailsAsync({ userId, email, name })
+  // Fire the Meta Purchase ONLY when the dedup row persisted. The row (unique on
+  // stripe_checkout_session_id) is the single source of truth for "Purchase
+  // already sent" — if the insert failed, a later re-delivery could re-provision
+  // and we must not double-count, so we skip the event rather than risk it.
+  if (!logError) {
+    firePurchaseEvent(session, subscription, email)
+  }
 
   return { userId, email, name, alreadyProvisioned: false }
 }

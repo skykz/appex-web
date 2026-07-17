@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Lottie from 'lottie-react'
 import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
@@ -17,6 +17,51 @@ const WEEK_DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] as const
 function getTodayIndex(): number {
   const jsDay = new Date().getDay()
   return jsDay === 0 ? 6 : jsDay - 1
+}
+
+/** True when the user has asked the OS to minimize motion. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  )
+}
+
+/**
+ * Animates a number from 0 up to `target` once it becomes known, easing out over
+ * `duration` ms. Respects reduced-motion by snapping straight to the target.
+ */
+function useCountUp(target: number, duration = 900): number {
+  const [value, setValue] = useState(0)
+  const rafRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (target <= 0 || prefersReducedMotion()) {
+      setValue(target)
+      return
+    }
+    // Small delay so the count-up starts after the card has begun rising in.
+    const startDelay = 250
+    let startTime: number | null = null
+    const tick = (now: number) => {
+      if (startTime === null) startTime = now
+      const elapsed = now - startTime
+      const t = Math.min(1, elapsed / duration)
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3)
+      setValue(Math.round(eased * target))
+      if (t < 1) rafRef.current = requestAnimationFrame(tick)
+    }
+    const timer = window.setTimeout(() => {
+      rafRef.current = requestAnimationFrame(tick)
+    }, startDelay)
+    return () => {
+      window.clearTimeout(timer)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
+  }, [target, duration])
+
+  return value
 }
 
 /**
@@ -60,6 +105,8 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
   const current = streak?.current ?? 0
   const best = streak?.best ?? 0
   const isStreakActive = current > 0
+  const displayCount = useCountUp(current)
+  const todayIsActive = isStreakActive
 
   useEffect(() => {
     const controller = new AbortController()
@@ -80,32 +127,47 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 pb-6 pt-4">
-        <div className="w-full max-w-sm overflow-hidden rounded-3xl border-2 border-orange-200/80 bg-card text-card-foreground shadow-xl ring-1 ring-orange-200/50 dark:border-orange-500/30 dark:ring-orange-500/20">
+        <div className="streak-anim-card w-full max-w-sm overflow-hidden rounded-3xl border-2 border-orange-200/80 bg-card text-card-foreground shadow-xl ring-1 ring-orange-200/50 dark:border-orange-500/30 dark:ring-orange-500/20">
           {/* Hero — matches app streak / home pill language */}
           <div
             className={cn(
-              'border-b border-orange-200/80 px-5 pb-5 pt-6',
+              'relative overflow-hidden border-b border-orange-200/80 px-5 pb-5 pt-6',
               'bg-linear-to-br from-orange-100 via-amber-50 to-orange-50',
               'dark:border-orange-500/25 dark:from-orange-950 dark:via-amber-950/80 dark:to-background'
             )}
           >
-            <p className="mb-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-orange-900/90 dark:text-orange-200">
+            {/* Soft breathing glow behind the hero number/flame. */}
+            {isStreakActive && (
+              <div
+                aria-hidden
+                className="streak-anim-glow pointer-events-none absolute left-1/2 top-1/2 size-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-400/25 blur-3xl dark:bg-orange-500/20"
+              />
+            )}
+
+            <p
+              className="streak-anim-up relative mb-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-orange-900/90 dark:text-orange-200"
+              style={{ animationDelay: '0.15s' }}
+            >
               {t('dayStreak.eyebrow')}
             </p>
 
-            <div className="flex items-end justify-center gap-3">
+            <div className="relative flex items-end justify-center gap-3">
               <div className="text-center">
                 <p
                   className={cn(
-                    'text-7xl font-bold leading-none tracking-tighter tabular-nums sm:text-8xl',
+                    'streak-anim-pop text-7xl font-bold leading-none tracking-tighter tabular-nums sm:text-8xl',
                     isStreakActive
                       ? 'text-orange-600 dark:text-orange-400'
                       : 'text-orange-900/35 dark:text-orange-200/35'
                   )}
+                  style={{ animationDelay: '0.2s' }}
                 >
-                  {current}
+                  {displayCount}
                 </p>
-                <p className="mt-2 text-base font-semibold text-orange-900/90 dark:text-orange-50">
+                <p
+                  className="streak-anim-up mt-2 text-base font-semibold text-orange-900/90 dark:text-orange-50"
+                  style={{ animationDelay: '0.45s' }}
+                >
                   {t('dayStreak.dayStreak')}
                 </p>
               </div>
@@ -113,7 +175,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
               <div className="shrink-0 pb-1" aria-hidden="true">
                 <div
                   className={cn(
-                    'size-[4.5rem] motion-reduce:hidden sm:size-24',
+                    'streak-anim-flame size-[4.5rem] motion-reduce:hidden sm:size-24',
                     !isStreakActive && 'opacity-50 saturate-50'
                   )}
                 >
@@ -141,14 +203,20 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
               </div>
             </div>
 
-            <p className="mt-4 text-center text-xs text-orange-950/70 dark:text-orange-100/75">
+            <p
+              className="streak-anim-up relative mt-4 text-center text-xs text-orange-950/70 dark:text-orange-100/75"
+              style={{ animationDelay: '0.55s' }}
+            >
               {t('dayStreak.bestStreak', { count: best })}
             </p>
           </div>
 
           {/* Week strip — checks only on streak days; no misleading icons on future days */}
           <div className="bg-card px-4 py-5">
-            <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p
+              className="streak-anim-up mb-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              style={{ animationDelay: '0.6s' }}
+            >
               {t('dayStreak.thisWeek')}
             </p>
             <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
@@ -158,6 +226,8 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
                   i < todayIndex &&
                   i >= Math.max(0, todayIndex - current + 1) &&
                   current > 0
+                // Stagger each pill left→right, starting after the hero settles.
+                const dayDelay = `${0.7 + i * 0.07}s`
 
                 return (
                   <div key={day} className="flex flex-col items-center gap-1.5">
@@ -173,7 +243,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
                     </span>
                     <div
                       className={cn(
-                        'flex size-9 items-center justify-center rounded-full border text-center transition-all sm:size-10',
+                        'streak-anim-day relative flex size-9 items-center justify-center rounded-full border text-center sm:size-10',
                         isToday &&
                           'border-orange-400 bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-md ring-2 ring-orange-300/50 dark:ring-orange-500/40',
                         !isToday &&
@@ -183,12 +253,21 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
                           !isCompleted &&
                           'border-border bg-card text-muted-foreground shadow-sm'
                       )}
+                      style={{ animationDelay: dayDelay }}
                     >
+                      {/* Celebratory halo that pings out from today's pill. */}
+                      {isToday && todayIsActive && (
+                        <span
+                          aria-hidden
+                          className="streak-anim-ring absolute inset-0 rounded-full ring-2 ring-orange-400/70"
+                        />
+                      )}
                       {isToday ? (
                         <Check
-                          className="size-4 text-white sm:size-5"
+                          className="streak-anim-check size-4 text-white sm:size-5"
                           strokeWidth={2.5}
                           aria-hidden
+                          style={{ animationDelay: '1.35s' }}
                         />
                       ) : isCompleted ? (
                         <Check
@@ -210,7 +289,10 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
               })}
             </div>
 
-            <p className="mt-5 text-center text-sm leading-relaxed text-muted-foreground">
+            <p
+              className="streak-anim-up mt-5 text-center text-sm leading-relaxed text-muted-foreground"
+              style={{ animationDelay: '1.3s' }}
+            >
               {getStreakMessage(t, current)}
             </p>
           </div>
@@ -219,7 +301,12 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
 
       <div className="sticky bottom-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-2xl justify-end">
-          <Button onClick={onContinue} size="xl" className="min-w-[10rem] px-10">
+          <Button
+            onClick={onContinue}
+            size="xl"
+            className="streak-anim-up min-w-[10rem] px-10"
+            style={{ animationDelay: '1.5s' }}
+          >
             {t('dayStreak.continue')}
           </Button>
         </div>

@@ -251,21 +251,20 @@
   }
 }
 
-@keyframes platform-orbit {
-  from {
-    transform: rotate(0deg);
-  }
+/* PlatformLoader: sweeping progress ring + gently breathing sparkle badge. */
+@keyframes platform-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes platform-orbit-reverse {
-  from {
-    transform: rotate(360deg);
+@keyframes platform-breathe {
+  0%,
+  100% {
+    transform: scale(1);
   }
-  to {
-    transform: rotate(0deg);
+  50% {
+    transform: scale(0.9);
   }
 }
 
@@ -314,4 +313,166 @@
 
 .streak-cal-slide-prev {
   animation-name: streak-cal-slide-prev;
+}
+
+/* ---- Day-streak celebration screen ---------------------------------------- */
+
+/* Card entrance: rise + slight overshoot scale. */
+@keyframes streak-card-in {
+  0% {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.96);
+  }
+  60% {
+    transform: translateY(0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Generic fade-up used for staggered content reveals. */
+@keyframes streak-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Big number: bouncy pop as the count-up settles. */
+@keyframes streak-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Fire: drop in, then hand off to the looping Lottie/float. */
+@keyframes streak-flame-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.75rem) scale(0.6) rotate(-8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+}
+
+/* Continuous gentle bob for the flame after it lands. */
+@keyframes streak-flame-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(1.5deg);
+  }
+}
+
+/* Day pill: pop into place (staggered per weekday). */
+@keyframes streak-day-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Today's ring: expanding halo that fades — a one-shot celebratory ping. */
+@keyframes streak-ring-ping {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* Today's check: draw the stroke on. */
+@keyframes streak-check-draw {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-20deg);
+  }
+  60% {
+    transform: scale(1.2) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Soft breathing glow behind the flame / hero. */
+@keyframes streak-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.08);
+  }
+}
+
+.streak-anim-card {
+  animation: streak-card-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.streak-anim-up {
+  animation: streak-fade-up 0.5s ease-out both;
+}
+.streak-anim-pop {
+  animation: streak-pop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.streak-anim-flame {
+  animation:
+    streak-flame-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both,
+    streak-flame-float 3s ease-in-out 0.7s infinite;
+}
+.streak-anim-day {
+  animation: streak-day-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.streak-anim-ring {
+  animation: streak-ring-ping 1s ease-out 0.9s 2;
+}
+.streak-anim-check {
+  animation: streak-check-draw 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.streak-anim-glow {
+  animation: streak-glow-pulse 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-anim-card,
+  .streak-anim-up,
+  .streak-anim-pop,
+  .streak-anim-flame,
+  .streak-anim-day,
+  .streak-anim-ring,
+  .streak-anim-check,
+  .streak-anim-glow {
+    animation: none !important;
+  }
 }

@@ -88,7 +88,7 @@ export function ChatInput({
   const canSend = Boolean(text.trim()) && !disabled
 
   return (
-    <div className="w-full rounded-2xl border bg-card p-3 shadow-sm">
+    <div className="w-full rounded-2xl border bg-card p-2 shadow-sm">
       <Textarea
         ref={textareaRef}
         value={text}
@@ -97,10 +97,10 @@ export function ChatInput({
         placeholder="Ask anything..."
         disabled={disabled}
         rows={1}
-        className="max-h-[200px] min-h-[44px] resize-none border-0 bg-transparent px-1 py-2 shadow-none focus-visible:ring-0"
+        className="max-h-[160px] min-h-[36px] resize-none border-0 bg-transparent px-1 py-1.5 text-sm shadow-none focus-visible:ring-0"
       />
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-0.5">
         <ModelSelector
           models={models}
           value={model}
@@ -114,13 +114,13 @@ export function ChatInput({
           disabled={!canSend}
           aria-label="Send message"
           className={cn(
-            'flex size-10 items-center justify-center rounded-full transition-all duration-200',
+            'flex size-8 items-center justify-center rounded-full transition-all duration-200',
             canSend
               ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
               : 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'
           )}
         >
-          <SendHorizontal className="size-4" />
+          <SendHorizontal className="size-3.5" />
         </button>
       </div>
     </div>

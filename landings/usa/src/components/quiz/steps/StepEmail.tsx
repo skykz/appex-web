@@ -1,11 +1,17 @@
 import { useQuiz } from "@/contexts/QuizContext";
 import ContinueButton from "../ContinueButton";
 import { useState } from "react";
+import { trackLead } from "@/lib/meta-pixel";
 
 export default function StepEmail() {
   const { answers, setAnswer, nextStep } = useQuiz();
   const [email, setEmail] = useState(answers.email || "");
   const [agreed, setAgreed] = useState(false);
+
+  const handleContinue = () => {
+    trackLead();
+    nextStep();
+  };
 
   return (
     <div>
@@ -27,7 +33,7 @@ export default function StepEmail() {
         <input type="checkbox" checked={agreed} onChange={() => setAgreed(!agreed)} className="mt-1" />
         <span className="text-[12px]" style={{ color: '#888' }}>I agree to receive latest Appex news and updates via email</span>
       </label>
-      <ContinueButton onClick={nextStep} disabled={!email || !email.includes("@")} />
+      <ContinueButton onClick={handleContinue} disabled={!email || !email.includes("@")} />
     </div>
   );
 }

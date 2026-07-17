@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, ThumbsUp, ThumbsDown, Send } from 'lucide-react'
+import { X, ThumbsUp, ThumbsDown, Send, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Textarea } from '@shared/ui'
 import { useAuthStore } from '@entities/user'
@@ -42,40 +42,23 @@ interface Message {
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
-import lexiAvatarUrl from '@/assets/lexi-avatar.png'
-
 /**
- * Lexi avatar — falls back to a branded initial when the image fails to load.
+ * Lexi avatar — a branded sparkle mark on the warm-orange gradient. Lexi is an AI
+ * mentor, so an illustrated glyph reads honestly as an assistant (no fake face) and
+ * ships as pure CSS/SVG — no image asset to download.
  */
 function LexiAvatar({ className }: { className?: string }) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return (
-      <span
-        className={cn(
-          'flex shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
-          className
-        )}
-        aria-hidden
-      >
-        L
-      </span>
-    )
-  }
-
   return (
-    <img
-      src={lexiAvatarUrl}
-      alt="Lexi AI learning mentor"
-      loading="eager"
-      decoding="async"
-      onError={() => setFailed(true)}
+    <span
       className={cn(
-        'shrink-0 rounded-full object-cover object-top ring-2 ring-primary/30',
+        'flex shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-sm ring-2 ring-primary/30',
         className
       )}
-    />
+      role="img"
+      aria-label="Lexi AI learning mentor"
+    >
+      <Sparkles className="size-1/2" strokeWidth={2.25} aria-hidden />
+    </span>
   )
 }
 
@@ -138,21 +121,39 @@ function extractContentSummary(blocks: LessonBlock[]): string {
 
 // ─── Empty state copy ─────────────────────────────────────────────────────────
 
-function EmptyState() {
+const LEXI_SUGGESTIONS = [
+  { short: 'Explain this simply', full: 'Explain this lesson simply, with an example.' },
+  { short: 'Improve my prompt', full: 'Help me improve my prompt or submission for this step.' },
+  { short: 'Make it about me', full: 'Connect this lesson to my background — a service I could actually sell.' },
+  { short: "What's my next step?", full: 'Based on this lesson, what should I do next to keep momentum?' },
+] as const
+
+/**
+ * First-open state: a short welcome + tappable suggestion chips so the learner
+ * can start with one tap instead of reading a wall of bullet points.
+ */
+function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border/80 bg-muted/30 px-4 py-5 text-sm leading-relaxed text-muted-foreground">
-      <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
-        I can help you:
+    <div className="flex h-full flex-col items-center justify-center px-2 text-center">
+      <LexiAvatar className="size-12" />
+      <p className="mt-3 text-sm font-semibold text-foreground">
+        Ask me anything about this lesson
       </p>
-      <ul className="space-y-1.5">
-        <li>• Understand anything in this lesson — in plain words, with an example</li>
-        <li>• Improve your prompt or your submission for this step</li>
-        <li>• Connect the lesson to your background → a service you could actually sell</li>
-        <li>• Decide what to do next and keep your momentum</li>
-      </ul>
-      <p className="mt-3 text-xs text-muted-foreground/60">
-        I won't do the work for you — I coach, you build. That's how you become an AI Operator.
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+        I coach, you build — that's how you become an AI Operator.
       </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        {LEXI_SUGGESTIONS.map((s) => (
+          <button
+            key={s.short}
+            type="button"
+            onClick={() => onPick(s.full)}
+            className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/[0.05] active:scale-95"
+          >
+            {s.short}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -283,8 +284,8 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
   /**
    * Sends the learner's question to Lexi and streams the response into the UI.
    */
-  async function handleSend() {
-    const question = inputText.trim()
+  async function handleSend(preset?: string) {
+    const question = (preset ?? inputText).trim()
     if (!question || streaming) return
 
     const lessonCtx: LexiLessonCtx = {
@@ -368,35 +369,35 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background p-1 shadow-lg transition-all hover:scale-105 active:scale-95 max-[380px]:gap-0 sm:bottom-20 sm:right-6 sm:pr-3',
-          'ring-2 ring-primary/30 hover:ring-primary/50',
+          'group fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background/90 p-1.5 shadow-lg backdrop-blur transition-all hover:shadow-xl active:scale-95 max-[380px]:gap-0 sm:bottom-20 sm:right-6 sm:pr-3.5',
           open && 'pointer-events-none scale-75 opacity-0'
         )}
         aria-label="Open Lexi AI learning mentor"
       >
-        <LexiAvatar className="size-10" />
-        <div className="pr-2 text-left max-[380px]:hidden sm:pr-0">
-          <p className="text-sm font-semibold leading-none text-foreground">Lexi</p>
-          <p className="text-xs text-muted-foreground">Your AI learning mentor</p>
+        <LexiAvatar className="size-9 transition-transform group-hover:scale-105" />
+        <div className="pr-1.5 text-left max-[380px]:hidden sm:pr-0">
+          <p className="text-sm font-semibold leading-none text-foreground">Ask Lexi</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">AI learning mentor</p>
         </div>
       </button>
 
       {/* Chat panel */}
       {open ? (
-        <div className="fixed bottom-16 right-4 z-30 flex h-[min(560px,calc(100dvh-7rem))] w-[calc(100vw-2rem)] max-w-md flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-20 sm:right-6 sm:w-[420px]">
+        <div className="fixed bottom-16 right-4 z-30 flex h-[min(480px,calc(100dvh-8rem))] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-20 sm:right-6 sm:w-[360px]">
           {/* Header */}
-          <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3">
-            <LexiAvatar className="size-9" />
+          <div className="flex items-center gap-2.5 border-b border-border/70 px-3.5 py-2.5">
+            <LexiAvatar className="size-8" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">Lexi</p>
-              <p className="truncate text-xs text-muted-foreground">
-                Your AI mentor for this course — ask about the lesson, get unstuck, or plan your next step.
+              <p className="text-sm font-semibold leading-tight">Lexi</p>
+              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+                AI mentor · always here
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Close lesson assistant"
             >
               <X className="size-4" aria-hidden />
@@ -404,9 +405,9 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           </div>
 
           {/* Message list */}
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3.5">
             {messages.length === 0 && !streaming ? (
-              <EmptyState />
+              <EmptyState onPick={(q) => handleSend(q)} />
             ) : (
               <div className="flex flex-col gap-5">
                 {messages.map((msg) => (
@@ -439,28 +440,25 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-border/70 bg-muted/20 p-3">
-            <div className="flex items-end gap-2">
-              <div className="min-w-0 flex-1 rounded-xl border bg-card px-3 py-2 shadow-sm">
-                <Textarea
-                  ref={textareaRef}
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask about this lesson…"
-                  disabled={streaming}
-                  rows={1}
-                  className="max-h-[160px] min-h-[36px] w-full resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
-                />
-              </div>
-
+          <div className="border-t border-border/70 bg-muted/20 p-2.5">
+            <div className="flex items-end gap-2 rounded-2xl border bg-card py-1.5 pl-3 pr-1.5 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15">
+              <Textarea
+                ref={textareaRef}
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about this lesson…"
+                disabled={streaming}
+                rows={1}
+                className="max-h-[120px] min-h-[28px] w-full resize-none self-center border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+              />
               <button
                 type="button"
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!canSend}
                 aria-label="Send message"
                 className={cn(
-                  'flex size-9 shrink-0 items-center justify-center rounded-full transition-all duration-200',
+                  'flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-200',
                   canSend
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
                     : 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'
@@ -470,8 +468,8 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
               </button>
             </div>
 
-            <div className="mt-1.5 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground/50">Claude · Lexi</p>
+            <div className="mt-1.5 flex items-center justify-between px-1">
+              <p className="text-[11px] text-muted-foreground/50">Powered by Claude</p>
               <button
                 type="button"
                 onClick={() => {
@@ -481,7 +479,7 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
                   setStreamingContent('')
                 }}
                 disabled={streaming || messages.length === 0}
-                className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground disabled:opacity-40"
+                className="text-[11px] font-medium text-muted-foreground/60 transition-colors hover:text-muted-foreground disabled:opacity-40"
               >
                 Clear chat
               </button>

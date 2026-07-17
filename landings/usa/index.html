@@ -33,6 +33,20 @@
 </head>
   <body>
     <div id="root"></div>
+    <!--
+      Meta Pixel: init + PageView + all funnel events fire from React
+      (src/lib/meta-pixel.ts) so they track every SPA route, not just first load.
+      Only the no-JS fallback lives here — do NOT add fbq('init'/'track') script
+      here too, or PageView double-fires on the first page.
+    -->
+    <noscript
+      ><img
+        height="1"
+        width="1"
+        style="display: none"
+        alt=""
+        src="https://www.facebook.com/tr?id=1766890887825527&ev=PageView&noscript=1"
+    /></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

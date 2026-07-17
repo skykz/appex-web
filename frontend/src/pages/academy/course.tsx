@@ -237,8 +237,8 @@ export default function CoursePage() {
           </section>
         </div>
 
-        <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-          <div className="flex flex-col gap-6">
+        <div className="grid min-w-0 gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+          <div className="flex min-w-0 flex-col gap-6">
             {course.modules.length === 0 ? (
               <div className="rounded-[2rem] border border-dashed bg-muted/30 p-10 text-center">
                 <p className="text-sm text-muted-foreground">
@@ -262,16 +262,16 @@ export default function CoursePage() {
                   <div className="absolute right-8 top-8 size-24 rounded-full bg-white/35 blur-2xl dark:bg-white/5" aria-hidden />
                   <div className="absolute bottom-5 left-8 size-20 rounded-full bg-black/[0.03] blur-2xl dark:bg-white/[0.03]" aria-hidden />
 
-                  <div className="relative mb-5 flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
+                  <div className="relative mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex min-w-0 items-start gap-3">
                       <div className={cn('flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-lg', tone.marker)}>
                         <Route className="size-5" aria-hidden />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className={cn('mb-1 inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide', tone.soft)}>
                           Area {moduleIndex + 1}
                         </p>
-                        <h2 className="text-xl font-bold tracking-tight">
+                        <h2 className="text-lg font-bold tracking-tight sm:text-xl">
                           {module.title}
                         </h2>
                         <p className="text-muted-foreground text-sm">
@@ -280,8 +280,8 @@ export default function CoursePage() {
                       </div>
                     </div>
 
-                    <div className="min-w-[8rem] rounded-2xl border bg-background/70 p-3 shadow-sm backdrop-blur">
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                    <div className="w-full shrink-0 rounded-2xl border bg-background/70 p-3 shadow-sm backdrop-blur lg:w-44">
+                      <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
                         <span>Area progress</span>
                         <span className="tabular-nums">{stats.percent}%</span>
                       </div>

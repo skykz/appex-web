@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
-import { Check, Copy, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Copy, Paperclip, X } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { Button, Input, Textarea } from '@shared/ui'
+import { Button, Textarea } from '@shared/ui'
 import type { LessonBlock } from './lesson-types'
 import { lessonApi, type SavedQuizAttempt } from './api'
 import { renderLinkedText } from './render-linked-text'
@@ -193,7 +193,7 @@ export function QuizBlockView({
         : null
 
   return (
-    <div className="mt-5 rounded-2xl border-2 border-orange-100 bg-card p-4 shadow-sm ring-1 ring-orange-50 sm:p-5">
+    <div className="mt-5 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
       <p className="text-base font-semibold leading-snug text-foreground">
         {block.question}
       </p>
@@ -206,12 +206,13 @@ export function QuizBlockView({
           disabled={mutation.isPending || result !== null}
         />
       ) : (
-        <ul className="mt-4 flex flex-col gap-2.5">
+        <ul className="mt-4 flex flex-col gap-2">
           {options.map((opt, idx) => {
             const isSelected = selected.includes(idx)
             const hasResult = result !== null
             const isCorrectOption = hasResult && correctAfterSubmit.has(idx)
             const isWrongSelected = hasResult && isSelected && !isCorrectOption
+            const letter = String.fromCharCode(65 + idx)
 
             return (
               <li key={idx}>
@@ -221,35 +222,32 @@ export function QuizBlockView({
                   disabled={mutation.isPending || result !== null}
                   aria-pressed={isSelected}
                   className={cn(
-                    'flex w-full items-start gap-3 rounded-xl border-2 px-3 py-3 text-left text-[15px] leading-relaxed transition-all',
+                    'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-[15px] leading-snug transition-all',
                     !hasResult &&
                       !isSelected &&
-                      'border-border bg-card hover:border-orange-200 hover:bg-orange-50/50',
+                      'border-border bg-card hover:border-primary/40 hover:bg-primary/[0.04]',
                     isSelected &&
                       !result &&
-                      'border-primary bg-primary/[0.12] shadow-[inset_3px_0_0_0_hsl(var(--primary))] ring-2 ring-primary/25',
+                      'border-primary bg-primary/[0.08] ring-1 ring-primary/30',
                     hasResult &&
                       !isSelected &&
                       !isCorrectOption &&
-                      'border-border bg-card opacity-75',
+                      'border-border bg-card opacity-60',
                     isCorrectOption &&
-                      'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200',
+                      'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-300',
                     isWrongSelected &&
-                      'border-red-500 bg-red-50 ring-2 ring-red-200'
+                      'border-red-500 bg-red-50 ring-1 ring-red-300'
                   )}
                 >
                   <span
                     className={cn(
-                      'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums transition-colors',
-                      !isSelected &&
-                        'border-border bg-muted text-muted-foreground',
+                      'flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold tabular-nums transition-colors',
+                      !isSelected && 'bg-muted text-muted-foreground',
                       isSelected &&
                         !result &&
-                        'border-primary bg-primary text-primary-foreground',
-                      isCorrectOption &&
-                        'border-emerald-600 bg-emerald-600 text-white',
-                      isWrongSelected &&
-                        'border-red-600 bg-red-600 text-white'
+                        'bg-primary text-primary-foreground',
+                      isCorrectOption && 'bg-emerald-600 text-white',
+                      isWrongSelected && 'bg-red-600 text-white'
                     )}
                   >
                     {isWrongSelected ? (
@@ -257,12 +255,12 @@ export function QuizBlockView({
                     ) : isSelected || isCorrectOption ? (
                       <Check className="size-4" strokeWidth={3} aria-hidden />
                     ) : (
-                      idx + 1
+                      letter
                     )}
                   </span>
                   <span
                     className={cn(
-                      'min-w-0 flex-1 pt-0.5',
+                      'min-w-0 flex-1',
                       isSelected && !result && 'font-medium text-foreground',
                       isCorrectOption && 'font-medium text-emerald-950',
                       isWrongSelected && 'font-medium text-red-950'
@@ -324,6 +322,7 @@ export function SubmissionBlockView({
   const [message, setMessage] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     data: existing,
@@ -390,25 +389,48 @@ export function SubmissionBlockView({
         disabled={submit.isPending}
       />
       {block.acceptAttachment ? (
-        <div className="mt-3 rounded-xl border border-border/70 bg-background/80 p-3">
-          <label className="text-xs font-semibold text-muted-foreground">
-            Attach file
-          </label>
-          <Input
+        <div className="mt-3">
+          <input
+            ref={fileInputRef}
             key={selectedFile ? `${selectedFile.name}-${selectedFile.lastModified}` : 'empty-file'}
-            className="mt-2 border-border/80 bg-background"
             type="file"
+            className="hidden"
             onChange={(e) => handleFileChange(e.target.files?.[0])}
             disabled={submit.isPending}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Any file type, up to {formatBytes(MAX_SUBMISSION_FILE_BYTES)}.
-          </p>
           {selectedFile ? (
-            <p className="mt-2 text-xs font-medium text-foreground">
-              Selected: {selectedFile.name} ({formatBytes(selectedFile.size)})
-            </p>
-          ) : null}
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <Paperclip className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                {selectedFile.name}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {formatBytes(selectedFile.size)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleFileChange(undefined)}
+                disabled={submit.isPending}
+                aria-label="Remove file"
+                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={submit.isPending}
+              className="inline-flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground"
+            >
+              <Paperclip className="size-4" aria-hidden />
+              Attach a file
+              <span className="text-xs font-normal text-muted-foreground/70">
+                (up to {formatBytes(MAX_SUBMISSION_FILE_BYTES)})
+              </span>
+            </button>
+          )}
           {fileError ? (
             <p className="mt-2 text-xs font-medium text-destructive">{fileError}</p>
           ) : null}

@@ -13,87 +13,73 @@ interface PlatformLoaderProps {
 
 const variantStyles: Record<
   PlatformLoaderVariant,
-  { frame: string; core: string; icon: string; dots: string[] }
+  { frame: string; ring: number; stroke: number; badge: string; icon: string }
 > = {
-  full: {
-    frame: 'size-20',
-    core: 'size-11 rounded-xl',
-    icon: 'size-5',
-    dots: ['size-2.5', 'size-2', 'size-1.5'],
-  },
-  inline: {
-    frame: 'size-14',
-    core: 'size-8 rounded-lg',
-    icon: 'size-4',
-    dots: ['size-2', 'size-1.5', 'size-1.5'],
-  },
-  compact: {
-    frame: 'size-9',
-    core: 'size-5 rounded-md',
-    icon: 'size-3',
-    dots: ['size-1.5', 'size-1', 'size-1'],
-  },
+  full: { frame: 'size-16', ring: 64, stroke: 4, badge: 'size-11 rounded-2xl', icon: 'size-5' },
+  inline: { frame: 'size-12', ring: 48, stroke: 3.5, badge: 'size-8 rounded-xl', icon: 'size-4' },
+  compact: { frame: 'size-8', ring: 32, stroke: 3, badge: 'size-5 rounded-lg', icon: 'size-3' },
 }
 
 /**
- * AppEx sparkle-orbit loader — central sparkles with orbiting dots (CSS-only).
+ * AppEx loader — a branded sparkle badge inside a smoothly sweeping progress ring.
+ * CSS/SVG only (no assets), respects reduced-motion, and matches the Lexi mark.
  */
 export function PlatformLoader({
   variant = 'inline',
   label,
   className,
 }: PlatformLoaderProps) {
-  const styles = variantStyles[variant]
+  const s = variantStyles[variant]
   const caption = label ?? (variant === 'full' ? 'Loading…' : undefined)
+  const r = (s.ring - s.stroke) / 2
+  const c = 2 * Math.PI * r
+  const center = s.ring / 2
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-label={caption ?? 'Loading'}
-      className={cn('flex flex-col items-center justify-center gap-3', className)}
+      className={cn('flex flex-col items-center justify-center gap-3.5', className)}
     >
-      <div className={cn('relative', styles.frame)}>
-        <div className="absolute inset-0 animate-[platform-orbit_2.4s_linear_infinite]">
-          <span
-            className={cn(
-              'absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.35)]',
-              styles.dots[0]
-            )}
-          />
-        </div>
-        <div
-          className="absolute inset-0 animate-[platform-orbit_2.4s_linear_infinite]"
-          style={{ animationDelay: '-0.8s' }}
+      <div className={cn('relative', s.frame)}>
+        {/* Sweeping progress ring */}
+        <svg
+          className="absolute inset-0 -rotate-90 animate-[platform-spin_1.1s_linear_infinite] motion-reduce:animate-none"
+          viewBox={`0 0 ${s.ring} ${s.ring}`}
+          aria-hidden
         >
-          <span
-            className={cn(
-              'absolute left-1/2 top-0 -translate-x-1/2 rounded-full bg-primary/75',
-              styles.dots[1]
-            )}
+          <circle
+            cx={center}
+            cy={center}
+            r={r}
+            fill="none"
+            className="stroke-primary/15"
+            strokeWidth={s.stroke}
           />
-        </div>
-        <div
-          className="absolute inset-0 animate-[platform-orbit-reverse_3.1s_linear_infinite]"
-          style={{ animationDelay: '-1.2s' }}
-        >
-          <span
-            className={cn(
-              'absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-orange-400/80',
-              styles.dots[2]
-            )}
+          <circle
+            cx={center}
+            cy={center}
+            r={r}
+            fill="none"
+            className="stroke-primary"
+            strokeWidth={s.stroke}
+            strokeLinecap="round"
+            strokeDasharray={c}
+            strokeDashoffset={c * 0.72}
           />
-        </div>
+        </svg>
 
+        {/* Center sparkle badge — matches the Lexi mark / brand */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             className={cn(
-              'flex items-center justify-center bg-primary/10 text-primary shadow-sm ring-1 ring-primary/15',
-              'animate-[platform-sparkle-pulse_2s_ease-in-out_infinite]',
-              styles.core
+              'flex items-center justify-center bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-sm',
+              'animate-[platform-breathe_1.8s_ease-in-out_infinite] motion-reduce:animate-none',
+              s.badge
             )}
           >
-            <Sparkles className={styles.icon} strokeWidth={2.25} aria-hidden />
+            <Sparkles className={s.icon} strokeWidth={2.25} aria-hidden />
           </div>
         </div>
       </div>
