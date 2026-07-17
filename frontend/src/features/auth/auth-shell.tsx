@@ -22,7 +22,7 @@ export function AuthShell({ maxWidthClassName, className }: AuthShellProps) {
         className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden
       >
-        <div className="absolute -top-1/3 left-1/2 h-[min(90vh,900px)] w-[min(100vw,900px)] -translate-x-1/2 rounded-full bg-gradient-to-b from-orange-500/[0.12] via-amber-500/[0.06] to-transparent blur-3xl" />
+        <div className="absolute -top-1/3 left-1/2 h-[min(90vh,900px)] w-[min(100vw,900px)] -translate-x-1/2 rounded-full bg-linear-to-b from-orange-500/[0.12] via-amber-500/[0.06] to-transparent blur-3xl" />
         <div className="absolute bottom-0 right-0 h-64 w-64 rounded-full bg-amber-400/10 blur-3xl" />
       </div>
       <div

@@ -40,7 +40,7 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
       <div
         className={cn(
           'relative flex aspect-[16/10] items-center justify-center bg-muted/35',
-          isPremiumLocked && 'bg-gradient-to-b from-amber-50/80 via-muted/30 to-muted/20 dark:from-amber-950/20'
+          isPremiumLocked && 'bg-linear-to-b from-amber-50/80 via-muted/30 to-muted/20 dark:from-amber-950/20'
         )}
       >
         <div className="transition-transform duration-200 group-hover:scale-105">
@@ -61,7 +61,7 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
         ) : null}
 
         {isPremiumLocked ? (
-          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+          <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-linear-to-r from-amber-400 to-orange-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
             <Sparkles className="size-3" />
             Premium
           </span>

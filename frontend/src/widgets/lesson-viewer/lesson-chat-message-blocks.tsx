@@ -5,7 +5,8 @@ import lexiAvatarUrl from '@/assets/lexi-avatar.png'
 
 /** Gap between sender name and bubble; max width before text wraps. */
 const CHAT_LABEL_GAP = 'gap-1.5'
-const CHAT_BUBBLE_MAX = 'max-w-[min(100%,34rem)]'
+/** Cap the bubble column so avatar (size-10) + gap-3 never pushes the row past the container at 360px. */
+const CHAT_BUBBLE_MAX = 'max-w-[min(100%-3.25rem,34rem)]'
 
 const chatBubbleShellClass =
   'w-fit break-words rounded-[1.125rem] px-4 py-3.5 text-[15px] leading-relaxed shadow-sm'
@@ -36,15 +37,14 @@ export function UserMessageBlock({ name, children, className }: UserMessageBlock
           <div
             className={cn(
               chatBubbleShellClass,
-              CHAT_BUBBLE_MAX,
-              'bg-primary text-primary-foreground'
+              'max-w-full bg-primary text-primary-foreground'
             )}
           >
             {children}
           </div>
         </div>
         <Avatar className="size-10 shrink-0 ring-2 ring-background">
-          <AvatarFallback className="bg-gradient-to-br from-violet-400 to-fuchsia-500 text-sm font-semibold text-white">
+          <AvatarFallback className="bg-linear-to-br from-violet-400 to-fuchsia-500 text-sm font-semibold text-white">
             {initial}
           </AvatarFallback>
         </Avatar>
@@ -72,7 +72,7 @@ export function MentorMessageBlock({
       <div className="flex max-w-full items-end gap-3">
         <Avatar className="size-10 shrink-0 ring-2 ring-background">
           <AvatarImage src={lexiAvatarUrl} alt="" className="object-cover object-top" />
-          <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-500 text-sm font-semibold text-white">
+          <AvatarFallback className="bg-linear-to-br from-sky-500 to-indigo-500 text-sm font-semibold text-white">
             L
           </AvatarFallback>
         </Avatar>
@@ -87,8 +87,7 @@ export function MentorMessageBlock({
           <div
             className={cn(
               chatBubbleShellClass,
-              CHAT_BUBBLE_MAX,
-              'bg-zinc-100 text-foreground dark:bg-zinc-800/80 dark:text-zinc-50'
+              'max-w-full bg-muted text-foreground'
             )}
           >
             {children}
@@ -116,13 +115,13 @@ export function LiveChatBubble({ role, label, children, footer }: LiveChatBubble
   const avatar = (
     <Avatar className="size-9 shrink-0 ring-2 ring-background">
       {isUser ? (
-        <AvatarFallback className="bg-gradient-to-br from-violet-400 to-fuchsia-500 text-xs font-semibold text-white">
+        <AvatarFallback className="bg-linear-to-br from-violet-400 to-fuchsia-500 text-xs font-semibold text-white">
           {initial}
         </AvatarFallback>
       ) : (
         <>
           <AvatarImage src={lexiAvatarUrl} alt="" className="object-cover object-top" />
-          <AvatarFallback className="bg-gradient-to-br from-sky-500 to-indigo-500 text-xs font-semibold text-white">
+          <AvatarFallback className="bg-linear-to-br from-sky-500 to-indigo-500 text-xs font-semibold text-white">
             L
           </AvatarFallback>
         </>
@@ -143,11 +142,10 @@ export function LiveChatBubble({ role, label, children, footer }: LiveChatBubble
       <div className="flex w-fit max-w-full flex-col gap-1">
         <div
           className={cn(
-            'w-fit rounded-[1.125rem] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
-            CHAT_BUBBLE_MAX,
+            'w-fit max-w-full rounded-[1.125rem] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words shadow-sm',
             isUser
               ? 'bg-primary text-primary-foreground'
-              : 'bg-zinc-100 text-foreground dark:bg-zinc-800/80 dark:text-zinc-50'
+              : 'bg-muted text-foreground'
           )}
         >
           {children}

@@ -21,14 +21,14 @@ export function LessonLinkCard({ url, label, description, className }: LessonLin
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex items-start gap-3 rounded-2xl border border-blue-500/70 bg-zinc-950 px-4 py-3 text-left text-zinc-50 no-underline shadow-sm transition-colors hover:border-blue-400 hover:bg-zinc-900"
+        className="group flex items-start gap-3 rounded-2xl border border-blue-500/30 bg-card px-4 py-3 text-left text-foreground no-underline shadow-sm transition-colors hover:border-blue-500/60 hover:bg-muted"
       >
-        <FileText className="mt-0.5 size-5 shrink-0 text-blue-300" aria-hidden />
+        <FileText className="mt-0.5 size-5 shrink-0 text-blue-500" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold leading-snug">{label}</span>
-          <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-300">
+          <span className="mt-2 flex min-w-0 items-center gap-2 text-xs font-semibold text-blue-600">
             <ExternalLink className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate underline decoration-blue-300/60 underline-offset-4 group-hover:decoration-blue-200">
+            <span className="truncate underline decoration-blue-500/50 underline-offset-4 group-hover:decoration-blue-600">
               {url}
             </span>
           </span>

@@ -40,7 +40,7 @@ export function ModelSelector({
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5',
+          'inline-flex items-center gap-2 rounded-full px-3 py-1.5',
           'text-sm font-medium text-muted-foreground',
           'bg-muted/60 transition-all duration-200',
           'hover:bg-muted active:scale-95'
@@ -75,8 +75,10 @@ export function ModelSelector({
                 }}
                 className={cn(
                   'flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                  'hover:bg-muted',
-                  model.id === value.id && 'bg-muted/60'
+                  'hover:bg-muted/70',
+                  model.id === value.id
+                    ? 'bg-primary/10 text-foreground ring-1 ring-primary/20'
+                    : 'text-foreground'
                 )}
               >
                 <AIModelIcon modelId={model.id} />
@@ -84,7 +86,7 @@ export function ModelSelector({
                   {model.name}
                 </span>
                 {model.id === value.id && (
-                  <Check className="size-4 text-foreground" />
+                  <Check className="size-4 text-primary" />
                 )}
               </button>
             ))}

@@ -92,8 +92,8 @@ export default function SkillDetailPage() {
         <div className="flex flex-col gap-8 lg:flex-row">
           <div className="min-w-0 flex-1">
             <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-              <div className="flex h-56 items-center justify-center bg-gradient-to-br from-muted/60 to-muted/20">
-                <EmojiOrImageBadge value={skill.emoji} frameClassName="h-32 w-32 text-8xl" />
+              <div className="flex h-40 items-center justify-center bg-linear-to-br from-muted/60 to-muted/20 sm:h-56">
+                <EmojiOrImageBadge value={skill.emoji} frameClassName="h-24 w-24 text-6xl sm:h-32 sm:w-32 sm:text-8xl" />
               </div>
 
               <div className="p-5">
@@ -152,7 +152,7 @@ export default function SkillDetailPage() {
                     className={cn(
                       'mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold transition-all active:scale-[0.98] sm:w-auto sm:px-8',
                       skill.premium_locked
-                        ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm hover:from-amber-500 hover:to-orange-600'
+                        ? 'bg-linear-to-r from-amber-400 to-orange-500 text-white shadow-sm hover:from-amber-500 hover:to-orange-600'
                         : 'bg-primary text-primary-foreground hover:bg-primary/90'
                     )}
                   >
@@ -257,7 +257,7 @@ function ModuleSection({
             const isPremiumLocked = lesson.locked && lesson.locked_reason === 'premium'
             const sequenceLocked = lesson.locked && !isPremiumLocked
             const indicator = isPremiumLocked ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-linear-to-r from-amber-400 to-orange-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
                 <Sparkles className="size-3" />
                 Premium
               </span>
@@ -298,7 +298,7 @@ function ModuleSection({
                   key={lesson.id}
                   type="button"
                   onClick={() => setPaywallFor(lesson.title)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-50/50 to-orange-50/50 p-3 text-left transition-all hover:from-amber-50 hover:to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40 dark:hover:to-orange-950/40"
+                  className="flex w-full items-center gap-3 rounded-xl border border-amber-400/30 bg-linear-to-r from-amber-50/50 to-orange-50/50 p-3 text-left transition-all hover:from-amber-50 hover:to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40 dark:hover:to-orange-950/40"
                 >
                   {content}
                 </button>

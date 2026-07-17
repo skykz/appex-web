@@ -76,11 +76,11 @@ function MonthGrid({
         animationFillMode: 'both',
       }}
     >
-      <p className="mb-4 text-center text-sm font-bold text-zinc-900">{monthLabel}</p>
+      <p className="mb-4 text-center text-sm font-bold text-foreground">{monthLabel}</p>
 
       <div className="mb-3 grid grid-cols-7 text-center">
         {DAY_LABELS.map((d) => (
-          <span key={d} className="text-xs font-semibold text-zinc-500">
+          <span key={d} className="text-xs font-semibold text-muted-foreground">
             {d}
           </span>
         ))}
@@ -103,10 +103,10 @@ function MonthGrid({
                   'flex size-10 items-center justify-center rounded-full text-sm transition-all duration-200',
                   isActive
                     ? 'bg-orange-500 font-semibold text-white shadow-sm'
-                    : 'bg-white text-zinc-500 shadow-sm ring-1 ring-orange-100/80',
+                    : 'bg-card text-muted-foreground shadow-sm ring-1 ring-border',
                   isToday &&
                     !isActive &&
-                    'font-semibold text-zinc-900 ring-2 ring-orange-400/70'
+                    'font-semibold text-foreground ring-2 ring-orange-400/70'
                 )}
               >
                 {day}
@@ -139,7 +139,7 @@ export function StreakCalendar({
 
   if (!parsed) {
     return (
-      <div className="rounded-xl border border-orange-100 bg-white p-4 text-sm text-zinc-500">
+      <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
         Invalid month
       </div>
     )
@@ -161,7 +161,7 @@ export function StreakCalendar({
         <button
           type="button"
           onClick={() => changeMonth(-1)}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors duration-200 hover:bg-white hover:text-zinc-900 active:scale-90"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-card hover:text-foreground active:scale-90"
           aria-label="Previous month"
         >
           <ChevronLeft className="size-5" />
@@ -181,7 +181,7 @@ export function StreakCalendar({
         <button
           type="button"
           onClick={() => changeMonth(1)}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors duration-200 hover:bg-white hover:text-zinc-900 active:scale-90"
+          className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-card hover:text-foreground active:scale-90"
           aria-label="Next month"
         >
           <ChevronRight className="size-5" />

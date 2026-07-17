@@ -40,7 +40,7 @@ export default function AuthPage() {
         <div
           className={cn(
             'flex size-16 items-center justify-center rounded-2xl text-white shadow-lg',
-            'bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500',
+            'bg-linear-to-br from-orange-500 to-amber-500',
             'ring-2 ring-orange-400/25',
             'transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]'
           )}

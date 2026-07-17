@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Clock3, ExternalLink, FileText, Inbox } from 'lucide-react'
-import { Button, SectionLoader } from '@shared/ui'
+import { Button, Skeleton } from '@shared/ui'
 import { cn } from '@shared/lib'
 import { lessonApi } from '@widgets/lesson-viewer/api'
 
@@ -44,7 +44,7 @@ export default function MySubmissionsPage() {
 
   return (
     <div className="relative isolate min-h-dvh w-full">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-gradient-to-b from-primary/[0.07] via-transparent to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-linear-to-b from-primary/[0.07] via-transparent to-transparent" />
       <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -60,17 +60,29 @@ export default function MySubmissionsPage() {
           <div className="grid grid-cols-2 gap-2 text-sm sm:min-w-56">
             <div className="rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm">
               <p className="text-xs text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold tabular-nums">{submissions.length}</p>
+              {isPending ? (
+                <Skeleton className="mt-1 h-7 w-10 rounded-md" />
+              ) : (
+                <p className="text-2xl font-bold tabular-nums">{submissions.length}</p>
+              )}
             </div>
             <div className="rounded-xl border border-border/70 bg-card px-3 py-2 shadow-sm">
               <p className="text-xs text-muted-foreground">Reviewed</p>
-              <p className="text-2xl font-bold tabular-nums">{reviewedCount}</p>
+              {isPending ? (
+                <Skeleton className="mt-1 h-7 w-10 rounded-md" />
+              ) : (
+                <p className="text-2xl font-bold tabular-nums">{reviewedCount}</p>
+              )}
             </div>
           </div>
         </header>
 
         {isPending ? (
-          <SectionLoader label="Loading submissions…" />
+          <ul className="space-y-4" aria-hidden>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SubmissionCardSkeleton key={i} />
+            ))}
+          </ul>
         ) : isError ? (
           <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
             Failed to load submissions: {(error as Error)?.message}
@@ -101,6 +113,30 @@ export default function MySubmissionsPage() {
 }
 
 /**
+ * Placeholder card shown while submissions load — mirrors SubmissionCard's layout.
+ */
+function SubmissionCardSkeleton() {
+  return (
+    <li>
+      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-sm">
+        <div className="flex items-start justify-between gap-4 border-b border-border/60 bg-muted/20 px-4 py-4 sm:px-5">
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-3 w-40 rounded-md" />
+            <Skeleton className="h-4 w-56 max-w-full rounded-md" />
+            <Skeleton className="h-3 w-32 rounded-md" />
+          </div>
+          <Skeleton className="h-6 w-28 shrink-0 rounded-full" />
+        </div>
+        <div className="space-y-3 px-4 py-4 sm:px-5">
+          <Skeleton className="h-4 w-3/4 rounded-md" />
+          <Skeleton className="h-9 w-full rounded-xl" />
+        </div>
+      </div>
+    </li>
+  )
+}
+
+/**
  * One submitted work card with review status, optional grade, staff feedback, and attachment link.
  */
 function SubmissionCard({ submission }: { submission: MySubmission }) {
@@ -120,7 +156,11 @@ function SubmissionCard({ submission }: { submission: MySubmission }) {
               </h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {submission.lesson_label} · Submitted{' '}
-                {new Date(submission.created_at).toLocaleString()}
+                {new Date(submission.created_at).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                })}
               </p>
             </div>
             <span

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Trash2 } from 'lucide-react'
-import { PlatformLoader } from '@shared/ui'
+import { Skeleton } from '@shared/ui'
 import { chatApi } from './api'
 import { ApiError } from '@shared/api/http-client'
 import { cn } from '@shared/lib'
@@ -82,7 +82,7 @@ export function ChatHistoryPanel({
         aria-hidden
       />
 
-      <div className="fixed right-4 top-16 z-[190] w-80 rounded-2xl border-2 border-border bg-popover text-popover-foreground shadow-2xl ring-1 ring-black/5 animate-in fade-in slide-in-from-right-4 duration-200 dark:ring-white/10">
+      <div className="fixed right-4 top-16 z-[190] w-[calc(100vw-2rem)] max-w-80 rounded-2xl border-2 border-border bg-popover text-popover-foreground shadow-2xl ring-1 ring-black/5 animate-in fade-in slide-in-from-right-4 duration-200 dark:ring-white/10">
         <div className="flex items-center justify-between p-4 pb-3">
           <h2 className="text-lg font-bold">History</h2>
           <button
@@ -100,8 +100,13 @@ export function ChatHistoryPanel({
 
         <div className="max-h-96 overflow-y-auto px-4 pb-4">
           {isPending ? (
-            <div className="flex justify-center py-8">
-              <PlatformLoader variant="compact" />
+            <div className="flex flex-col gap-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-xl px-3 py-3">
+                  <Skeleton className="h-4 w-3/4 rounded-md" />
+                  <Skeleton className="mt-2 h-3 w-20 rounded-md" />
+                </div>
+              ))}
             </div>
           ) : isError ? (
             <div className="py-8 text-center text-sm text-muted-foreground">

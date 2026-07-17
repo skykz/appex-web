@@ -119,6 +119,23 @@ export default function LessonPage() {
     )
   }
 
+  if (!content.steps.length) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <p className="text-muted-foreground text-sm">
+          This lesson has no content yet.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(`/academy/courses/${courseId}`)}
+          className="text-primary text-sm font-medium"
+        >
+          Back to course
+        </button>
+      </div>
+    )
+  }
+
   const moduleCompletion = resolveModuleCompletion(course, numericLessonId)
 
   return (

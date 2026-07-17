@@ -85,7 +85,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
           <div
             className={cn(
               'border-b border-orange-200/80 px-5 pb-5 pt-6',
-              'bg-gradient-to-br from-orange-100 via-amber-50 to-orange-50',
+              'bg-linear-to-br from-orange-100 via-amber-50 to-orange-50',
               'dark:border-orange-500/25 dark:from-orange-950 dark:via-amber-950/80 dark:to-background'
             )}
           >
@@ -175,7 +175,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
                       className={cn(
                         'flex size-9 items-center justify-center rounded-full border text-center transition-all sm:size-10',
                         isToday &&
-                          'border-orange-400 bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md ring-2 ring-orange-300/50 dark:ring-orange-500/40',
+                          'border-orange-400 bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-md ring-2 ring-orange-300/50 dark:ring-orange-500/40',
                         !isToday &&
                           isCompleted &&
                           'border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200',

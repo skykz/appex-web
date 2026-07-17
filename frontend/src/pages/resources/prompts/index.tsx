@@ -10,7 +10,19 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { Button, Input, Label, Textarea } from '@shared/ui'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Skeleton,
+  Textarea,
+} from '@shared/ui'
 import {
   fetchPromptCategories,
   fetchPrompts,
@@ -67,6 +79,9 @@ export default function PromptsLibraryPage() {
   const [draftCategory, setDraftCategory] = useState('General')
   const [draftContent, setDraftContent] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<UserPromptRecord | null>(
+    null
+  )
 
   const { data: categories = [] } = useQuery({
     queryKey: ['prompt-categories'],
@@ -148,6 +163,7 @@ export default function PromptsLibraryPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['prompts-mine'] })
       void qc.invalidateQueries({ queryKey: ['prompt-mine-categories'] })
+      setPendingDelete(null)
     },
   })
 
@@ -186,7 +202,7 @@ export default function PromptsLibraryPage() {
 
   return (
     <div className="relative min-h-dvh w-full py-2">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-primary/[0.05] to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-linear-to-b from-primary/[0.05] to-transparent" />
       <div className="relative px-4">
         <div className="mb-1 flex items-center gap-2 text-muted-foreground">
           <FileText className="size-4" />
@@ -203,7 +219,7 @@ export default function PromptsLibraryPage() {
           to paste into AI Chat or anywhere else.
         </p>
 
-        <div className="mb-5 flex flex-wrap gap-2">
+        <div className="mb-5 inline-flex items-center gap-1 rounded-xl border border-border bg-muted/40 p-1">
           <button
             type="button"
             onClick={() => {
@@ -211,10 +227,10 @@ export default function PromptsLibraryPage() {
               setActiveCategory(null)
             }}
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all',
+              'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all',
               tab === 'curated'
-                ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                : 'border-border bg-card text-foreground hover:border-primary/40'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Sparkles className="size-4" />
@@ -227,10 +243,10 @@ export default function PromptsLibraryPage() {
               setActiveCategory(null)
             }}
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold transition-all',
+              'inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all',
               tab === 'mine'
-                ? 'border-primary bg-primary text-primary-foreground shadow-md'
-                : 'border-border bg-card text-foreground hover:border-primary/40'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Library className="size-4" />
@@ -306,15 +322,15 @@ export default function PromptsLibraryPage() {
         ) : null}
 
         <div className="relative mb-4">
-          <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={
               tab === 'curated' ? 'Search starters…' : 'Search my prompts…'
             }
-            className="w-full rounded-xl border bg-card py-2.5 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-ring"
+            className="rounded-xl pl-10"
           />
         </div>
 
@@ -359,10 +375,7 @@ export default function PromptsLibraryPage() {
         {pending ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-24 animate-pulse rounded-xl border bg-muted/40"
-              />
+              <Skeleton key={i} className="h-24 rounded-xl" />
             ))}
           </div>
         ) : error ? (
@@ -415,16 +428,11 @@ export default function PromptsLibraryPage() {
                             handleCopy(text, `"${prompt.title}"`)
                           }
                           onEdit={() => startEdit(prompt)}
-                          onDelete={() => {
-                            if (
-                              window.confirm(
-                                'Delete this prompt from your library?'
-                              )
-                            ) {
-                              deleteMutation.mutate(prompt.id)
-                            }
-                          }}
-                          deleting={deleteMutation.isPending}
+                          onDelete={() => setPendingDelete(prompt)}
+                          deleting={
+                            deleteMutation.isPending &&
+                            pendingDelete?.id === prompt.id
+                          }
                         />
                       ))}
                     </div>
@@ -433,6 +441,49 @@ export default function PromptsLibraryPage() {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setPendingDelete(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete prompt?</DialogTitle>
+            <DialogDescription>
+              This removes
+              {pendingDelete ? ` “${pendingDelete.title}” ` : ' this prompt '}
+              from your library. This can&apos;t be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deleteMutation.isPending}
+              onClick={() => setPendingDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (pendingDelete) deleteMutation.mutate(pendingDelete.id)
+              }}
+            >
+              {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+          {deleteMutation.isError ? (
+            <p className="text-sm text-destructive">
+              {(deleteMutation.error as Error)?.message ?? 'Could not delete.'}
+            </p>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

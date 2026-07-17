@@ -152,7 +152,7 @@ export default function SettingsPage() {
 
   return (
     <div className="relative min-h-dvh w-full py-2">
-      <div className="px-4">
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Manage your account and subscription settings.
@@ -171,7 +171,7 @@ export default function SettingsPage() {
 
         <div className="mt-6 flex flex-col gap-8 lg:flex-row">
           <nav className="w-full shrink-0 lg:w-56">
-            <div className="flex flex-row gap-1 overflow-x-auto lg:flex-col">
+            <div className="scrollbar-hide -mx-4 flex flex-row gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0 lg:flex-col">
               {navItems.map((item) => (
                 <button
                   key={item.id}
@@ -260,16 +260,19 @@ function AccountSection() {
   const setUser = useAuthStore((s) => s.setUser)
   const nameRef = useRef<HTMLInputElement>(null)
   const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle')
 
   async function handleSave() {
     const name = nameRef.current?.value.trim()
     if (!name) return
     setSaving(true)
+    setStatus('idle')
     try {
       const updated = await userApi.updateProfile({ name })
       setUser(updated)
+      setStatus('saved')
     } catch {
-      // TODO: show error toast
+      setStatus('error')
     } finally {
       setSaving(false)
     }
@@ -292,7 +295,8 @@ function AccountSection() {
             ref={nameRef}
             type="text"
             defaultValue={user?.name ?? ''}
-            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            onChange={() => setStatus('idle')}
+            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           />
         </div>
         <div className="space-y-1.5">
@@ -302,16 +306,24 @@ function AccountSection() {
             type="email"
             defaultValue={user?.email ?? ''}
             disabled
-            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none opacity-60"
+            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-base outline-none opacity-60 sm:text-sm"
           />
         </div>
-        <Button
-          onClick={handleSave}
-          disabled={saving}
-          size="xl"
-        >
-          {saving ? 'Saving...' : 'Save changes'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={handleSave} disabled={saving} size="xl">
+            {saving ? 'Saving...' : 'Save changes'}
+          </Button>
+          {status === 'saved' && (
+            <span className="text-sm font-medium text-emerald-600">
+              Changes saved
+            </span>
+          )}
+          {status === 'error' && (
+            <span className="text-sm font-medium text-destructive">
+              Couldn't save — please try again
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center justify-between rounded-xl border p-4">
@@ -1063,8 +1075,8 @@ function CancelDialog({
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
         {showWinBack ? (
           <>
-            <div className="border-b border-orange-100 bg-gradient-to-br from-orange-50 via-amber-50 to-white px-6 pb-5 pt-8 text-center">
-              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+            <div className="border-b border-orange-100 bg-linear-to-br from-orange-50 via-amber-50 to-white px-6 pb-5 pt-8 text-center">
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg">
                 <Sparkles className="size-6" strokeWidth={2.5} />
               </div>
               <DialogHeader className="space-y-2 sm:text-center">
@@ -1200,6 +1212,7 @@ function ContactSection() {
   >('general')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState(false)
 
   async function handleSend() {
     const subject = subjectRef.current?.value.trim() ?? ''
@@ -1207,13 +1220,15 @@ function ContactSection() {
     if (!subject || !message) return
 
     setSending(true)
+    setSent(false)
+    setError(false)
     try {
       await settingsApi.submitContact({ subject, message, category })
       setSent(true)
       if (subjectRef.current) subjectRef.current.value = ''
       if (messageRef.current) messageRef.current.value = ''
     } catch {
-      // TODO: show error toast
+      setError(true)
     } finally {
       setSending(false)
     }
@@ -1234,7 +1249,7 @@ function ContactSection() {
             id="contact-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as typeof category)}
-            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           >
             <option value="general">General</option>
             <option value="feedback">Feedback</option>
@@ -1251,7 +1266,7 @@ function ContactSection() {
             ref={subjectRef}
             type="text"
             placeholder="What can we help with?"
-            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-lg border bg-muted/30 px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           />
         </div>
         <div className="space-y-1.5">
@@ -1261,10 +1276,19 @@ function ContactSection() {
             ref={messageRef}
             rows={5}
             placeholder="Describe your issue or question..."
-            className="w-full resize-none rounded-lg border bg-muted/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+            className="w-full resize-none rounded-lg border bg-muted/30 px-3 py-2.5 text-base outline-none focus:ring-2 focus:ring-ring sm:text-sm"
           />
         </div>
-        {sent && <p className="text-sm text-green-600">Message sent successfully!</p>}
+        {sent && (
+          <p className="text-sm font-medium text-emerald-600">
+            Message sent successfully!
+          </p>
+        )}
+        {error && (
+          <p className="text-sm font-medium text-destructive">
+            Couldn't send your message — please try again.
+          </p>
+        )}
         <Button
           onClick={handleSend}
           disabled={sending}

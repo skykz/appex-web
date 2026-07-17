@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, NavLink, matchPath, useLocation, useNavigate } from 'react-router-dom'
-import * as Collapsible from '@radix-ui/react-collapsible'
 import {
   Home,
   Puzzle,
@@ -10,9 +9,6 @@ import {
   BookOpen,
   ChevronRight,
   ChevronsUpDown,
-  MessageSquare,
-  Bot,
-  Workflow,
   BadgeCheck,
   CreditCard,
   LogOut,
@@ -38,9 +34,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from '@shared/ui/sidebar'
 import { Avatar, AvatarFallback, AvatarImage } from '@shared/ui/avatar'
@@ -66,19 +59,6 @@ const mainNav = [
         url: '/submissions',
         icon: ClipboardCheck,
       },
-    ],
-  },
-]
-
-const toolsNav = [
-  {
-    title: 'AI Tools',
-    icon: Wand2,
-    url: '/ai-tools',
-    items: [
-      { title: 'Chat', url: '/ai-tools/chat', icon: MessageSquare },
-      { title: 'Assistants', url: '/ai-tools/assistants', icon: Bot },
-      { title: 'Automation', url: '/ai-tools/automation', icon: Workflow },
     ],
   },
 ]
@@ -190,45 +170,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* AI Tools (Collapsible) */}
+        {/* AI Tools — single working tool (Chat), so link straight to it. */}
         <SidebarGroup>
           <SidebarGroupLabel>Tools</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <Collapsible.Root
-                defaultOpen={isAiToolsActive}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <Collapsible.Trigger asChild>
-                    <SidebarMenuButton tooltip="AI Tools" isActive={isAiToolsActive}>
-                      <Wand2 />
-                      <span>AI Tools</span>
-                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                    </SidebarMenuButton>
-                  </Collapsible.Trigger>
-                  <Collapsible.Content>
-                    <SidebarMenuSub>
-                      {toolsNav[0].items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={isRouteActive(
-                              location.pathname,
-                              subItem.url
-                            )}
-                          >
-                            <NavLink to={subItem.url} end>
-                              {subItem.icon && <subItem.icon className="size-4 opacity-70" />}
-                              <span>{subItem.title}</span>
-                            </NavLink>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </Collapsible.Content>
-                </SidebarMenuItem>
-              </Collapsible.Root>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip="AI Chat"
+                  isActive={isAiToolsActive}
+                >
+                  <NavLink to="/ai-tools/chat">
+                    <Wand2 />
+                    <span>AI Chat</span>
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -284,7 +242,7 @@ function TierBadge({ tier }: { tier: SubscriptionTier }) {
       ? {
           text: 'Premium',
           className:
-            'bg-gradient-to-r from-amber-400/20 to-orange-500/20 text-orange-700 ring-orange-500/30 dark:from-amber-400/15 dark:to-orange-500/15 dark:text-orange-300 dark:ring-orange-400/30',
+            'bg-linear-to-r from-amber-400/20 to-orange-500/20 text-orange-700 ring-orange-500/30 dark:from-amber-400/15 dark:to-orange-500/15 dark:text-orange-300 dark:ring-orange-400/30',
           icon: Sparkles,
         }
       : tier === 'pending'
@@ -350,90 +308,34 @@ function UpgradeCta({ tier }: { tier: SubscriptionTier }) {
     )
   }
 
-  return <IntroOfferCta />
+  return <UpgradePremiumCta />
 }
 
 /**
- * 5-minute countdown localStorage key. We persist the *deadline timestamp*,
- * not seconds-remaining — that way the timer keeps ticking across tab reloads
- * and route changes instead of resetting. When it hits zero we start a new
- * one (some retention loops re-arm; this one just lets the user always have
- * an offer to claim).
+ * Honest upgrade prompt for free users — highlights the value of Premium and links
+ * to the plans page. No fake countdown or manufactured scarcity.
  */
-const INTRO_OFFER_DEADLINE_KEY = 'appex_intro_offer_deadline'
-const INTRO_OFFER_DURATION_MS = 5 * 60 * 1000
-
-function readDeadline(): number {
-  if (typeof window === 'undefined') return Date.now() + INTRO_OFFER_DURATION_MS
-  const raw = window.localStorage.getItem(INTRO_OFFER_DEADLINE_KEY)
-  const parsed = raw ? Number(raw) : 0
-  // Re-arm if missing, malformed, or already expired by more than an hour.
-  if (!Number.isFinite(parsed) || parsed - Date.now() < -3600_000) {
-    const next = Date.now() + INTRO_OFFER_DURATION_MS
-    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
-    return next
-  }
-  // If clock crossed zero while page was closed, reset to a fresh window
-  // so the timer always shows something > 0 and the offer feels active.
-  if (parsed <= Date.now()) {
-    const next = Date.now() + INTRO_OFFER_DURATION_MS
-    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
-    return next
-  }
-  return parsed
-}
-
-function IntroOfferCta() {
-  const [deadline, setDeadline] = useState<number>(() => readDeadline())
-  const [now, setNow] = useState<number>(() => Date.now())
-
-  useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000)
-    return () => window.clearInterval(tick)
-  }, [])
-
-  // When the timer reaches 0 we re-arm so there's always a fresh deadline
-  // showing — keeps the urgency present without nagging the user.
-  useEffect(() => {
-    if (deadline - now > 0) return
-    const next = Date.now() + INTRO_OFFER_DURATION_MS
-    window.localStorage.setItem(INTRO_OFFER_DEADLINE_KEY, String(next))
-    setDeadline(next)
-  }, [deadline, now])
-
-  const remainingMs = Math.max(0, deadline - now)
-  const minutes = Math.floor(remainingMs / 60_000)
-  const seconds = Math.floor((remainingMs % 60_000) / 1000)
-  const mm = String(minutes).padStart(2, '0')
-  const ss = String(seconds).padStart(2, '0')
-
+function UpgradePremiumCta() {
   return (
     <Link
       to="/settings?section=plan"
       className={cn(
         'group block w-full overflow-hidden rounded-2xl p-3 text-left transition-all',
-        'bg-gradient-to-br from-sky-100 via-blue-100 to-indigo-100',
-        'ring-1 ring-blue-200 hover:ring-blue-300 hover:shadow-sm',
-        'dark:from-sky-950/40 dark:via-blue-950/40 dark:to-indigo-950/40 dark:ring-blue-900/60'
+        'bg-linear-to-br from-amber-100 via-orange-100 to-orange-50',
+        'ring-1 ring-orange-200 hover:ring-orange-300 hover:shadow-sm',
+        'dark:from-amber-950/40 dark:via-orange-950/40 dark:to-orange-950/30 dark:ring-orange-900/60'
       )}
-      aria-label={`Exclusive offer — ${mm}:${ss} left. Open plans.`}
+      aria-label="Upgrade to Premium. Open plans."
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 font-mono text-base font-bold tabular-nums text-foreground">
-          <span className="rounded-md bg-white/70 px-2 py-0.5 shadow-sm dark:bg-white/10">
-            {mm}
-          </span>
-          <span className="text-foreground/60">:</span>
-          <span className="rounded-md bg-white/70 px-2 py-0.5 shadow-sm dark:bg-white/10">
-            {ss}
-          </span>
+        <div className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+          <Sparkles className="size-4 text-orange-500" aria-hidden />
+          Upgrade to Premium
         </div>
-        <span className="text-2xl" role="img" aria-label="gift">
-          🎁
-        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </div>
-      <p className="mt-2 text-sm font-semibold leading-snug text-foreground">
-        Your exclusive gift is waiting — grab it within
+      <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+        Unlock every course, lesson, and AI tool.
       </p>
     </Link>
   )

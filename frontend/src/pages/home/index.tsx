@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { Play, Check, Lock, ChevronRight, Sparkles } from 'lucide-react'
+import { Play, Check, Lock, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
-import { ProgressCard, SectionLoader } from '@shared/ui'
+import { ProgressCard, SectionLoader, Skeleton } from '@shared/ui'
 import { skillsApi, type SkillDetail, type SkillListItem } from '@features/skills'
 import { HomeStreakPromoSection } from '@/widgets/home-streak-promo-section'
 
@@ -80,7 +80,7 @@ export default function HomePage() {
           className="pointer-events-none absolute inset-0 -z-10 opacity-90"
           aria-hidden
         >
-          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/[0.07] via-transparent to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-72 bg-linear-to-b from-primary/[0.07] via-transparent to-transparent" />
         </div>
 
         <div className="relative mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
@@ -98,9 +98,8 @@ export default function HomePage() {
                 </div>
 
                 <div>
-                  <h1 className="flex flex-wrap items-center gap-2 text-3xl font-bold tracking-tight">
-                    Learn AI & automation
-                    <ChevronRight className="text-muted-foreground size-7 shrink-0" />
+                  <h1 className="text-3xl font-bold tracking-tight">
+                    Learn AI &amp; automation
                   </h1>
                 </div>
               </header>
@@ -116,7 +115,26 @@ export default function HomePage() {
                   </Link>
                 </div>
                 {coursesLoading ? (
-                  <SectionLoader className="py-10" />
+                  <div className="scrollbar-hide flex gap-4 overflow-x-auto pb-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex min-w-[220px] max-w-[260px] shrink-0 flex-col justify-between rounded-2xl border bg-card p-4 shadow-sm"
+                      >
+                        <div className="mb-3 flex items-start gap-3">
+                          <Skeleton className="h-10 w-10 rounded-xl" />
+                          <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+                            <Skeleton className="h-3.5 w-full rounded-md" />
+                            <Skeleton className="h-3.5 w-2/3 rounded-md" />
+                          </div>
+                        </div>
+                        <div className="flex items-end justify-between gap-2 border-t border-border/60 pt-3">
+                          <Skeleton className="h-3 w-10 rounded-md" />
+                          <Skeleton className="size-9 rounded-full" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : courses.length === 0 ? (
                   <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center">
                     <p className="text-sm text-muted-foreground">
@@ -232,7 +250,7 @@ export default function HomePage() {
                                 </div>
                                 <div className="shrink-0">
                                   {done ? (
-                                    <div className="flex size-7 items-center justify-center rounded-full border-2 border-green-500 text-green-600">
+                                    <div className="flex size-7 items-center justify-center rounded-full border-2 border-emerald-500 text-emerald-600">
                                       <Check className="size-4 stroke-[2.5]" />
                                     </div>
                                   ) : lesson.locked ? (
@@ -251,6 +269,7 @@ export default function HomePage() {
 
             <aside className="flex w-full max-w-md shrink-0 flex-col gap-3 lg:sticky lg:top-4 lg:w-full lg:max-w-none lg:self-start lg:border-l lg:border-border/80 lg:pl-10">
               <ProgressCard
+                loading={coursesLoading}
                 progress={planProgress}
                 featuredTitle={featuredCourse?.title}
                 featuredHref={

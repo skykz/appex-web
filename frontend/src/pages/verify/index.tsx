@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { BadgeCheck, ShieldX } from 'lucide-react'
+import { BadgeCheck, ShieldX, Zap } from 'lucide-react'
 import { PageLoader } from '@shared/ui'
 import { skillsApi } from '@features/skills'
 import { formatIssuedDate } from '@features/skills/certificate-download'
@@ -13,26 +13,52 @@ import { formatIssuedDate } from '@features/skills/certificate-download'
 export default function VerifyCertificatePage() {
   const { code } = useParams<{ code: string }>()
 
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['certificate-verify', code],
     queryFn: () => skillsApi.verifyCertificate(code ?? ''),
     enabled: Boolean(code),
+    retry: 1,
   })
 
   if (isPending) {
     return <PageLoader label="Verifying certificate…" />
   }
 
+  // A network/500 failure is distinct from a genuinely invalid certificate —
+  // don't mislabel a server error as "not found".
+  if (isError) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-linear-to-b from-orange-50/60 via-background to-background px-4 py-12">
+        <div className="w-full max-w-lg rounded-3xl border bg-card p-8 text-center shadow-xl">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+            <ShieldX className="size-6" />
+          </div>
+          <h1 className="text-lg font-bold">Couldn't verify right now</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Something went wrong reaching the server. Please try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="mt-5 inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const valid = data?.valid === true
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-orange-50/60 via-background to-background px-4 py-12">
+    <div className="flex min-h-dvh items-center justify-center bg-linear-to-b from-orange-50/60 via-background to-background px-4 py-12">
       <div className="w-full max-w-lg rounded-3xl border bg-card p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex size-7 items-center justify-center rounded-md bg-primary text-sm font-bold text-primary-foreground">
-            A
+          <div className="flex size-8 items-center justify-center rounded-xl bg-linear-to-br from-orange-500 to-amber-500 text-primary-foreground shadow-sm">
+            <Zap className="size-4" />
           </div>
-          <span className="text-lg font-bold tracking-tight">Appex</span>
+          <span className="text-lg font-bold tracking-tight">AppEx</span>
         </div>
 
         {valid && data.valid ? (
@@ -41,7 +67,7 @@ export default function VerifyCertificatePage() {
               <BadgeCheck className="size-4" />
               Valid certificate
             </div>
-            <p className="text-muted-foreground text-sm">This credential was issued by Appex.</p>
+            <p className="text-muted-foreground text-sm">This credential was issued by AppEx.</p>
 
             <dl className="mt-6 divide-y divide-border rounded-2xl border">
               <Row label="Issued to" value={data.certificate.user_name} />
@@ -66,7 +92,7 @@ export default function VerifyCertificatePage() {
 
         <div className="mt-8 border-t pt-5">
           <Link to="/home" className="text-primary text-sm font-medium hover:underline">
-            Go to Appex →
+            Go to AppEx →
           </Link>
         </div>
       </div>

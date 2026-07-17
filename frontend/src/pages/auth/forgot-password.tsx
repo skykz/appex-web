@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
   if (mutation.isSuccess) {
     return (
       <div className="rounded-2xl border border-border/80 bg-card/80 p-6 shadow-lg ring-1 ring-border/40 backdrop-blur-sm sm:p-8 space-y-6 text-center">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg ring-1 ring-emerald-500/20">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-600 text-white shadow-lg ring-1 ring-emerald-500/20">
           <Mail className="size-7" aria-hidden />
         </div>
         <div>
@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="rounded-2xl border border-border/80 bg-card/80 p-6 shadow-lg ring-1 ring-border/40 backdrop-blur-sm sm:p-8 space-y-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-md ring-1 ring-orange-200/60">
+        <div className="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-md ring-1 ring-orange-200/60">
           <KeyRound className="size-7" aria-hidden />
         </div>
         <div>

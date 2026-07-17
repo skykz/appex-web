@@ -17,13 +17,10 @@ const MySubmissionsPage = lazy(() => import('@pages/submissions'))
 const SkillsPage = lazy(() => import('@pages/skills'))
 const SkillDetailPage = lazy(() => import('@pages/skills/detail'))
 const AIChatPage = lazy(() => import('@pages/ai-tools/chat'))
-const AssistantsPage = lazy(() => import('@pages/ai-tools/assistants'))
-const AIAutomationPage = lazy(() => import('@pages/ai-tools/automation'))
 const PromptsLibraryPage = lazy(() => import('@pages/resources/prompts'))
 const PromptCollectionPage = lazy(
   () => import('@pages/resources/prompts/collection')
 )
-const DocumentationPage = lazy(() => import('@pages/resources/docs'))
 const CoursePage = lazy(() => import('@pages/academy/course'))
 const VerifyCertificatePage = lazy(() => import('@pages/verify'))
 const LessonPage = lazy(() => import('@pages/academy/lesson'))
@@ -84,12 +81,14 @@ export const router = createBrowserRouter(
                 element: <AIChatPage />,
               },
               {
+                // Assistants & Automation are unfinished — redirect to Chat
+                // until they ship so no one lands on a "coming soon" shell.
                 path: 'assistants',
-                element: <AssistantsPage />,
+                element: <Navigate to="/ai-tools/chat" replace />,
               },
               {
                 path: 'automation',
-                element: <AIAutomationPage />,
+                element: <Navigate to="/ai-tools/chat" replace />,
               },
             ],
           },
@@ -102,8 +101,10 @@ export const router = createBrowserRouter(
             element: <PromptCollectionPage />,
           },
           {
+            // Documentation is unfinished — redirect to the Prompts Library
+            // (the working Resources page) until real docs exist.
             path: 'resources/docs',
-            element: <DocumentationPage />,
+            element: <Navigate to="/resources/prompts" replace />,
           },
           {
             path: 'academy/courses/:courseId',

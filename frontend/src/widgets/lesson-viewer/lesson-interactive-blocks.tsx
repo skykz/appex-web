@@ -193,13 +193,13 @@ export function QuizBlockView({
         : null
 
   return (
-    <div className="mt-5 rounded-2xl border-2 border-orange-100 bg-white p-4 shadow-sm ring-1 ring-orange-50 sm:p-5">
-      <p className="text-base font-semibold leading-snug text-zinc-900">
+    <div className="mt-5 rounded-2xl border-2 border-orange-100 bg-card p-4 shadow-sm ring-1 ring-orange-50 sm:p-5">
+      <p className="text-base font-semibold leading-snug text-foreground">
         {block.question}
       </p>
       {mode === 'open' ? (
         <Textarea
-          className="mt-3 min-h-[120px] border-2 border-zinc-200 bg-white text-zinc-900 focus-visible:border-primary"
+          className="mt-3 min-h-[120px] border-2 border-border bg-background text-foreground focus-visible:border-primary"
           placeholder="Your answer…"
           value={openText}
           onChange={(e) => setOpenText(e.target.value)}
@@ -224,14 +224,14 @@ export function QuizBlockView({
                     'flex w-full items-start gap-3 rounded-xl border-2 px-3 py-3 text-left text-[15px] leading-relaxed transition-all',
                     !hasResult &&
                       !isSelected &&
-                      'border-zinc-200 bg-white hover:border-orange-200 hover:bg-orange-50/50',
+                      'border-border bg-card hover:border-orange-200 hover:bg-orange-50/50',
                     isSelected &&
                       !result &&
                       'border-primary bg-primary/[0.12] shadow-[inset_3px_0_0_0_hsl(var(--primary))] ring-2 ring-primary/25',
                     hasResult &&
                       !isSelected &&
                       !isCorrectOption &&
-                      'border-zinc-200 bg-white opacity-75',
+                      'border-border bg-card opacity-75',
                     isCorrectOption &&
                       'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200',
                     isWrongSelected &&
@@ -242,7 +242,7 @@ export function QuizBlockView({
                     className={cn(
                       'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums transition-colors',
                       !isSelected &&
-                        'border-zinc-300 bg-zinc-50 text-zinc-700',
+                        'border-border bg-muted text-muted-foreground',
                       isSelected &&
                         !result &&
                         'border-primary bg-primary text-primary-foreground',
@@ -263,7 +263,7 @@ export function QuizBlockView({
                   <span
                     className={cn(
                       'min-w-0 flex-1 pt-0.5',
-                      isSelected && !result && 'font-medium text-zinc-900',
+                      isSelected && !result && 'font-medium text-foreground',
                       isCorrectOption && 'font-medium text-emerald-950',
                       isWrongSelected && 'font-medium text-red-950'
                     )}
@@ -302,7 +302,7 @@ export function QuizBlockView({
         ) : null}
       </div>
       {result?.explanation ? (
-        <p className="mt-3 rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 text-sm leading-relaxed text-zinc-700">
+        <p className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-sm leading-relaxed text-muted-foreground">
           {result.explanation}
         </p>
       ) : null}
@@ -325,7 +325,11 @@ export function SubmissionBlockView({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
 
-  const { data: existing } = useQuery({
+  const {
+    data: existing,
+    isLoading: isLoadingExisting,
+    isError: isExistingError,
+  } = useQuery({
     queryKey: ['lesson-submission', lessonId],
     queryFn: () => lessonApi.getMySubmission(lessonId),
   })
@@ -376,7 +380,7 @@ export function SubmissionBlockView({
   }
 
   return (
-    <div className="mt-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.06] p-4 ring-1 ring-sky-500/15">
+    <div className="mt-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.06] p-4 ring-1 ring-sky-500/15 sm:p-5">
       <p className="text-sm font-semibold text-foreground">{block.prompt}</p>
       <Textarea
         className="mt-3 min-h-[100px] border-border/80 bg-background"
@@ -421,6 +425,11 @@ export function SubmissionBlockView({
       </Button>
       {submit.error instanceof Error ? (
         <p className="mt-2 text-xs font-medium text-destructive">{submit.error.message}</p>
+      ) : null}
+      {isLoadingExisting ? (
+        <p className="mt-4 text-xs text-muted-foreground">Loading…</p>
+      ) : isExistingError ? (
+        <p className="mt-4 text-xs text-muted-foreground">Couldn't load your submission.</p>
       ) : null}
       {existing ? (
         <div className="mt-4 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-sm">
@@ -514,7 +523,7 @@ export function CalloutBlockView({
   return (
     <div
       className={cn(
-        'mt-5 rounded-2xl border p-4 shadow-sm ring-1',
+        'mt-5 rounded-2xl border p-4 shadow-sm ring-1 sm:p-5',
         calloutStyles[block.variant]
       )}
     >

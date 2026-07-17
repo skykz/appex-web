@@ -54,7 +54,7 @@ function LexiAvatar({ className }: { className?: string }) {
     return (
       <span
         className={cn(
-          'flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
+          'flex shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-500 to-amber-500 text-xs font-bold text-white ring-2 ring-primary/30',
           className
         )}
         aria-hidden
@@ -368,14 +368,14 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background py-1 pl-1 pr-3 shadow-lg transition-all hover:scale-105 active:scale-95 sm:bottom-20 sm:right-6',
+          'fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background p-1 shadow-lg transition-all hover:scale-105 active:scale-95 max-[380px]:gap-0 sm:bottom-20 sm:right-6 sm:pr-3',
           'ring-2 ring-primary/30 hover:ring-primary/50',
           open && 'pointer-events-none scale-75 opacity-0'
         )}
         aria-label="Open Lexi AI learning mentor"
       >
         <LexiAvatar className="size-10" />
-        <div className="text-left">
+        <div className="pr-2 text-left max-[380px]:hidden sm:pr-0">
           <p className="text-sm font-semibold leading-none text-foreground">Lexi</p>
           <p className="text-xs text-muted-foreground">Your AI learning mentor</p>
         </div>

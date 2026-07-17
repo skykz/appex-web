@@ -29,7 +29,7 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto mb-2 flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg">
+          <div className="mx-auto mb-2 flex size-14 items-center justify-center rounded-full bg-linear-to-br from-amber-400 to-orange-500 text-white shadow-lg">
             <Lock className="size-6" strokeWidth={2.5} />
           </div>
           <DialogTitle className="text-center text-2xl">
@@ -56,22 +56,22 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="mt-2 space-y-2 text-sm">
-          <li className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+        <ul className="mt-3 space-y-2.5 rounded-xl border border-border/60 bg-muted/30 p-4 text-sm">
+          <li className="flex items-start gap-2.5">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
             <span>All skills unlocked — no limits</span>
           </li>
-          <li className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+          <li className="flex items-start gap-2.5">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
             <span>Unlimited AI chat &amp; assistants</span>
           </li>
-          <li className="flex items-start gap-2">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-orange-500" />
+          <li className="flex items-start gap-2.5">
+            <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
             <span>Cancel anytime from settings</span>
           </li>
         </ul>
 
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-5 flex flex-col gap-2.5">
           <Button
             onClick={() => {
               onOpenChange(false)
@@ -86,7 +86,7 @@ export function PaywallDialog({ open, onOpenChange, blockedContent }: PaywallDia
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="mt-1 text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Maybe later
           </button>

@@ -148,7 +148,7 @@ export default function CoursePage() {
   return (
     <div className="relative isolate min-h-dvh w-full overflow-hidden">
       <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
-        <div className="absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-primary/[0.08] via-orange-500/[0.04] to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-80 bg-linear-to-b from-primary/[0.08] via-orange-500/[0.04] to-transparent" />
         <div className="absolute left-[8%] top-32 size-72 rounded-full bg-primary/10 blur-3xl" />
         <div className="absolute right-[4%] top-10 size-80 rounded-full bg-orange-400/10 blur-3xl" />
       </div>
@@ -171,7 +171,7 @@ export default function CoursePage() {
               <div className="flex min-w-0 items-start gap-4">
                 <EmojiOrImageBadge
                   value={course.emoji}
-                  frameClassName="size-16 shrink-0 rounded-2xl bg-gradient-to-br from-background to-muted text-3xl shadow-inner ring-1 ring-border"
+                  frameClassName="size-16 shrink-0 rounded-2xl bg-linear-to-br from-background to-muted text-3xl shadow-inner ring-1 ring-border"
                 />
                 <div className="min-w-0">
                   <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/[0.08] px-3 py-1 text-xs font-bold uppercase tracking-wide text-primary">
@@ -210,7 +210,7 @@ export default function CoursePage() {
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-orange-400"
+                    className="h-full rounded-full bg-linear-to-r from-indigo-500 via-violet-500 to-orange-400"
                     style={{ width: `${course.progress}%` }}
                   />
                 </div>
@@ -239,6 +239,13 @@ export default function CoursePage() {
 
         <div className="grid gap-6 pb-12 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="flex flex-col gap-6">
+            {course.modules.length === 0 ? (
+              <div className="rounded-[2rem] border border-dashed bg-muted/30 p-10 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No lessons in this course yet.
+                </p>
+              </div>
+            ) : null}
             {course.modules.map((module, moduleIndex) => {
               const tone = getModuleTone(moduleIndex)
               const stats = getModuleStats(module)
@@ -247,7 +254,7 @@ export default function CoursePage() {
                 <section
                   key={module.id}
                   className={cn(
-                    'relative overflow-hidden rounded-[2rem] border bg-gradient-to-br p-4 shadow-lg shadow-black/[0.03] sm:p-5',
+                    'relative overflow-hidden rounded-[2rem] border bg-linear-to-br p-4 shadow-lg shadow-black/[0.03] sm:p-5',
                     tone.area,
                     tone.ring
                   )}

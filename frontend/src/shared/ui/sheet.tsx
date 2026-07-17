@@ -55,7 +55,7 @@ const sheetVariants = cva(
           'inset-x-0 bottom-0 border-t data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom data-[state=open]:duration-500 data-[state=open]:ease-out data-[state=closed]:duration-300 data-[state=closed]:ease-in',
         /**
          * Keep a conservative default width for generic sheets.
-         * Callers can override width via `className` (e.g. sidebar uses `w-[--sidebar-width]`).
+         * Callers can override width via `className` (e.g. sidebar uses `w-(--sidebar-width)`).
          */
         left: 'inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left data-[state=open]:duration-500 data-[state=open]:ease-out data-[state=closed]:duration-300 data-[state=closed]:ease-in sm:max-w-sm',
         right:

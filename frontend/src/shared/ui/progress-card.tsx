@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
+import { Skeleton } from './skeleton'
 
 const RING_SIZE = 148
 const STROKE = 7
@@ -21,6 +22,8 @@ interface ProgressCardProps {
   featuredTitle?: string
   /** Link target for the featured course row */
   featuredHref?: string
+  /** When true, render skeleton placeholders instead of the 0% ring. */
+  loading?: boolean
   /** Additional class names for the container */
   className?: string
 }
@@ -32,6 +35,7 @@ export const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
       label = 'Keep going!',
       featuredTitle,
       featuredHref,
+      loading = false,
       className,
     },
     ref
@@ -63,6 +67,27 @@ export const ProgressCard = React.forwardRef<HTMLDivElement, ProgressCardProps>(
       ) : (
         <p className="text-muted-foreground mt-4 text-center text-xs">{label}</p>
       )
+
+    if (loading) {
+      return (
+        <div
+          ref={ref}
+          className={cn(
+            'rounded-2xl border border-border/70 bg-muted/25 p-5 shadow-sm',
+            className
+          )}
+        >
+          <div className="flex flex-col items-center">
+            <Skeleton
+              className="rounded-full"
+              style={{ width: RING_SIZE, height: RING_SIZE }}
+            />
+            <Skeleton className="mt-3 h-3 w-24 rounded-full" />
+          </div>
+          <Skeleton className="mt-4 h-10 w-full rounded-xl" />
+        </div>
+      )
+    }
 
     return (
       <div

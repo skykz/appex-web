@@ -24,8 +24,8 @@ type BottomNavItem = {
 const navItems: BottomNavItem[] = [
   { title: 'Home', url: '/home', icon: Home },
   { title: 'Skills', url: '/skills', icon: Puzzle },
-  { title: 'AI Tools', url: '/ai-tools', icon: Sparkles },
-  { title: 'User', url: '/settings', icon: User },
+  { title: 'AI Chat', url: '/ai-tools/chat', icon: Sparkles },
+  { title: 'Profile', url: '/settings', icon: User },
 ]
 
 /**

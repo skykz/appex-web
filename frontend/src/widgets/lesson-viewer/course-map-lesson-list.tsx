@@ -42,7 +42,7 @@ export function CourseMapLessonList({
     return groups
   }, [outline.lessons])
 
-  const py = density === 'compact' ? 'py-1.5' : 'py-2.5'
+  const py = density === 'compact' ? 'py-2' : 'py-2.5'
   const px = density === 'compact' ? 'px-2' : 'px-2.5'
 
   /**
@@ -91,7 +91,7 @@ export function CourseMapLessonList({
                       sequenceLocked
                         ? 'cursor-not-allowed border-transparent bg-muted/20 opacity-55'
                         : isPremiumLocked
-                          ? 'border-amber-400/30 bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40'
+                          ? 'border-amber-400/30 bg-linear-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 dark:from-amber-950/20 dark:to-orange-950/20 dark:hover:from-amber-950/40'
                           : isCurrent
                             ? 'border-primary/35 bg-primary/[0.06]'
                             : 'border-transparent hover:bg-muted/60'
@@ -102,7 +102,7 @@ export function CourseMapLessonList({
                       frameClassName="flex size-8 shrink-0 items-center justify-center rounded-md bg-muted/70 text-base"
                     />
                     <span className="min-w-0 flex-1">
-                      <span className="text-muted-foreground block text-[9px] font-medium uppercase tracking-wide">
+                      <span className="text-muted-foreground block text-[11px] font-medium uppercase tracking-wide">
                         {row.label}
                       </span>
                       <span className="line-clamp-2 text-xs font-semibold leading-snug">
@@ -110,7 +110,7 @@ export function CourseMapLessonList({
                       </span>
                     </span>
                     {isPremiumLocked ? (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-linear-to-r from-amber-400 to-orange-500 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
                         <Sparkles className="size-2.5" />
                         Premium
                       </span>
@@ -121,7 +121,7 @@ export function CourseMapLessonList({
                         <Check className="size-3" strokeWidth={3} aria-hidden />
                       </span>
                     ) : isCurrent ? (
-                      <span className="bg-primary text-primary-foreground shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold">
+                      <span className="bg-primary text-primary-foreground shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold">
                         Here
                       </span>
                     ) : null}

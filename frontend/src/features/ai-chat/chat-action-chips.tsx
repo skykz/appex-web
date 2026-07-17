@@ -33,13 +33,13 @@ export function ChatActionChips({ onChipClick }: ChatActionChipsProps) {
             type="button"
             onClick={() => onChipClick?.(chip.label)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-full border px-4 py-2',
+              'inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2',
               'text-sm font-medium text-muted-foreground',
               'transition-all duration-200',
-              'hover:bg-muted hover:text-foreground active:scale-95'
+              'hover:border-primary/40 hover:bg-primary/[0.04] hover:text-foreground active:scale-95'
             )}
           >
-            {Icon && <Icon className="size-4" />}
+            {Icon && <Icon className="size-4 text-primary/70" />}
             <span>{chip.label}</span>
           </button>
         )

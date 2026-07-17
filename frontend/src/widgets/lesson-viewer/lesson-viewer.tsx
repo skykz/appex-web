@@ -63,7 +63,7 @@ interface LessonViewerProps {
 export function LessonViewer({
   content,
   quizAttempts = [],
-  lessonLabel = 'Lesson 1',
+  lessonLabel = '',
   moduleCompletion = null,
   initialStepIndex = 0,
   lessonCompleted = false,
@@ -85,10 +85,23 @@ export function LessonViewer({
     setPhase('lesson')
   }, [content.lessonId, content.steps.length, initialStepIndex])
 
+  // Defensive: a lesson with no steps would crash on content.steps[stepIndex].
+  // Pages guard this too, but guard here so the viewer never indexes an empty array.
+  if (!content.steps.length) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 text-center">
+        <p className="text-muted-foreground text-sm">
+          This lesson has no content yet.
+        </p>
+      </div>
+    )
+  }
+
   const totalSteps = content.steps.length
   const isFirst = stepIndex === 0
   const isLast = stepIndex === totalSteps - 1
-  const currentBlocks = content.steps[stepIndex].blocks
+  const currentStep = content.steps[Math.min(stepIndex, totalSteps - 1)]
+  const currentBlocks = currentStep?.blocks ?? []
   /** Completed lessons are review/retake mode — do not restore prior quiz results. */
   const quizAttemptMap = buildQuizAttemptMap(lessonCompleted ? [] : quizAttempts)
 
@@ -203,11 +216,11 @@ export function LessonViewer({
         <Button
           variant="ghost"
           size="sm-icon"
-          className="size-7"
+          className="size-9"
           onClick={() => setExitDialogOpen(true)}
           title="Exit lesson"
         >
-          <X className="size-4" />
+          <X className="size-5" />
         </Button>
 
         {/* Segmented progress bar */}
@@ -219,7 +232,7 @@ export function LessonViewer({
                 className={cn(
                   'h-1.5 flex-1 rounded-full transition-all duration-500',
                   lessonCompleted || i <= stepIndex
-                    ? 'bg-gradient-to-r from-primary to-orange-400 shadow-sm shadow-primary/25'
+                    ? 'bg-linear-to-r from-primary to-orange-400 shadow-sm shadow-primary/25'
                     : 'bg-muted'
                 )}
               />
@@ -232,7 +245,7 @@ export function LessonViewer({
         <Button
           variant="ghost"
           size="sm-icon"
-          className="size-7 text-muted-foreground hover:text-foreground"
+          className="size-9 text-muted-foreground hover:text-foreground"
           onClick={() => setReportDialogOpen(true)}
           title="Report content issue"
         >
@@ -242,7 +255,7 @@ export function LessonViewer({
 
       {/* Scrollable content — subtle panel so the lesson reads as a distinct surface */}
       <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6 sm:px-8">
-        <div className="flex flex-col gap-0 rounded-2xl border border-border/50 bg-card/40 px-4 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
+        <div className="flex flex-col gap-0 rounded-2xl border border-border/50 bg-card/40 px-3 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
           {renderBlocks(currentBlocks, {
             lessonId: content.lessonId,
             stepIndex,
@@ -456,7 +469,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
             ) : (
               <video
                 controls
-                className="mt-1 w-full rounded-2xl bg-black"
+                className="mt-1 max-h-[70vh] w-full rounded-2xl bg-black"
                 src={pres.href}
               />
             )

@@ -38,20 +38,20 @@ export function LessonCompleteScreen({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-gradient-to-b from-orange-50/70 via-background to-background">
+    <div className="flex min-h-0 flex-1 flex-col bg-linear-to-b from-orange-50/70 via-background to-background">
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-xl rounded-3xl border border-orange-200/70 bg-white px-5 py-7 text-center shadow-xl shadow-orange-500/10 ring-1 ring-orange-100 sm:px-8 sm:py-8">
-          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-300 to-orange-500 text-white shadow-lg shadow-orange-500/25">
+        <div className="w-full max-w-xl rounded-3xl border border-orange-200/70 bg-card px-5 py-7 text-center shadow-xl shadow-orange-500/10 ring-1 ring-orange-100 sm:px-8 sm:py-8">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-2xl bg-linear-to-br from-amber-300 to-orange-500 text-white shadow-lg shadow-orange-500/25">
             <Trophy className="size-9" strokeWidth={2.4} aria-hidden />
           </div>
 
-          <div className="mb-2 flex items-center justify-center gap-1.5 text-sm font-medium text-zinc-500">
+          <div className="mb-2 flex items-center justify-center gap-1.5 text-sm font-medium text-muted-foreground">
             <Monitor className="size-4" />
             <span>{lessonLabel}</span>
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950">Lesson complete!</h1>
-          <p className="mt-2 text-base text-zinc-600">Nice work. How was this lesson?</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Lesson complete!</h1>
+          <p className="mt-2 text-base text-muted-foreground">Nice work. How was this lesson?</p>
 
           <div className="mt-6 flex justify-center gap-1.5">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -69,7 +69,7 @@ export function LessonCompleteScreen({
                     'size-9 transition-colors',
                     star <= (hoveredStar || rating)
                       ? 'fill-amber-400 text-amber-500 drop-shadow-sm'
-                      : 'fill-white text-zinc-300'
+                      : 'fill-muted text-muted-foreground/40'
                   )}
                 />
               </button>
@@ -81,13 +81,13 @@ export function LessonCompleteScreen({
             rows={4}
             value={feedbackText}
             onChange={(event) => setFeedbackText(event.target.value)}
-            className="mt-6 w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-900 shadow-inner outline-none placeholder:text-zinc-500 focus:border-orange-400 focus:bg-white focus:ring-4 focus:ring-orange-100"
+            className="mt-6 w-full resize-none rounded-2xl border border-border bg-background px-4 py-3 text-sm leading-relaxed text-foreground shadow-inner outline-none placeholder:text-muted-foreground focus:border-orange-400 focus:bg-card focus:ring-4 focus:ring-orange-100"
           />
         </div>
       </div>
 
-      <div className="shrink-0 border-t border-orange-100 bg-white/90 px-4 py-3 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.25)] backdrop-blur">
-        <div className="mx-auto w-full max-w-2xl">
+      <div className="shrink-0 border-t border-orange-100 bg-card/90 px-4 py-3 shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.25)] backdrop-blur">
+        <div className="mx-auto w-full max-w-xl">
           <Button
             onClick={() => void handleContinue()}
             size="lg"

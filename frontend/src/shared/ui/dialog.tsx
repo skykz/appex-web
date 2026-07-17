@@ -43,7 +43,9 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-[110] w-full max-w-lg translate-x-[-50%] translate-y-[-50%]',
+        // w-[calc(100%-2rem)] keeps a 1rem gutter on both sides at 360px so the
+        // rounded corners never touch the screen edge; max-w-lg still caps it on wider screens.
+        'fixed left-[50%] top-[50%] z-[110] w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%]',
         'rounded-2xl border-2 border-border bg-popover text-popover-foreground shadow-2xl ring-1 ring-black/5 dark:ring-white/10',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
@@ -57,8 +59,8 @@ const DialogContent = React.forwardRef<
     >
       {children}
       {!hideClose && (
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-lg p-2 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95 disabled:pointer-events-none">
-          <X className="h-4 w-4" />
+        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-9 items-center justify-center rounded-lg opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 active:scale-95 disabled:pointer-events-none">
+          <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       )}

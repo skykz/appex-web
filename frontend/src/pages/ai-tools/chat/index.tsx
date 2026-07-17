@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PenSquare, Sparkles, Clock, X } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { PlatformLoader } from '@shared/ui'
+import { PlatformLoader, Skeleton } from '@shared/ui'
 import { ApiError } from '@shared/api/http-client'
 import {
   ChatInput,
@@ -250,15 +250,19 @@ export default function AIChatPage() {
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h1 className="text-lg font-semibold">AI chat</h1>
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full border border-primary/20 px-2.5 py-1',
-                'text-xs font-semibold text-primary'
-              )}
-            >
-              <Sparkles className="size-3" />
-              {credits != null ? `${credits} credits` : '—'}
-            </span>
+            {credits != null ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border border-primary/20 px-2.5 py-1',
+                  'text-xs font-semibold text-primary'
+                )}
+              >
+                <Sparkles className="size-3" />
+                {`${credits} credits`}
+              </span>
+            ) : (
+              <Skeleton className="h-6 w-20 rounded-full" />
+            )}
 
             <button
               type="button"

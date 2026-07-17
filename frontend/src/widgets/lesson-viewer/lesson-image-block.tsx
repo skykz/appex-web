@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ImageOff } from 'lucide-react'
 import { Dialog, DialogContent, DialogTitle } from '@shared/ui'
 import { cn } from '@shared/lib'
 
@@ -9,23 +10,49 @@ interface LessonImageBlockProps {
 
 /**
  * Lesson image thumbnail that opens a fullscreen lightbox on click; image scales up to fill the viewport frame.
+ * Shows a shimmer while the image loads and a neutral fallback if it fails, so a slow/broken image never leaves an empty box.
  */
 export function LessonImageBlock({ src, alt = '' }: LessonImageBlockProps) {
   const [open, setOpen] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [errored, setErrored] = useState(false)
 
   if (!src.trim()) return null
 
   return (
     <>
       <div className="mt-4 overflow-hidden rounded-2xl bg-muted/40">
-        <button
-          type="button"
-          className="block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          onClick={() => setOpen(true)}
-          aria-label={alt ? `Enlarge image: ${alt}` : 'Enlarge image'}
-        >
-          <img src={src} alt={alt} className="h-auto w-full object-cover" loading="lazy" />
-        </button>
+        {errored ? (
+          <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground/60">
+            <ImageOff className="size-8" aria-hidden />
+            <span className="text-xs">Image unavailable</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              'relative block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+              !loaded && 'min-h-40'
+            )}
+            onClick={() => setOpen(true)}
+            aria-label={alt ? `Enlarge image: ${alt}` : 'Enlarge image'}
+          >
+            {!loaded && (
+              <span className="skeleton-shimmer absolute inset-0" aria-hidden />
+            )}
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => setErrored(true)}
+              className={cn(
+                'h-auto w-full object-cover transition-opacity duration-300',
+                loaded ? 'opacity-100' : 'opacity-0'
+              )}
+            />
+          </button>
+        )}
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

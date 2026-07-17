@@ -24,7 +24,7 @@ export function SkillsHero() {
         className="relative mx-auto aspect-[4/3] w-full max-w-[360px] overflow-hidden rounded-[28px] border border-border/60 bg-muted/30 shadow-sm lg:mx-0 lg:max-w-none"
         aria-hidden
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-muted/50 via-background to-primary/[0.06]" />
+        <div className="absolute inset-0 bg-linear-to-br from-muted/50 via-background to-primary/[0.06]" />
 
         <div className="absolute left-1/2 top-1/2 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-md">
           <EmojiOrImageBadge value="🧠" frameClassName="h-12 w-12 text-4xl" />

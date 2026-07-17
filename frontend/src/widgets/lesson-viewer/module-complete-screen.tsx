@@ -52,13 +52,16 @@ export function ModuleCompleteScreen({
 
   /**
    * Sends rating + optional tags to the parent before streak or navigation.
+   * When no rating is given, the learner can skip and still advance.
    */
   async function handleContinue() {
-    if (busy || rating < 1) return
+    if (busy) return
     setBusy(true)
     try {
       const feedback =
-        selectedTags.length > 0 ? `Tags: ${selectedTags.join(', ')}` : undefined
+        rating >= 1 && selectedTags.length > 0
+          ? `Tags: ${selectedTags.join(', ')}`
+          : undefined
       await onContinue({ rating, feedback })
     } finally {
       setBusy(false)
@@ -144,9 +147,9 @@ export function ModuleCompleteScreen({
         </div>
       </div>
 
-      {showTagStep ? (
-        <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <div className="mx-auto w-full max-w-2xl">
+      <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-2">
+          {showTagStep ? (
             <Button
               onClick={() => void handleContinue()}
               size="lg"
@@ -162,9 +165,18 @@ export function ModuleCompleteScreen({
                 'Continue'
               )}
             </Button>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void handleContinue()}
+              disabled={busy}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+            >
+              {busy ? 'Saving…' : 'Skip for now'}
+            </button>
+          )}
         </div>
-      ) : null}
+      </div>
     </div>
   )
 }

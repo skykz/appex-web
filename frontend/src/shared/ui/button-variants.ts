@@ -4,8 +4,17 @@ import { cva } from 'class-variance-authority'
  * Button variants configuration using CVA.
  * Defines visual styles for different button types and sizes.
  */
+/**
+ * Note on touch targets: the base intentionally does NOT force a 44px minimum on
+ * every button. Blanket-applying `tap-target` overrode the declared size variants
+ * (a `sm-icon` "32px" button silently became 44px), producing mismatched rows.
+ * Instead, the primary interactive sizes (`default`, `lg`, `xl`, `icon`) are already
+ * ≥40px and read comfortably on touch; genuinely compact controls (`sm`, `sm-icon`)
+ * stay small on purpose for dense chrome like the sidebar. Add `tap-target` explicitly
+ * on any small control that is a *primary* mobile touch target.
+ */
 export const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold tracking-tight ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 tap-target',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold tracking-tight ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
@@ -26,7 +35,7 @@ export const buttonVariants = cva(
         sm: 'h-9 rounded-md px-3',
         lg: 'h-11 rounded-md px-8',
         xl: 'h-12 rounded-xl px-6 py-3 text-sm font-semibold',
-        icon: 'h-10 w-10',
+        icon: 'size-10',
         'sm-icon': 'size-8 rounded-lg',
       },
     },

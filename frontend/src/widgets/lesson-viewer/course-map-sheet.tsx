@@ -27,7 +27,7 @@ export function CourseMapSheet({ open, onOpenChange, outline }: CourseMapSheetPr
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="flex w-[min(100vw-0.5rem,22rem)] flex-col border-l-2 border-border p-0 sm:max-w-md"
+        className="flex w-[min(100vw-2rem,22rem)] flex-col border-l-2 border-border p-0 sm:max-w-md"
       >
         <SheetHeader className="border-b border-border/80 px-5 pb-4 pt-6 text-left">
           <div className="flex items-center gap-2">

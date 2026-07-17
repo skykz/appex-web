@@ -4,6 +4,22 @@
  */
 @import 'tailwindcss';
 
+/**
+ * Tailwind v4 uses this project's JS config for the `content` globs and the legacy
+ * color/radius maps. Without it the config is ignored and tokens like `bg-neutral-soft`
+ * silently fail to resolve. `@theme inline` below is still the source of truth for the
+ * CSS-variable-backed tokens.
+ */
+@config '../../../tailwind.config.js';
+
+/**
+ * Opt the `dark:` variant into class-based theming instead of the v4 default
+ * (`prefers-color-scheme`). Nothing toggles a `.dark` class today, so this keeps
+ * the app reliably light-mode across all pages (no half-dark under a system dark
+ * preference) while leaving a real dark theme wireable later by adding the class.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   :root {
     /* Design tokens - light theme (warm orange primary aligned with AppEx brand) */
@@ -145,6 +161,8 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-neutral-soft: hsl(var(--neutral-soft));
 }
 
 @layer utilities {
@@ -170,6 +188,42 @@
   .tap-target {
     min-height: 44px;
     min-width: 44px;
+  }
+}
+
+/* Skeleton shimmer — a soft sweep across loading placeholders. */
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@layer utilities {
+  /* Shimmering placeholder surface used by the Skeleton primitive. */
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--muted));
+  }
+
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: skeleton-shimmer 1.6s infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer::after {
+      animation: none;
+    }
   }
 }
 
