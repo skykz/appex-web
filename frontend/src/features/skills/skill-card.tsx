@@ -51,7 +51,7 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
         </div>
 
         {skill.status === 'completed' ? (
-          <span className="absolute left-3 top-3 rounded-full bg-green-500/15 px-2.5 py-0.5 text-xs font-semibold text-green-600">
+          <span className="absolute left-3 top-3 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
             Completed
           </span>
         ) : skill.progress > 0 ? (

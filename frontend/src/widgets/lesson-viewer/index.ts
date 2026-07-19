@@ -10,5 +10,3 @@ export {
   type LessonBlock,
 } from './lesson-types'
 export { lessonApi, type SavedQuizAttempt } from './api'
-export { buildCourseMapOutline } from './course-outline'
-export type { CourseMapOutline, CourseMapLessonRow } from './course-outline'

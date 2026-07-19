@@ -12,6 +12,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace", "@appex/admin"],
       "port": 5174
+    },
+    {
+      "name": "landing-usa",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "landings/usa"],
+      "port": 8080
     }
   ]
 }

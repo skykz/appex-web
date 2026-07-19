@@ -51,7 +51,7 @@ export function HomeStreakPromoSection() {
 
   const current = streak?.current ?? 0
   const weekActive = countActiveDaysThisWeek(activeDays)
-  const weekGoal = 7
+  const weekGoal = 5
   const weekProgress = Math.min((weekActive / weekGoal) * 100, 100)
   const todayKey = weekDays.find((d) => d.isToday)?.date
   const todayDone = todayKey ? activeDays.has(todayKey) : false

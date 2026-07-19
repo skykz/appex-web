@@ -304,6 +304,13 @@ export function QuizBlockView({
           {result.explanation}
         </p>
       ) : null}
+      {mutation.isError ? (
+        <p className="mt-3 text-sm font-medium text-destructive">
+          {mutation.error instanceof Error
+            ? mutation.error.message
+            : "Couldn't check your answer. Please try again."}
+        </p>
+      ) : null}
     </div>
   )
 }
@@ -322,7 +329,15 @@ export function SubmissionBlockView({
   const [message, setMessage] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [justSubmitted, setJustSubmitted] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  /** Auto-hides the transient "Submitted ✓" confirmation after a couple seconds. */
+  useEffect(() => {
+    if (!justSubmitted) return
+    const timer = window.setTimeout(() => setJustSubmitted(false), 2500)
+    return () => window.clearTimeout(timer)
+  }, [justSubmitted])
 
   const {
     data: existing,
@@ -357,6 +372,7 @@ export function SubmissionBlockView({
       setMessage('')
       setSelectedFile(null)
       setFileError(null)
+      setJustSubmitted(true)
     },
   })
 
@@ -364,6 +380,7 @@ export function SubmissionBlockView({
    * Validates the optional submission attachment before upload.
    */
   function handleFileChange(file: File | undefined) {
+    setJustSubmitted(false)
     if (!file) {
       setSelectedFile(null)
       setFileError(null)
@@ -385,7 +402,10 @@ export function SubmissionBlockView({
         className="mt-3 min-h-[100px] border-border/80 bg-background"
         placeholder="Your answer or notes…"
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        onChange={(e) => {
+          setMessage(e.target.value)
+          setJustSubmitted(false)
+        }}
         disabled={submit.isPending}
       />
       {block.acceptAttachment ? (
@@ -436,15 +456,25 @@ export function SubmissionBlockView({
           ) : null}
         </div>
       ) : null}
-      <Button
-        type="button"
-        className="mt-3"
-        size="sm"
-        disabled={(!message.trim() && !selectedFile) || Boolean(fileError) || submit.isPending}
-        onClick={() => submit.mutate()}
-      >
-        {submit.isPending ? 'Uploading…' : 'Submit work'}
-      </Button>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          size="sm"
+          disabled={(!message.trim() && !selectedFile) || Boolean(fileError) || submit.isPending}
+          onClick={() => submit.mutate()}
+        >
+          {submit.isPending ? 'Uploading…' : 'Submit work'}
+        </Button>
+        {justSubmitted ? (
+          <span
+            className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600"
+            role="status"
+          >
+            <Check className="size-4" strokeWidth={3} aria-hidden />
+            Submitted
+          </span>
+        ) : null}
+      </div>
       {submit.error instanceof Error ? (
         <p className="mt-2 text-xs font-medium text-destructive">{submit.error.message}</p>
       ) : null}
