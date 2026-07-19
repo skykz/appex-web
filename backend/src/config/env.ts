@@ -118,8 +118,16 @@ const envSchema = z.object({
   META_TEST_EVENT_CODE: z.string().optional().transform((v) => (v ? v : undefined)),
 
   // --- GA4 Measurement Protocol (server-side purchase for the ads funnel) ---
-  /** GA4 Measurement ID (G-XXXX) — same id as VITE_GA4_MEASUREMENT_ID on the landing. */
-  GA4_MEASUREMENT_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * GA4 Measurement ID — defaults to the dedicated "Appex Landing" stream
+   * (G-9VSNWFGHR6), the same id the landing's gtag.js layer sends to. Public, so
+   * safe to bake in. The server purchase still stays OFF until GA4_API_SECRET (a
+   * secret) is also set; see ga4MpEnabled below.
+   */
+  GA4_MEASUREMENT_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : 'G-9VSNWFGHR6')),
   /** GA4 Measurement Protocol API secret (Admin → Data Streams → Measurement Protocol). */
   GA4_API_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
 })
