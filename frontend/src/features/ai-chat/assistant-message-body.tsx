@@ -1,5 +1,6 @@
 import type { Components } from 'react-markdown'
 import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { cn } from '@shared/lib'
 
 interface AssistantMessageBodyProps {
@@ -88,7 +89,7 @@ export function AssistantMessageBody({ text }: AssistantMessageBodyProps) {
 
   return (
     <div className="min-w-0 break-words">
-      <Markdown components={components}>{text}</Markdown>
+      <Markdown remarkPlugins={[remarkGfm]} components={components}>{text}</Markdown>
     </div>
   )
 }

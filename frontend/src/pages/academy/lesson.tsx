@@ -62,10 +62,16 @@ export default function LessonPage() {
     if (!Number.isFinite(numericLessonId)) {
       return { showDayStreak: false }
     }
-    await lessonApi.complete(numericLessonId, feedback)
-    const streak = await streakApi.checkIn()
-    void queryClient.invalidateQueries({ queryKey: ['streak'] })
-    return { showDayStreak: streak.firstCheckInToday === true }
+    try {
+      await lessonApi.complete(numericLessonId, feedback)
+      const streak = await streakApi.checkIn()
+      void queryClient.invalidateQueries({ queryKey: ['streak'] })
+      return { showDayStreak: streak.firstCheckInToday === true }
+    } catch (err) {
+      // Surface to the viewer so the learner isn't stuck on a silent failure.
+      console.error('Failed to commit lesson completion / streak check-in', err)
+      throw err
+    }
   }
 
   function handleFinish() {

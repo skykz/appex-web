@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { streakApi } from '@features/streak/api'
 import { cn } from '@shared/lib'
-import { Button } from '@shared/ui'
+import { Button, PlatformLoader } from '@shared/ui'
 
 type TFn = ReturnType<typeof useTranslation>['t']
 
@@ -97,7 +97,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
 
   const todayIndex = getTodayIndex()
 
-  const { data: streak } = useQuery({
+  const { data: streak, isPending } = useQuery({
     queryKey: ['streak'],
     queryFn: () => streakApi.get(),
   })
@@ -123,6 +123,15 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
     })()
     return () => controller.abort()
   }, [])
+
+  // Gate the celebration until the streak is known — otherwise it briefly flashes "0".
+  if (isPending) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-background">
+        <PlatformLoader variant="inline" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">

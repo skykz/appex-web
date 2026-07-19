@@ -14,7 +14,7 @@ const MODULE_FEEDBACK_TAGS = [
 ] as const
 
 export interface ModuleFeedbackPayload {
-  rating: number
+  rating?: number
   feedback?: string
 }
 
@@ -62,7 +62,8 @@ export function ModuleCompleteScreen({
         rating >= 1 && selectedTags.length > 0
           ? `Tags: ${selectedTags.join(', ')}`
           : undefined
-      await onContinue({ rating, feedback })
+      // Skipping (no stars) sends no rating, so a skip isn't recorded as a real score.
+      await onContinue({ rating: rating > 0 ? rating : undefined, feedback })
     } finally {
       setBusy(false)
     }

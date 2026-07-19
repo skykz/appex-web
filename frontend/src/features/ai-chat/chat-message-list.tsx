@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Copy, ThumbsUp, ThumbsDown, RefreshCw, Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Copy, RefreshCw, Check } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { PlatformLoader } from '@shared/ui'
 import type { ChatMessage } from './types'
 import { AssistantMessageBody } from './assistant-message-body'
 
+/**
+ * Kept for backward-compatible re-exports; main-chat feedback is not persisted,
+ * so the like/dislike controls are intentionally not rendered.
+ */
 export type MessageFeedback = 'up' | 'down' | null
 
 interface ChatMessageListProps {
@@ -23,17 +27,6 @@ export function ChatMessageList({
   regeneratingAssistantId,
   onRegenerate,
 }: ChatMessageListProps) {
-  const [feedbackById, setFeedbackById] = useState<
-    Record<string, MessageFeedback>
-  >({})
-
-  /**
-   * Records thumbs up/down for the current session (local only until analytics exist).
-   */
-  const setFeedback = useCallback((id: string, value: MessageFeedback) => {
-    setFeedbackById((prev) => ({ ...prev, [id]: value }))
-  }, [])
-
   return (
     <div className="flex flex-col gap-6">
       {messages.map((msg) =>
@@ -43,8 +36,6 @@ export function ChatMessageList({
           <AssistantMessage
             key={msg.id}
             message={msg}
-            feedback={feedbackById[msg.id] ?? null}
-            onFeedbackChange={setFeedback}
             isRegenerating={regeneratingAssistantId === msg.id}
             onRegenerate={onRegenerate}
           />
@@ -69,19 +60,15 @@ function UserBubble({ text }: { text: string }) {
 
 interface AssistantMessageProps {
   message: ChatMessage
-  feedback: MessageFeedback
-  onFeedbackChange: (id: string, value: MessageFeedback) => void
   isRegenerating: boolean
   onRegenerate?: (assistantMessageId: string) => void
 }
 
 /**
- * Assistant row: markdown body, copy, feedback, and optional regenerate.
+ * Assistant row: markdown body, copy, and optional regenerate.
  */
 function AssistantMessage({
   message,
-  feedback,
-  onFeedbackChange,
   isRegenerating,
   onRegenerate,
 }: AssistantMessageProps) {
@@ -118,24 +105,6 @@ function AssistantMessage({
       <div className="flex flex-wrap items-center gap-1">
         <ActionIconButton label={copied ? 'Copied' : 'Copy'} onClick={() => void handleCopy()}>
           {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
-        </ActionIconButton>
-        <ActionIconButton
-          label="Like"
-          pressed={feedback === 'up'}
-          onClick={() =>
-            onFeedbackChange(id, feedback === 'up' ? null : 'up')
-          }
-        >
-          <ThumbsUp className="size-4" />
-        </ActionIconButton>
-        <ActionIconButton
-          label="Dislike"
-          pressed={feedback === 'down'}
-          onClick={() =>
-            onFeedbackChange(id, feedback === 'down' ? null : 'down')
-          }
-        >
-          <ThumbsDown className="size-4" />
         </ActionIconButton>
         {onRegenerate && (
           <ActionIconButton

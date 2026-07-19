@@ -8,6 +8,7 @@ import {
   Palette,
   Sparkles,
   Theater,
+  X,
 } from 'lucide-react'
 import { cn } from '@shared/lib'
 import {
@@ -61,6 +62,7 @@ export function AIToolsOnboardingDialog() {
             <Button
               variant="ghost"
               size="sm-icon"
+              aria-label="Back"
               onClick={() => setStep(step - 1)}
             >
               <ArrowLeft className="size-4" />
@@ -73,10 +75,11 @@ export function AIToolsOnboardingDialog() {
           <Button
             variant="ghost"
             size="sm-icon"
+            aria-label="Close"
             onClick={handleClose}
             className="text-muted-foreground hover:text-foreground"
           >
-            ✕
+            <X className="size-4" />
           </Button>
         </div>
 
@@ -140,21 +143,12 @@ function StepPreview({ step }: { step: number }) {
   if (step === 1) {
     return (
       <div className="flex flex-wrap justify-center gap-2">
-        {[
-          'Evaluate this business idea',
-          'Write copy',
-          'Tips to boost productivity',
-          'Give advice',
-          'Explain simply',
-          'Summarize text',
-          'Translate',
-          '10 marketing chatbot ideas',
-        ].map((label) => (
+        {actionChips.slice(0, 6).map((chip) => (
           <span
-            key={label}
+            key={chip.id}
             className="rounded-full bg-background/60 px-3 py-1.5 text-xs font-medium"
           >
-            {label}
+            {chip.label}
           </span>
         ))}
       </div>
