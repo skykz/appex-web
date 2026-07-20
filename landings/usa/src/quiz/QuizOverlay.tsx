@@ -88,11 +88,11 @@ function QuizMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           <p className="text-[13px] leading-relaxed" style={{ color: C.muted }}>
             We will be glad to assist you via email. Please send your questions and feedback to{' '}
             <a
-              href="mailto:hello@appex.me"
+              href="mailto:hello@appexme.com"
               className="font-semibold underline underline-offset-2"
               style={{ color: C.text }}
             >
-              hello@appex.me
+              hello@appexme.com
             </a>
           </p>
         </div>

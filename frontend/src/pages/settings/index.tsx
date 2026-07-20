@@ -359,8 +359,8 @@ function AccountSection() {
             Subscription management
           </button>{' '}
           before removing your account. Contact{' '}
-          <a href="mailto:support@appex.me" className="font-medium underline underline-offset-2">
-            support@appex.me
+          <a href="mailto:hello@appexme.com" className="font-medium underline underline-offset-2">
+            hello@appexme.com
           </a>{' '}
           if you need help.
         </p>

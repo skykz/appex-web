@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { LessonLinkCard } from './lesson-link-card'
@@ -87,11 +87,6 @@ export function LessonViewer({
     setPhase('lesson')
   }, [content.lessonId, content.steps.length, initialStepIndex])
 
-  /** Reset per-step quiz tracking whenever the step or lesson changes. */
-  useEffect(() => {
-    setQuizAnswered({})
-  }, [stepIndex, content.lessonId])
-
   /** Stable callback each quiz block uses to report its answered state. */
   const handleQuizAnsweredChange = useCallback(
     (blockIndex: number, answered: boolean) => {
@@ -101,6 +96,13 @@ export function LessonViewer({
     },
     []
   )
+
+  /** Move to another step, clearing quiz-answered tracking for the step we leave. */
+  function goToStep(next: number) {
+    setQuizAnswered({})
+    setStepIndex(next)
+    void onStepChange?.(next)
+  }
 
   // Defensive: a lesson with no steps would crash on content.steps[stepIndex].
   // Pages guard this too, but guard here so the viewer never indexes an empty array.
@@ -125,16 +127,13 @@ export function LessonViewer({
   /**
    * Block indices of quizzes on the current step. Continue is gated on these being answered
    * (in review mode for a completed lesson there's nothing to gate — the learner already passed).
+   * Cheap to compute inline per render (a step has only a handful of blocks).
    */
-  const quizBlockIndices = useMemo(
-    () =>
-      lessonCompleted
-        ? []
-        : currentBlocks
-            .map((block, idx) => (isQuizBlock(block) ? idx : -1))
-            .filter((idx) => idx >= 0),
-    [currentBlocks, lessonCompleted]
-  )
+  const quizBlockIndices = lessonCompleted
+    ? []
+    : currentBlocks
+        .map((block, idx) => (isQuizBlock(block) ? idx : -1))
+        .filter((idx) => idx >= 0)
 
   /** A step is answered when every quiz on it has a submitted answer (live or restored). */
   const hasUnansweredQuiz = quizBlockIndices.some((idx) => {
@@ -144,9 +143,7 @@ export function LessonViewer({
 
   function handleBack() {
     if (!isFirst) {
-      const next = stepIndex - 1
-      setStepIndex(next)
-      void onStepChange?.(next)
+      goToStep(stepIndex - 1)
     }
   }
 
@@ -156,9 +153,7 @@ export function LessonViewer({
     if (isLast) {
       setPhase('complete')
     } else {
-      const next = stepIndex + 1
-      setStepIndex(next)
-      void onStepChange?.(next)
+      goToStep(stepIndex + 1)
     }
   }
 

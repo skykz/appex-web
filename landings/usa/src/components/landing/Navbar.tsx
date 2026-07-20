@@ -9,11 +9,10 @@ const navLinks = [
   { label: "FAQ", href: "#faq" },
 ];
 
+// Mobile sidebar keeps only the essentials — Reviews & FAQ, then Login + quiz CTA below.
 const sidebarLinks = [
-  ...navLinks,
-  { label: "Privacy Policy", href: "/privacy", newTab: true },
-  { label: "Terms", href: "/terms", newTab: true },
-  { label: "Subscription Policy", href: "/subscription", newTab: true },
+  { label: "Reviews", href: "#reviews" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 /** Fixed top navigation with learner-app login and quiz CTA. */

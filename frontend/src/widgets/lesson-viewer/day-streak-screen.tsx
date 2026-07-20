@@ -35,8 +35,12 @@ function useCountUp(target: number, duration = 900): number {
   const [value, setValue] = useState(0)
   const rafRef = useRef<number | null>(null)
 
+  // Intentional setState-in-effect: this hook synchronizes React state to two external
+  // systems — the rAF animation clock and the async-resolving `target` — which is the
+  // sanctioned use of an effect. Snapping/animating cannot be derived during render.
   useEffect(() => {
     if (target <= 0 || prefersReducedMotion()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue(target)
       return
     }

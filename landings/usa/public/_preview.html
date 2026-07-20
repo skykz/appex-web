@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Section previews</title>
+<style>
+  :root { --primary: #F97316; --fg: #0f0f0f; --muted: #666; --border: #e6e6e6; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  .divider { text-align:center; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; color:#999; padding:28px 0 4px; background:#f4f4f4; }
+
+  /* shared */
+  .inner { max-width: 1100px; margin: 0 auto; }
+  .badge { display: inline-block; margin-bottom: 18px; border-radius: 999px; padding: 6px 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); background: rgba(249,115,22,0.10); }
+  h2 { color: var(--fg); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; font-size: clamp(28px, 4vw, 46px); }
+  h2 .accent { color: var(--primary); }
+  .sub { color: var(--muted); font-size: 16px; line-height: 1.6; max-width: 600px; margin: 0 auto; }
+
+  /* who it's for */
+  .who { background: #fafafa; padding: 60px 24px; }
+  .who .head { text-align:center; margin-bottom:44px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  @media (max-width: 900px){ .grid{ grid-template-columns: repeat(2,1fr);} }
+  @media (max-width: 560px){ .grid{ grid-template-columns: 1fr;} }
+  .card { display:flex; flex-direction:column; border-radius:16px; padding:20px; background:#fff; border:1px solid var(--border); transition: transform .2s, border-color .2s, box-shadow .2s; }
+  .card:hover { transform: translateY(-4px); border-color: rgba(249,115,22,.4); box-shadow: 0 12px 30px -12px rgba(249,115,22,.35); }
+  .card:hover .cicon { background: var(--primary); color:#fff; }
+  .card:hover .carrow { opacity:1; }
+  .ctop { display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .cicon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--primary); background:rgba(249,115,22,.10); transition: all .2s; }
+  .clabel { flex:1; color:var(--fg); font-weight:700; font-size:16px; letter-spacing:-.01em; line-height:1.2; }
+  .coutcome { color:var(--muted); font-size:13.5px; line-height:1.55; margin-bottom:16px; flex:1; }
+  .cfoot { display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid rgba(230,230,230,.7); }
+  .cstat { color:var(--primary); font-weight:700; font-size:12px; letter-spacing:-.01em; }
+  .carrow { color:var(--primary); opacity:0; transition: opacity .2s; }
+  .card svg { width:20px; height:20px; }
+
+  /* how it works */
+  .how { background:#fff; padding:64px 40px; }
+  .how .head { text-align:center; margin-bottom:64px; }
+  .journey { position:relative; }
+  .line { position:absolute; left:0; right:0; top:28px; height:2px; background:linear-gradient(90deg, transparent 0%, #FED7AA 12%, #FED7AA 88%, transparent 100%); }
+  @media (max-width: 900px){ .line{ display:none; } }
+  ol { list-style:none; display:grid; grid-template-columns:repeat(4,1fr); gap:24px; position:relative; }
+  @media (max-width: 900px){ ol{ grid-template-columns:repeat(2,1fr); row-gap:40px; } }
+  @media (max-width: 560px){ ol{ grid-template-columns:1fr; } }
+  .num { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:22px; background:linear-gradient(135deg,#F97316 0%,#FB923C 100%); box-shadow:0 8px 20px -6px rgba(249,115,22,.5); position:relative; z-index:2; }
+  .chip { margin-top:16px; width:36px; height:36px; border-radius:12px; background:rgba(249,115,22,.10); display:flex; align-items:center; justify-content:center; color:var(--primary); }
+  .chip svg { width:18px; height:18px; }
+  .content { margin-top:20px; }
+  h3 { color:var(--fg); font-weight:700; font-size:17px; letter-spacing:-.01em; margin-bottom:6px; line-height:1.2; }
+  .desc { color:var(--muted); font-size:14px; line-height:1.55; max-width:260px; }
+  .tag { display:inline-flex; align-items:center; gap:6px; margin-top:12px; color:var(--primary); font-size:12px; font-weight:700; letter-spacing:-.01em; }
+  .tag svg { width:14px; height:14px; }
+  .cta-wrap { text-align:center; margin-top:56px; }
+  .cta { display:inline-flex; align-items:center; gap:8px; background:linear-gradient(135deg,#F97316,#FFB800); color:#fff; border-radius:12px; padding:16px 32px; font-size:16px; font-weight:600; box-shadow:0 10px 30px -10px rgba(249,115,22,.6); }
+  .cta svg { width:18px; height:18px; }
+  .fine { color:var(--muted); font-size:12.5px; margin-top:12px; }
+</style>
+</head>
+<body>
+
+<div class="divider">Section 1 — "Made for your role" (hover the first card)</div>
+<section class="who">
+  <div class="inner">
+    <div class="head">
+      <div class="badge">Made for your role</div>
+      <h2>Whatever you do all day,<br><span class="accent">Claude does it with you</span></h2>
+      <p class="sub">Find your role below. Every Appex path is tuned to how you actually work — and shows you exactly where AI hands your time back.</p>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div><span class="clabel">Marketers</span></div><p class="coutcome">Draft a month of campaigns, emails &amp; ad copy before your coffee gets cold.</p><div class="cfoot"><span class="cstat">~8 hrs saved / week</span><span class="carrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div><span class="clabel">Freelancers</span></div><p class="coutcome">Win more clients — send polished proposals in minutes, not evenings.</p><div class="cfoot"><span class="cstat">2x proposals out</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg></div><span class="clabel">Small business owners</span></div><p class="coutcome">Run marketing, ops &amp; support like you hired a team you can't afford yet.</p><div class="cfoot"><span class="cstat">1 person, 5 roles</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 18 0"/><rect x="2" y="12" width="4" height="7" rx="1"/><rect x="18" y="12" width="4" height="7" rx="1"/></svg></div><span class="clabel">Customer support teams</span></div><p class="coutcome">Answer tickets faster with replies that sound human, never canned.</p><div class="cfoot"><span class="cstat">Reply 3x faster</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="16 7 21 7 21 12"/></svg></div><span class="clabel">Sales pros</span></div><p class="coutcome">Personalize every outreach at scale and never stare at a blank follow-up.</p><div class="cfoot"><span class="cstat">More reps, more deals</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="16 8 10 10 8 16 14 14 16 8"/></svg></div><span class="clabel">Career changers</span></div><p class="coutcome">Learn the exact AI skills employers pay for — and prove them fast.</p><div class="cfoot"><span class="cstat">Job-ready in weeks</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6v16h12V5h-2"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg></div><span class="clabel">Virtual assistants</span></div><p class="coutcome">Take on more clients without the burnout by letting Claude do the busywork.</p><div class="cfoot"><span class="cstat">Handle 2x the load</span><span class="carrow"></span></div></div>
+      <div class="card"><div class="ctop"><div class="cicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 9L12 5 2 9l10 4 10-4z"/><path d="M6 11v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg></div><span class="clabel">Students</span></div><p class="coutcome">Study smarter, write sharper, and graduate already fluent in AI.</p><div class="cfoot"><span class="cstat">Ahead of the class</span><span class="carrow"></span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider">Section 2 — "How it works"</div>
+<section class="how">
+  <div class="inner">
+    <div class="head">
+      <div class="badge">How it works</div>
+      <h2>From zero to <span class="accent">paid AI skills</span></h2>
+      <p class="sub">Four simple steps. Most learners land their first real result within weeks — not "someday."</p>
+    </div>
+    <div class="journey">
+      <div class="line"></div>
+      <ol>
+        <li><div class="num">1</div><div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6v16h12V5h-2"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></svg></div><div class="content"><h3>Take the 60-second quiz</h3><p class="desc">Tell us your job and goal. We build a learning path made for you — no guesswork.</p><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Your custom plan</span></div></li>
+        <li><div class="num">2</div><div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="3"/><path d="M9 19h6a4 4 0 0 0 0-8H9a4 4 0 0 1 0-8h6"/><circle cx="18" cy="5" r="3"/></svg></div><div class="content"><h3>Learn 10 min a day</h3><p class="desc">Short, focused lessons you finish over coffee. No fluff, no long videos.</p><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Fits any schedule</span></div></li>
+        <li><div class="num">3</div><div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6l6 6-8 8-6-6"/><path d="M3 21l3-1"/></svg></div><div class="content"><h3>Build real projects</h3><p class="desc">Apply Claude to actual work from day one — and walk away with things you can show.</p><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Portfolio that proves it</span></div></li>
+        <li><div class="num">4</div><div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M16 12h4"/></svg></div><div class="content"><h3>Get certified &amp; earn</h3><p class="desc">Finish with a verified certificate and the skills clients and employers pay for.</p><span class="tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Job-ready proof</span></div></li>
+      </ol>
+      <div class="cta-wrap">
+        <a class="cta">Start step 1 — it's free <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg></a>
+        <p class="fine">Takes 60 seconds · No credit card needed</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
