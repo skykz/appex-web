@@ -150,32 +150,26 @@ export function ModuleCompleteScreen({
 
       <div className="shrink-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-2">
-          {showTagStep ? (
-            <Button
-              onClick={() => void handleContinue()}
-              size="lg"
-              className="w-full rounded-xl"
-              disabled={busy}
-            >
-              {busy ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Continue'
-              )}
-            </Button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => void handleContinue()}
-              disabled={busy}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-            >
-              {busy ? 'Saving…' : 'Skip for now'}
-            </button>
-          )}
+          <Button
+            onClick={() => void handleContinue()}
+            size="lg"
+            className="w-full rounded-xl"
+            disabled={busy}
+          >
+            {busy ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              'Continue'
+            )}
+          </Button>
+          {!showTagStep ? (
+            <p className="text-xs text-muted-foreground">
+              Rating is optional — tap Continue to move on.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

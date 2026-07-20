@@ -1,5 +1,5 @@
 import type React from 'react'
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Flag, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { LessonLinkCard } from './lesson-link-card'
@@ -78,12 +78,29 @@ export function LessonViewer({
   const [phase, setPhase] = useState<Phase>('lesson')
   const [exitDialogOpen, setExitDialogOpen] = useState(false)
   const [reportDialogOpen, setReportDialogOpen] = useState(false)
+  /** blockIndex -> whether that quiz on the current step has a submitted answer. */
+  const [quizAnswered, setQuizAnswered] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
     const max = Math.max(0, content.steps.length - 1)
     setStepIndex(Math.min(Math.max(0, initialStepIndex), max))
     setPhase('lesson')
   }, [content.lessonId, content.steps.length, initialStepIndex])
+
+  /** Reset per-step quiz tracking whenever the step or lesson changes. */
+  useEffect(() => {
+    setQuizAnswered({})
+  }, [stepIndex, content.lessonId])
+
+  /** Stable callback each quiz block uses to report its answered state. */
+  const handleQuizAnsweredChange = useCallback(
+    (blockIndex: number, answered: boolean) => {
+      setQuizAnswered((prev) =>
+        prev[blockIndex] === answered ? prev : { ...prev, [blockIndex]: answered }
+      )
+    },
+    []
+  )
 
   // Defensive: a lesson with no steps would crash on content.steps[stepIndex].
   // Pages guard this too, but guard here so the viewer never indexes an empty array.
@@ -105,6 +122,26 @@ export function LessonViewer({
   /** Completed lessons are review/retake mode — do not restore prior quiz results. */
   const quizAttemptMap = buildQuizAttemptMap(lessonCompleted ? [] : quizAttempts)
 
+  /**
+   * Block indices of quizzes on the current step. Continue is gated on these being answered
+   * (in review mode for a completed lesson there's nothing to gate — the learner already passed).
+   */
+  const quizBlockIndices = useMemo(
+    () =>
+      lessonCompleted
+        ? []
+        : currentBlocks
+            .map((block, idx) => (isQuizBlock(block) ? idx : -1))
+            .filter((idx) => idx >= 0),
+    [currentBlocks, lessonCompleted]
+  )
+
+  /** A step is answered when every quiz on it has a submitted answer (live or restored). */
+  const hasUnansweredQuiz = quizBlockIndices.some((idx) => {
+    const restored = quizAttemptMap.has(`${stepIndex}:${idx}`)
+    return !restored && !quizAnswered[idx]
+  })
+
   function handleBack() {
     if (!isFirst) {
       const next = stepIndex - 1
@@ -114,6 +151,8 @@ export function LessonViewer({
   }
 
   function handleNext() {
+    // Guard: don't advance while a quiz on this step is unanswered.
+    if (hasUnansweredQuiz) return
     if (isLast) {
       setPhase('complete')
     } else {
@@ -125,12 +164,18 @@ export function LessonViewer({
 
   /**
    * Persists completion then either opens the streak celebration (first activity today) or exits the flow.
+   * Feedback/streak persistence is best-effort: if it fails, the learner is still advanced so a
+   * network hiccup never traps them on the completion screen (Continue/Skip must always work).
    */
   async function handleFeedbackContinue(feedback?: { rating?: number; feedback?: string }) {
-    const { showDayStreak } = await onAfterFeedbackCommit(feedback)
-    if (showDayStreak) {
-      setPhase('streak')
-      return
+    try {
+      const { showDayStreak } = await onAfterFeedbackCommit(feedback)
+      if (showDayStreak) {
+        setPhase('streak')
+        return
+      }
+    } catch (err) {
+      console.error('Failed to save lesson completion/feedback; advancing anyway.', err)
     }
     onFinish()
   }
@@ -261,41 +306,51 @@ export function LessonViewer({
             lessonId: content.lessonId,
             stepIndex,
             quizAttemptMap,
+            onQuizAnsweredChange: handleQuizAnsweredChange,
           })}
         </div>
       </div>
 
       {/* Bottom bar */}
       <div className="sticky bottom-0 z-10 border-t border-border/60 bg-background/85 px-3 py-2.5 shadow-[0_-6px_20px_-16px_rgba(0,0,0,0.2)] backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
-          {!isFirst ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 rounded-lg px-4"
-                onClick={handleBack}
-              >
-                Back
-              </Button>
-              <div className="flex-1" />
+        <div className="mx-auto w-full max-w-3xl">
+          {hasUnansweredQuiz ? (
+            <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
+              Answer the question above to continue.
+            </p>
+          ) : null}
+          <div className="flex items-center gap-2">
+            {!isFirst ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 rounded-lg px-4"
+                  onClick={handleBack}
+                >
+                  Back
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  onClick={handleNext}
+                  disabled={hasUnansweredQuiz}
+                  className="h-9 rounded-lg px-6 shadow-sm"
+                >
+                  {isLast ? 'Finish' : 'Continue'}
+                </Button>
+              </>
+            ) : (
               <Button
                 size="sm"
                 onClick={handleNext}
-                className="h-9 rounded-lg px-6 shadow-sm"
+                disabled={hasUnansweredQuiz}
+                className="h-9 w-full rounded-lg shadow-sm"
               >
-                {isLast ? 'Finish' : 'Continue'}
+                Continue
               </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              onClick={handleNext}
-              className="h-9 w-full rounded-lg shadow-sm"
-            >
-              Continue
-            </Button>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -364,6 +419,16 @@ type BlockContext = {
   lessonId: number
   stepIndex: number
   quizAttemptMap: Map<string, SavedQuizAttempt>
+  onQuizAnsweredChange?: (blockIndex: number, answered: boolean) => void
+}
+
+/** True for any interactive quiz block variant. */
+function isQuizBlock(block: LessonBlock): boolean {
+  return (
+    block.type === 'quiz' ||
+    block.type === 'quiz-single' ||
+    block.type === 'quiz-multi'
+  )
 }
 
 /**
@@ -525,6 +590,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
           blockIndex={i}
           block={block}
           restoredAttempt={ctx.quizAttemptMap.get(`${ctx.stepIndex}:${i}`) ?? null}
+          onAnsweredChange={ctx.onQuizAnsweredChange}
         />
       )
       i++

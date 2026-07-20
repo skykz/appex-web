@@ -282,9 +282,14 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
    */
   const sentUserIdRef = useRef<string | null>(null)
 
-  /** Lock body scroll while the full-screen mobile panel is open. */
+  /**
+   * Lock body scroll only while the full-screen mobile sheet is open (Tailwind `sm` = 640px).
+   * On desktop the panel is a small floating card, so the page behind must stay scrollable.
+   */
   useEffect(() => {
     if (!open) return
+    const isMobile = window.matchMedia('(max-width: 639px)').matches
+    if (!isMobile) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
