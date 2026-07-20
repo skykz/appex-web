@@ -19,7 +19,8 @@ import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
 import { initGa4, ga4PageView, ga4ViewItem } from "@/lib/ga4";
-import { captureAttribution } from "@/lib/attribution";
+import { pushToDataLayer } from "@/lib/gtm";
+import { captureAttribution, getAttributionParams } from "@/lib/attribution";
 
 const queryClient = new QueryClient();
 
@@ -41,9 +42,11 @@ function RouteAnalytics() {
     captureAttribution();
     trackPageView();
     ga4PageView(location.pathname);
+    pushToDataLayer("page_view", { page_path: location.pathname, ...getAttributionParams() });
     if (location.pathname === "/" || location.pathname.startsWith("/ai-skills-for/")) {
       trackViewContent({ content_name: location.pathname });
       ga4ViewItem({ item_name: location.pathname });
+      pushToDataLayer("view_item", { item_name: location.pathname, ...getAttributionParams() });
     }
   }, [location.pathname]);
 

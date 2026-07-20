@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Google Tag Manager — container only. GA4 + Meta Pixel are sent DIRECTLY
+         from React (src/lib/ga4.ts, meta-pixel.ts); GTM is here so the marketer
+         can add their OWN tags (Google Ads conversions, remarketing) triggered
+         off the funnel events we push to window.dataLayer (see src/lib/gtm.ts).
+         DO NOT configure GA4 or the Meta Pixel inside this GTM container too, or
+         every event double-counts. -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-NH866XS4');</script>
+    <!-- End Google Tag Manager -->
     <title>Appex - Turn AI Skills Into Real Income</title>
     <meta name="description" content="The entry-level career ladder for the AI economy. Learn to build AI automations, earn real income. No coding required.">
     <meta name="author" content="Appex" />
@@ -32,6 +44,10 @@
   <meta name="twitter:description" content="The entry-level career ladder for the AI economy. Learn to build AI automations, earn real income. No coding required.">
 </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NH866XS4"
+      height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <div id="root"></div>
     <!--
       Meta Pixel: init + PageView + all funnel events fire from React
