@@ -82,7 +82,7 @@ export function ForgotPasswordPage() {
               id="admin-forgot-email"
               type="email"
               autoComplete="email"
-              placeholder="admin@appex.kz"
+              placeholder="hello@appexme.com"
               className="h-11 border-border/80 shadow-sm"
               {...register('email')}
             />

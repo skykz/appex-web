@@ -7,6 +7,7 @@ import {
 } from "@/lib/landing-api";
 import { trackPurchase } from "@/lib/meta-pixel";
 import { ga4Purchase } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 
 /**
  * Fires the browser Purchase (Meta) + purchase (GA4) exactly once on the success
@@ -22,6 +23,9 @@ function firePurchaseOnce(sessionId: string): void {
     const currency = c.currency || "USD";
     trackPurchase({ stripeSessionId: sessionId, value, currency, plan: c.plan });
     ga4Purchase({ transactionId: sessionId, value, currency, plan: c.plan });
+    // GTM trigger for the marketer's own tags (e.g. Google Ads purchase
+    // conversion). transaction_id lets them dedup; do NOT add GA4/Pixel in GTM.
+    pushToDataLayer("purchase", { transaction_id: sessionId, value, currency, plan: c.plan });
   } catch {
     /* never block the success page on tracking */
   }

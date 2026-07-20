@@ -1,32 +1,24 @@
 import type { ReactNode } from 'react'
 import { cn } from '@shared/lib'
 import { Avatar, AvatarFallback } from '@shared/ui'
+import lexiAvatar from '@/assets/lexi-avatar.jpg'
 
 /**
- * Lexi's mark — a simple friendly face (dot eyes + a smile) on the warm-orange brand
- * gradient. Reads honestly as a mentor character next to messages (not a generic brand
- * sparkle, and no fake AI-generated photo). Needs no image asset.
+ * Lexi's mark — the mentor's photo, shown wherever Lexi appears (chat bubbles, trigger
+ * bubble, panel header, empty state). Fills its container as a cover-cropped circle.
  */
 export function LexiMark({ className }: { className?: string }) {
   return (
     <span
-      className={cn(
-        'flex size-full items-center justify-center bg-linear-to-br from-orange-500 to-amber-500 text-white',
-        className
-      )}
+      className={cn('block size-full overflow-hidden', className)}
       aria-hidden
     >
-      <svg viewBox="0 0 24 24" className="size-1/2" fill="none">
-        <circle cx="8.5" cy="10.5" r="1.6" fill="currentColor" />
-        <circle cx="15.5" cy="10.5" r="1.6" fill="currentColor" />
-        <path
-          d="M7.5 15c1.2 1.4 3 2.1 4.5 2.1s3.3-.7 4.5-2.1"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          fill="none"
-        />
-      </svg>
+      <img
+        src={lexiAvatar}
+        alt=""
+        loading="lazy"
+        className="size-full object-cover"
+      />
     </span>
   )
 }

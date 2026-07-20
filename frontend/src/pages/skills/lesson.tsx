@@ -8,6 +8,7 @@ import {
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
 import { skillsApi, type SkillDetail } from '@features/skills'
+import { BookOpen } from 'lucide-react'
 import { PageLoader } from '@shared/ui'
 
 /**
@@ -101,7 +102,7 @@ export default function SkillLessonPage() {
   }
 
   if (isPending || !content) {
-    return <PageLoader label="Loading lesson…" />
+    return <PageLoader label="Loading lesson…" icon={BookOpen} />
   }
 
   if (isError) {

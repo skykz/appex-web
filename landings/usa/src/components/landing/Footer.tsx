@@ -53,8 +53,8 @@ export default function Footer() {
         </p>
         <p className="text-xs text-muted-foreground font-body">
           Questions?{" "}
-          <a href="mailto:hello@appex.me" className="hover:text-foreground transition-colors">
-            hello@appex.me
+          <a href="mailto:hello@appexme.com" className="hover:text-foreground transition-colors">
+            hello@appexme.com
           </a>
         </p>
       </div>

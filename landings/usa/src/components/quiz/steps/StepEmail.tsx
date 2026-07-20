@@ -3,6 +3,7 @@ import ContinueButton from "../ContinueButton";
 import { useState } from "react";
 import { trackLead } from "@/lib/meta-pixel";
 import { ga4GenerateLead } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export default function StepEmail() {
   const { answers, setAnswer, nextStep } = useQuiz();
@@ -12,6 +13,7 @@ export default function StepEmail() {
   const handleContinue = () => {
     trackLead();
     ga4GenerateLead();
+    pushToDataLayer("generate_lead");
     nextStep();
   };
 

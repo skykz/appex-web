@@ -53,10 +53,10 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           <p className="text-muted-foreground text-[13px] leading-relaxed">
             We will be glad to assist you via email. Please send your questions and feedback to{" "}
             <a
-              href="mailto:hello@appex.me"
+              href="mailto:hello@appexme.com"
               className="text-foreground font-semibold underline underline-offset-2 hover:text-primary transition-colors"
             >
-              hello@appex.me
+              hello@appexme.com
             </a>
           </p>
         </div>

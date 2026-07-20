@@ -13,36 +13,24 @@ function ChatGPTLogo({ size = 36 }: { size?: number }) {
   );
 }
 
-/* Gemini — official 4-pointed star with 4-corner color gradient */
+/* Gemini — 4-pointed star with Google's blue→purple gradient.
+   Uses a per-instance unique gradient id so multiple copies on one page don't
+   collide (duplicate SVG ids were making later instances render invisible). */
+let geminiGradientSeq = 0
 function GeminiLogo({ size = 36 }: { size?: number }) {
+  const gradId = `gem-grad-${(geminiGradientSeq += 1)}`
   return (
-    <svg width={size} height={size} viewBox="-4 -1 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        {/* Simulates the conic gradient: red top, blue right, green bottom, yellow left */}
-        <linearGradient id="gem-tb" x1="14" y1="0" x2="14" y2="28" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#EA4335" />
-          <stop offset="50%" stopColor="#34A853" />
-          <stop offset="100%" stopColor="#34A853" />
+        <linearGradient id={gradId} x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#4285F4" />
+          <stop offset="55%" stopColor="#9168F0" />
+          <stop offset="100%" stopColor="#D96570" />
         </linearGradient>
-        <linearGradient id="gem-lr" x1="0" y1="14" x2="28" y2="14" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#FBBC05" />
-          <stop offset="50%" stopColor="#9C62E0" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#4285F4" />
-        </linearGradient>
-        <filter id="gem-blend">
-          <feBlend in="SourceGraphic" in2="BackgroundImage" mode="screen" />
-        </filter>
       </defs>
-      {/* Star path — top/bottom half */}
       <path
-        d="M14 0.5C14.38 5.8 15.9 9.5 18.6 12.2C21.3 14.9 25 16.4 30.3 16.8C25 17.2 21.3 18.7 18.6 21.4C15.9 24.1 14.38 27.8 14 33.1C13.62 27.8 12.1 24.1 9.4 21.4C6.7 18.7 3 17.2 -2.3 16.8C3 16.4 6.7 14.9 9.4 12.2C12.1 9.5 13.62 5.8 14 0.5Z"
-        fill="url(#gem-tb)"
-      />
-      {/* Star path — left/right half overlay */}
-      <path
-        d="M14 0.5C14.38 5.8 15.9 9.5 18.6 12.2C21.3 14.9 25 16.4 30.3 16.8C25 17.2 21.3 18.7 18.6 21.4C15.9 24.1 14.38 27.8 14 33.1C13.62 27.8 12.1 24.1 9.4 21.4C6.7 18.7 3 17.2 -2.3 16.8C3 16.4 6.7 14.9 9.4 12.2C12.1 9.5 13.62 5.8 14 0.5Z"
-        fill="url(#gem-lr)"
-        style={{ mixBlendMode: 'multiply' }}
+        d="M12 2c.25 3.7 1.3 6.4 3.3 8.4 2 2 4.7 3.05 8.4 3.3v.6c-3.7.25-6.4 1.3-8.4 3.3-2 2-3.05 4.7-3.3 8.4h-.6c-.25-3.7-1.3-6.4-3.3-8.4-2-2-4.7-3.05-8.4-3.3v-.6c3.7-.25 6.4-1.3 8.4-3.3 2-2 3.05-4.7 3.3-8.4h.6Z"
+        fill={`url(#${gradId})`}
       />
     </svg>
   );
@@ -66,6 +54,64 @@ function ClaudeLogo({ size = 36 }: { size?: number }) {
       ))}
     </svg>
   );
+}
+
+/* ── Trustpilot-style rating ── */
+
+/** One Trustpilot square star, filled 0–100% left-to-right (green square + white star cutout). */
+function TrustSquare({ fill }: { fill: number }) {
+  const pct = Math.max(0, Math.min(100, fill))
+  return (
+    <span className="relative block h-[18px] w-[18px] overflow-hidden rounded-[3px] bg-[#dcdce6]">
+      {/* Green fill clipped to the rating fraction */}
+      <span
+        className="absolute inset-y-0 left-0 bg-[#00b67a]"
+        style={{ width: `${pct}%` }}
+        aria-hidden
+      />
+      {/* White star sits on top so the square reads as a star */}
+      <svg
+        viewBox="0 0 24 24"
+        className="absolute inset-0 h-full w-full text-white"
+        fill="currentColor"
+        aria-hidden
+      >
+        <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.9l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z" />
+      </svg>
+    </span>
+  )
+}
+
+/**
+ * Trustpilot-styled rating block: green square stars (partial-filled to the score),
+ * the Trustpilot star + wordmark, and "TrustScore / N reviews". Decorative social proof.
+ */
+function TrustpilotRating({ rating, reviews }: { rating: number; reviews: number }) {
+  const stars = [0, 1, 2, 3, 4].map((i) => {
+    const fill = Math.max(0, Math.min(1, rating - i)) * 100
+    return <TrustSquare key={i} fill={fill} />
+  })
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-bold text-foreground">Excellent</span>
+        <div className="flex items-center gap-0.5">{stars}</div>
+      </div>
+      <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <span className="font-semibold text-foreground">{rating.toFixed(1)}</span>
+        <span>·</span>
+        {/* Trustpilot logo (star + wordmark) */}
+        <span className="inline-flex items-center gap-1">
+          <svg viewBox="0 0 24 24" className="h-[13px] w-[13px] text-[#00b67a]" fill="currentColor" aria-hidden>
+            <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.9l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z" />
+          </svg>
+          <span className="font-semibold text-foreground">Trustpilot</span>
+        </span>
+        <span>·</span>
+        <span>{reviews.toLocaleString()} reviews</span>
+      </div>
+    </div>
+  )
 }
 
 export default function Hero() {
@@ -150,8 +196,33 @@ export default function Hero() {
           </svg>
         </div>
 
+        {/* Mobile-only photo + logo collage — the desktop floats these absolutely,
+            which can't fit a narrow screen, so on mobile we show them in normal flow. */}
+        <div className="md:hidden flex items-center justify-center gap-3 pt-2 pb-6 animate-[fade-up_0.8s_ease-out_0.1s_both]">
+          <div
+            className="rounded-2xl overflow-hidden shadow-card-lg -rotate-[8deg] w-[104px] h-[124px] shrink-0"
+            style={{ border: "3px solid white" }}
+          >
+            <img src={paywallAfter} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
+          </div>
+          <div className="flex flex-col gap-3 shrink-0">
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-card" style={{ border: "1px solid hsl(var(--border))" }}>
+              <ChatGPTLogo size={28} />
+            </div>
+            <div className="flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-card" style={{ border: "1px solid hsl(var(--border))" }}>
+              <GeminiLogo size={28} />
+            </div>
+          </div>
+          <div
+            className="rounded-2xl overflow-hidden shadow-card-lg rotate-[6deg] w-[104px] h-[124px] shrink-0"
+            style={{ border: "3px solid white" }}
+          >
+            <img src={paywallAfterMale} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
+          </div>
+        </div>
+
         {/* Center content */}
-        <div className="relative z-10 text-center max-w-3xl mx-auto pt-8 md:pt-12 pb-16 md:pb-24 px-2">
+        <div className="relative z-10 text-center max-w-3xl mx-auto pt-0 md:pt-12 pb-16 md:pb-24 px-2">
           {/* Claude logo above headline */}
           <div className="inline-flex items-center justify-center mb-6 md:mb-8 w-16 h-16 md:w-20 md:h-20 rounded-full bg-white shadow-[0_15px_40px_-10px_rgba(218,119,86,0.4)]" style={{ border: "1px solid hsl(var(--border))" }}>
             <ClaudeLogo size={42} />
@@ -172,25 +243,18 @@ export default function Hero() {
 
           <a
             href="/quiz"
-            className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-full px-8 md:px-10 py-4 md:py-5 text-[16px] md:text-[18px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+            className="inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-full px-6 md:px-7 py-2.5 md:py-3.5 text-[13px] md:text-[14px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
           >
             Start now
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
             </svg>
           </a>
 
           {/* Star rating only */}
-          <div className="relative z-20 mt-10 md:mt-12 flex items-center justify-center gap-2">
-            <div className="flex items-center gap-0.5">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <svg key={i} className="w-5 h-5 text-primary" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.366 2.446a1 1 0 00-.364 1.118l1.287 3.957c.3.922-.755 1.688-1.54 1.118l-3.365-2.446a1 1 0 00-1.176 0l-3.366 2.446c-.784.57-1.838-.196-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.075 9.384c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.957z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-foreground text-[14px] font-bold">4.8 out of 5</span>
+          <div className="relative z-20 mt-10 md:mt-12">
+            <TrustpilotRating rating={4.5} reviews={2143} />
           </div>
         </div>
       </div>

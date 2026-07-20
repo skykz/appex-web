@@ -97,12 +97,15 @@ export function QuizBlockView({
   blockIndex,
   block,
   restoredAttempt = null,
+  onAnsweredChange,
 }: {
   lessonId: number
   stepIndex: number
   blockIndex: number
   block: QuizBlock
   restoredAttempt?: SavedQuizAttempt | null
+  /** Reports whether this quiz has a submitted answer, so the viewer can gate Continue. */
+  onAnsweredChange?: (blockIndex: number, answered: boolean) => void
 }) {
   const qc = useQueryClient()
   const mode = getQuizInteractionMode(block)
@@ -120,6 +123,14 @@ export function QuizBlockView({
     setOpenText('')
     setResult(null)
   }, [lessonId, stepIndex, blockIndex])
+
+  /**
+   * Report answered/unanswered up to the viewer so Continue can gate on it. The viewer resets
+   * its tracking on step change, so no unmount cleanup is needed (avoids a mount/unmount race).
+   */
+  useEffect(() => {
+    onAnsweredChange?.(blockIndex, result !== null)
+  }, [blockIndex, result, onAnsweredChange])
 
   /** Restores saved answers when resuming an in-progress lesson (not on refetch with no saved attempt). */
   useEffect(() => {

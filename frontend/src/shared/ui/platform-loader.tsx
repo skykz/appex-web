@@ -1,4 +1,4 @@
-import { Sparkles } from 'lucide-react'
+import { Sparkles, type LucideIcon } from 'lucide-react'
 import { cn } from '@shared/lib'
 
 type PlatformLoaderVariant = 'full' | 'inline' | 'compact'
@@ -8,6 +8,8 @@ interface PlatformLoaderProps {
   variant?: PlatformLoaderVariant
   /** Optional caption under the animation; full variant defaults to "Loading…". */
   label?: string
+  /** Center glyph inside the badge; defaults to the brand sparkle. */
+  icon?: LucideIcon
   className?: string
 }
 
@@ -27,6 +29,7 @@ const variantStyles: Record<
 export function PlatformLoader({
   variant = 'inline',
   label,
+  icon: Icon = Sparkles,
   className,
 }: PlatformLoaderProps) {
   const s = variantStyles[variant]
@@ -79,7 +82,7 @@ export function PlatformLoader({
               s.badge
             )}
           >
-            <Sparkles className={s.icon} strokeWidth={2.25} aria-hidden />
+            <Icon className={s.icon} strokeWidth={2.25} aria-hidden />
           </div>
         </div>
       </div>
@@ -94,10 +97,16 @@ export function PlatformLoader({
 /**
  * Full-viewport centered loader for route transitions and page-level fetches.
  */
-export function PageLoader({ label }: { label?: string }) {
+export function PageLoader({
+  label,
+  icon,
+}: {
+  label?: string
+  icon?: LucideIcon
+}) {
   return (
     <div className="flex min-h-dvh w-full items-center justify-center bg-background">
-      <PlatformLoader variant="full" label={label} />
+      <PlatformLoader variant="full" label={label} icon={icon} />
     </div>
   )
 }

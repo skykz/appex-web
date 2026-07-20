@@ -4,6 +4,7 @@ import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/l
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
 import { ga4BeginCheckout, getGa4ClientId } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
@@ -331,6 +332,7 @@ export default function Paywall() {
       plan: interval,
     });
     ga4BeginCheckout({ value: conversionValue, currency: "USD", plan: interval });
+    pushToDataLayer("begin_checkout", { value: conversionValue, currency: "USD", plan: interval });
     // Persist the chosen plan/value so the success page fires the browser Purchase
     // with the same value the server reports.
     try {
@@ -424,7 +426,7 @@ export default function Paywall() {
           <div className="rounded-3xl p-7 pt-12 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
             <h2 className="text-[24px] font-extrabold mb-3" style={{ color: BLACK }}>Money-back guarantee</h2>
             <p className="text-[14px] leading-relaxed mb-5" style={{ color: '#475569' }}>
-              If you aren't happy with your course after giving it your full attention, we'll refund your purchase. You just need to email us at hello@appex.me
+              If you aren't happy with your course after giving it your full attention, we'll refund your purchase. You just need to email us at hello@appexme.com
             </p>
             <button className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-semibold text-[14px] border-none cursor-pointer" style={{ background: BLACK }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
