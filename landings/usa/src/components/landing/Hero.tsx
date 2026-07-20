@@ -56,6 +56,64 @@ function ClaudeLogo({ size = 36 }: { size?: number }) {
   );
 }
 
+/* ── Trustpilot-style rating ── */
+
+/** One Trustpilot square star, filled 0–100% left-to-right (green square + white star cutout). */
+function TrustSquare({ fill }: { fill: number }) {
+  const pct = Math.max(0, Math.min(100, fill))
+  return (
+    <span className="relative block h-[18px] w-[18px] overflow-hidden rounded-[3px] bg-[#dcdce6]">
+      {/* Green fill clipped to the rating fraction */}
+      <span
+        className="absolute inset-y-0 left-0 bg-[#00b67a]"
+        style={{ width: `${pct}%` }}
+        aria-hidden
+      />
+      {/* White star sits on top so the square reads as a star */}
+      <svg
+        viewBox="0 0 24 24"
+        className="absolute inset-0 h-full w-full text-white"
+        fill="currentColor"
+        aria-hidden
+      >
+        <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.9l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z" />
+      </svg>
+    </span>
+  )
+}
+
+/**
+ * Trustpilot-styled rating block: green square stars (partial-filled to the score),
+ * the Trustpilot star + wordmark, and "TrustScore / N reviews". Decorative social proof.
+ */
+function TrustpilotRating({ rating, reviews }: { rating: number; reviews: number }) {
+  const stars = [0, 1, 2, 3, 4].map((i) => {
+    const fill = Math.max(0, Math.min(1, rating - i)) * 100
+    return <TrustSquare key={i} fill={fill} />
+  })
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[13px] font-bold text-foreground">Excellent</span>
+        <div className="flex items-center gap-0.5">{stars}</div>
+      </div>
+      <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+        <span className="font-semibold text-foreground">{rating.toFixed(1)}</span>
+        <span>·</span>
+        {/* Trustpilot logo (star + wordmark) */}
+        <span className="inline-flex items-center gap-1">
+          <svg viewBox="0 0 24 24" className="h-[13px] w-[13px] text-[#00b67a]" fill="currentColor" aria-hidden>
+            <path d="M12 2.5l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.9l-5.8 3.05 1.1-6.46-4.69-4.58 6.49-.94L12 2.5z" />
+          </svg>
+          <span className="font-semibold text-foreground">Trustpilot</span>
+        </span>
+        <span>·</span>
+        <span>{reviews.toLocaleString()} reviews</span>
+      </div>
+    </div>
+  )
+}
+
 export default function Hero() {
   return (
     <section className="relative bg-background pt-[88px] md:pt-[120px] pb-12 md:pb-24 px-4 sm:px-6 md:px-10 overflow-hidden">
@@ -185,10 +243,10 @@ export default function Hero() {
 
           <a
             href="/quiz"
-            className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-full px-8 md:px-10 py-4 md:py-5 text-[16px] md:text-[18px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
+            className="inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-full px-6 md:px-7 py-2.5 md:py-3.5 text-[13px] md:text-[14px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all"
           >
             Start now
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="5" y1="12" x2="19" y2="12" />
               <polyline points="12 5 19 12 12 19" />
             </svg>
@@ -196,7 +254,7 @@ export default function Hero() {
 
           {/* Star rating only */}
           <div className="relative z-20 mt-10 md:mt-12">
-            <TrustpilotRating rating={4.8} reviews={2143} />
+            <TrustpilotRating rating={4.5} reviews={2143} />
           </div>
         </div>
       </div>

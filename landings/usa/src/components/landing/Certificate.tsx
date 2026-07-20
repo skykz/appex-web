@@ -56,6 +56,34 @@ export default function Certificate() {
               />
             </div>
 
+            {/* Official seal / stamp */}
+            <div className="absolute top-[38%] right-4 md:right-8 w-14 h-14 md:w-20 md:h-20 -rotate-12 pointer-events-none select-none">
+              <svg viewBox="0 0 100 100" className="w-full h-full text-primary/70">
+                <defs>
+                  <path id="cert-seal-top" d="M 50 50 m -34 0 a 34 34 0 1 1 68 0" fill="none" />
+                  <path id="cert-seal-bottom" d="M 50 50 m -34 0 a 34 34 0 1 0 68 0" fill="none" />
+                </defs>
+                <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="3" />
+                <text fontSize="8.5" fontWeight="700" letterSpacing="2.5" fill="currentColor" style={{ fontFamily: "'Georgia', serif" }}>
+                  <textPath href="#cert-seal-top" startOffset="50%" textAnchor="middle">
+                    APPEX ACADEMY
+                  </textPath>
+                </text>
+                <text fontSize="7" fontWeight="600" letterSpacing="3" fill="currentColor" style={{ fontFamily: "'Georgia', serif" }}>
+                  <textPath href="#cert-seal-bottom" startOffset="50%" textAnchor="middle">
+                    CERTIFIED
+                  </textPath>
+                </text>
+                <text x="50" y="46" fontSize="20" fontWeight="800" fill="currentColor" textAnchor="middle" style={{ fontFamily: "'Georgia', serif" }}>
+                  A
+                </text>
+                <text x="50" y="60" fontSize="6.5" fontWeight="600" letterSpacing="1" fill="currentColor" textAnchor="middle" style={{ fontFamily: "'Georgia', serif" }}>
+                  2026
+                </text>
+              </svg>
+            </div>
+
             <p className="text-[10px] md:text-[13px] text-[#666] mb-2 md:mb-3 font-body">
               Certificate of completion
             </p>
