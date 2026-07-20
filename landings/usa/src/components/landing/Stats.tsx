@@ -104,62 +104,60 @@ export default function Stats() {
           </p>
         </div>
 
-        {/* Stat cards — clean white surfaces with a colored accent, one anchored by the rating */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 items-stretch">
+        {/* Stat cards — compact horizontal layout: icon + big number on the left,
+            supporting copy on the right. Shorter and faster to scan than tall blocks. */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 items-stretch">
           {stats.map((s, i) => {
             const Icon = s.Icon;
             return (
               <div
                 key={i}
-                className={`group relative rounded-2xl p-6 md:p-8 bg-white border transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_-16px_rgba(249,115,22,0.4)] flex flex-col ${
+                className={`group relative rounded-2xl p-5 md:p-6 bg-white border transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_40px_-16px_rgba(249,115,22,0.4)] flex items-start gap-4 ${
                   s.isRating ? "border-primary/40 shadow-[0_10px_30px_-16px_rgba(249,115,22,0.35)]" : "border-border"
                 }`}
               >
-                {/* Icon + optional "top result" ribbon */}
-                <div className="flex items-center justify-between mb-5">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-white"
-                    style={{ background: "rgba(249,115,22,0.10)" }}
-                  >
-                    <Icon className="w-[22px] h-[22px]" strokeWidth={2.25} />
-                  </div>
+                {/* Left: icon */}
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center text-primary flex-shrink-0 transition-colors duration-200 group-hover:bg-primary group-hover:text-white"
+                  style={{ background: "rgba(249,115,22,0.10)" }}
+                >
+                  <Icon className="w-[22px] h-[22px]" strokeWidth={2.25} />
+                </div>
+
+                {/* Right: number + copy */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-extrabold text-foreground leading-none flex items-baseline gap-1.5">
+                    <span className="text-[34px] md:text-[40px] tracking-tight">{s.number}</span>
+                    {s.unit && <span className="text-[16px] md:text-[18px] text-primary font-bold">{s.unit}</span>}
+                  </p>
+
+                  {/* Stars under the rating number */}
                   {s.isRating && (
-                    <div className="flex items-center gap-0.5" aria-label={`${s.ratingValue} out of 5`}>
+                    <div className="flex items-center gap-0.5 mt-1.5" aria-label={`${s.ratingValue} out of 5`}>
                       {[0, 1, 2, 3, 4].map((n) => {
                         const fill = Math.max(0, Math.min(1, (s.ratingValue ?? 0) - n));
                         return (
-                          <span key={n} className="relative inline-block w-4 h-4">
-                            <Star className="absolute inset-0 w-4 h-4 text-primary/25" fill="currentColor" strokeWidth={0} />
+                          <span key={n} className="relative inline-block w-3.5 h-3.5">
+                            <Star className="absolute inset-0 w-3.5 h-3.5 text-primary/25" fill="currentColor" strokeWidth={0} />
                             <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
-                              <Star className="w-4 h-4 text-primary" fill="currentColor" strokeWidth={0} />
+                              <Star className="w-3.5 h-3.5 text-primary" fill="currentColor" strokeWidth={0} />
                             </span>
                           </span>
                         );
                       })}
                     </div>
                   )}
+
+                  <p className="text-[14.5px] md:text-[15px] font-bold text-foreground mt-2 tracking-tight leading-snug">
+                    {s.title}
+                  </p>
+                  <p className="text-[12.5px] md:text-[13px] text-muted-foreground leading-relaxed font-body mt-1">
+                    {s.text}
+                  </p>
+                  <p className="mt-3 text-[10.5px] font-semibold uppercase tracking-wide text-primary/80">
+                    {s.note}
+                  </p>
                 </div>
-
-                {/* Number */}
-                <p className="font-extrabold text-foreground leading-none mb-4 flex items-baseline gap-1.5">
-                  <span className="text-[42px] md:text-[56px] tracking-tight">{s.number}</span>
-                  {s.unit && <span className="text-[18px] md:text-[22px] text-primary font-bold">{s.unit}</span>}
-                </p>
-
-                {/* Title */}
-                <p className="text-[16px] md:text-[17px] font-bold text-foreground mb-2 tracking-tight leading-snug">
-                  {s.title}
-                </p>
-
-                {/* Description */}
-                <p className="text-[13.5px] md:text-[14px] text-muted-foreground leading-relaxed font-body flex-1">
-                  {s.text}
-                </p>
-
-                {/* Credibility note */}
-                <p className="mt-5 pt-4 border-t border-border/70 text-[11.5px] font-semibold uppercase tracking-wide text-primary">
-                  {s.note}
-                </p>
               </div>
             );
           })}
