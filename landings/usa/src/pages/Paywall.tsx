@@ -21,6 +21,8 @@ import paywallSophia from "@/assets/paywall-sophia.jpg";
 
 const ORANGE = "#F97316";
 const BLACK = "#111";
+/** Matches the "Start with 61% off" counter green at the top of the paywall. */
+const GREEN = "#16A34A";
 
 /* ── Countdown Timer ── */
 function useCountdown(minutes: number) {
@@ -126,7 +128,7 @@ function PaywallTrustBadges() {
         <Laurel side="left" />
         <div className="text-center">
           <p className="text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
-            50K+ learners
+            5K+ learners
           </p>
           <p className="text-[11px] mt-1" style={{ color: "#475569" }}>
             Learned new skills
@@ -237,16 +239,25 @@ function PricingBlock({
 
       <PaywallTrustBadges />
 
-      {/* GET MY PLAN button — same on mobile and desktop */}
+      {/* GET MY PLAN button — green (matches the top counter) with an iOS-style shimmer sweep */}
       <button
         id="get-my-plan-btn"
         type="button"
         onClick={onGetPlan}
         disabled={checkoutLoading}
-        className="animate-pulse-cta w-full py-4 rounded-2xl text-white font-bold text-[17px] border-none cursor-pointer mb-3 flex items-center justify-center tracking-wide disabled:opacity-60"
-        style={{ background: BLACK }}
+        className="relative w-full py-4 rounded-2xl text-white font-bold text-[17px] border-none cursor-pointer mb-3 flex items-center justify-center gap-2 tracking-wide overflow-hidden shadow-lg shadow-[#16A34A]/30 transition-transform active:scale-[0.99] disabled:opacity-60"
+        style={{ background: `linear-gradient(180deg, #22C55E 0%, ${GREEN} 100%)` }}
       >
-        {checkoutLoading ? "Redirecting…" : "GET MY PLAN"}
+        {/* iOS slide-to-unlock style light sweep */}
+        {!checkoutLoading && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-linear-to-r from-transparent via-white/35 to-transparent animate-[paywall-cta-slide_2.4s_ease-in-out_infinite] motion-reduce:hidden"
+          />
+        )}
+        <span className="relative z-10 flex items-center gap-2">
+          {checkoutLoading ? "Redirecting…" : "GET MY PLAN"}
+        </span>
       </button>
 
       <p className="text-[13px] text-center mb-3">

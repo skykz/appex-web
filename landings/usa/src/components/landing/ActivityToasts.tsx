@@ -24,22 +24,58 @@ const LAST_INITIALS = [
   "D.", "W.", "G.", "F.", "N.", "J.", "A.", "V.", "Z.", "O.",
 ];
 
-const ACTIONS = [
+/** US cities with their state abbreviations, spread across the country. */
+const CITIES = [
+  "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX",
+  "Phoenix, AZ", "Philadelphia, PA", "San Antonio, TX", "San Diego, CA",
+  "Dallas, TX", "Austin, TX", "San Jose, CA", "Jacksonville, FL",
+  "Columbus, OH", "Charlotte, NC", "Indianapolis, IN", "Seattle, WA",
+  "Denver, CO", "Boston, MA", "Nashville, TN", "Portland, OR",
+  "Las Vegas, NV", "Detroit, MI", "Miami, FL", "Atlanta, GA",
+  "Minneapolis, MN", "Kansas City, MO", "Sacramento, CA", "Raleigh, NC",
+  "Pittsburgh, PA", "Cincinnati, OH", "Salt Lake City, UT", "Tampa, FL",
+  "Orlando, FL", "St. Louis, MO", "Cleveland, OH", "Milwaukee, WI",
+];
+
+/**
+ * Landing actions — for visitors who haven't signed up yet (getting a plan,
+ * starting the quiz, enrolling).
+ */
+const LANDING_ACTIONS = [
   "just got their personalized learning plan",
   "started building their first Claude project",
   "just started the free quiz",
   "unlocked their AI career roadmap",
-  "is working through today's tasks",
   "enrolled in the Claude program",
   "completed their first hands-on lesson",
   "hit a 7-day learning streak",
   "shared their certificate on LinkedIn",
   "earned their first project badge",
+  "just started their AI journey",
 ];
 
+/**
+ * Quiz actions — for people currently going through the quiz flow (answering
+ * questions, personalizing, about to get their plan).
+ */
+const QUIZ_ACTIONS = [
+  "just finished the quiz",
+  "is answering the quiz right now",
+  "just personalized their learning path",
+  "got matched with a learning plan",
+  "just picked their AI career goal",
+  "completed the personalization step",
+  "is building their profile right now",
+  "just unlocked their results",
+  "started the quiz a moment ago",
+  "chose their preferred learning pace",
+];
+
+type ToastVariant = "landing" | "quiz";
+
 type Toast = {
-  key: number;
   name: string;
+  city: string;
   action: string;
   minutesAgo: number;
 };
@@ -57,38 +93,40 @@ function timeAgo(minutes: number): string {
 }
 
 /**
- * Builds a fresh toast whose (name + action) combo hasn't been shown recently.
- * `recent` is a rolling set of the last N combos; we re-roll until we find one
- * that isn't in it, so the stream runs forever without visible repeats.
+ * Builds a fresh toast whose (name + city + action) combo hasn't been shown
+ * recently. `recent` is a rolling set of the last N combos; we re-roll until we
+ * find one that isn't in it, so the stream runs forever without visible repeats.
  */
-function buildToast(key: number, recent: Set<string>): Toast {
+function buildToast(actions: string[], recent: Set<string>): Toast {
   let name = "";
+  let city = "";
   let action = "";
   let combo = "";
-  // Bounded retries: the combo space (44×20×10) dwarfs the recent window,
-  // so a fresh pick is found almost immediately; the cap just guarantees we
-  // never loop forever in a pathological case.
+  // Bounded retries: the combo space dwarfs the recent window, so a fresh pick
+  // is found almost immediately; the cap just guarantees we never loop forever.
   for (let i = 0; i < 40; i++) {
     name = `${randomOf(FIRST_NAMES)} ${randomOf(LAST_INITIALS)}`;
-    action = randomOf(ACTIONS);
-    combo = `${name}|${action}`;
+    city = randomOf(CITIES);
+    action = randomOf(actions);
+    combo = `${name}|${city}|${action}`;
     if (!recent.has(combo)) break;
   }
   return {
-    key,
     name,
+    city,
     action,
     minutesAgo: Math.floor(Math.random() * 34) + 1, // 1–34 min ago
   };
 }
 
-export default function ActivityToasts() {
+export default function ActivityToasts({ variant = "landing" }: { variant?: ToastVariant }) {
   const [toast, setToast] = useState<Toast | null>(null);
   const [visible, setVisible] = useState(false);
-  const counter = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Rolling window of recently shown (name+action) combos to avoid repeats.
   const recent = useRef<string[]>([]);
+
+  const actions = variant === "quiz" ? QUIZ_ACTIONS : LANDING_ACTIONS;
 
   // Respect reduced-motion opt-out.
   const enabled = useMemo(() => {
@@ -104,14 +142,19 @@ export default function ActivityToasts() {
 
     const showOne = () => {
       if (cancelled) return;
-      counter.current += 1;
-      const next = buildToast(counter.current, new Set(recent.current));
+      const next = buildToast(actions, new Set(recent.current));
       // Remember this combo; keep the window to the last 20 so it never repeats
       // anything on screen recently but the pool eventually recycles.
-      recent.current.push(`${next.name}|${next.action}`);
+      recent.current.push(`${next.name}|${next.city}|${next.action}`);
       if (recent.current.length > 20) recent.current.shift();
       setToast(next);
-      setVisible(true);
+      // Two frames: mount the new content while still hidden, then flip to
+      // visible so the CSS transition has a from-state to animate from.
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (!cancelled) setVisible(true);
+        })
+      );
 
       // Visible ~5s, then hide and schedule the next after a random gap.
       pending.push(
@@ -132,17 +175,16 @@ export default function ActivityToasts() {
       pending.forEach(clearTimeout);
       timers.current = [];
     };
-  }, [enabled]);
+  }, [enabled, actions]);
 
   if (!enabled || !toast) return null;
 
   return (
     <div
       aria-live="polite"
-      className="fixed bottom-4 left-4 z-50 pointer-events-none hidden sm:block"
+      className="fixed bottom-4 right-4 z-50 pointer-events-none hidden sm:block"
     >
       <div
-        key={toast.key}
         className={`max-w-[300px] rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm transition-all duration-500 ${
           visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
         }`}
@@ -156,7 +198,8 @@ export default function ActivityToasts() {
           </span>
           <div className="leading-snug">
             <p className="text-[13px] text-foreground font-body">
-              <span className="font-bold">{toast.name}</span> {toast.action}
+              <span className="font-bold">{toast.name}</span>
+              <span className="text-muted-foreground"> from {toast.city}</span> {toast.action}
             </p>
             <p className="text-[11px] text-muted-foreground font-body mt-0.5">
               {timeAgo(toast.minutesAgo)}

@@ -55,15 +55,20 @@ function RouteAnalytics() {
 }
 
 /**
- * Renders the live-activity toasts only on browsing/landing pages — not during
- * the quiz, checkout, or legal pages where they'd be a distraction.
+ * Renders the live-activity toasts on browsing/landing pages and during the
+ * quiz flow (with quiz-relevant copy). Hidden on checkout and legal pages where
+ * they'd be a distraction.
  */
 function ActivityToastsGate() {
   const location = useLocation();
-  const onLanding =
-    location.pathname === "/" ||
-    location.pathname.startsWith("/ai-skills-for/");
-  return onLanding ? <ActivityToasts /> : null;
+  const path = location.pathname;
+
+  const onLanding = path === "/" || path.startsWith("/ai-skills-for/");
+  const onQuiz = path === "/quiz" || path.startsWith("/quiz/");
+
+  if (onQuiz) return <ActivityToasts variant="quiz" />;
+  if (onLanding) return <ActivityToasts variant="landing" />;
+  return null;
 }
 
 const App = () => (
