@@ -17,6 +17,7 @@ import SettingsCheckoutReturn from "./pages/SettingsCheckoutReturn.tsx";
 import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
+import ActivityToasts from "./components/landing/ActivityToasts";
 import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
 import { initGa4, ga4PageView, ga4ViewItem } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
@@ -53,6 +54,18 @@ function RouteAnalytics() {
   return null;
 }
 
+/**
+ * Renders the live-activity toasts only on browsing/landing pages — not during
+ * the quiz, checkout, or legal pages where they'd be a distraction.
+ */
+function ActivityToastsGate() {
+  const location = useLocation();
+  const onLanding =
+    location.pathname === "/" ||
+    location.pathname.startsWith("/ai-skills-for/");
+  return onLanding ? <ActivityToasts /> : null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -76,6 +89,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <QuizOverlay />
+          <ActivityToastsGate />
         </QuizProvider>
       </BrowserRouter>
     </TooltipProvider>

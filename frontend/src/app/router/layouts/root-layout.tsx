@@ -1,9 +1,10 @@
 import { Suspense } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { SidebarProvider, SidebarInset, SidebarTrigger, PageLoader, Logo } from '@shared/ui'
 import { useCurrentUser } from '@entities/user'
 import { AppSidebar } from '@/widgets/app-sidebar'
 import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
+import { ActivityToasts } from '@/widgets/activity-toasts'
 
 /**
  * Root layout component with sidebar navigation.
@@ -13,6 +14,12 @@ import { MobileBottomBar } from '@/widgets/mobile-bottom-bar'
 export function RootLayout() {
   /** Loads `/users/me` into the auth store so the sidebar shows real name and email. */
   useCurrentUser()
+
+  const location = useLocation()
+  // Live-activity toasts show on all app pages except Settings (a focused,
+  // form-heavy screen where they'd be a distraction). Auth/verify/error pages
+  // live outside this layout, so they're already excluded.
+  const showActivityToasts = !location.pathname.startsWith('/settings')
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -47,6 +54,8 @@ export function RootLayout() {
         {/* Mobile bottom navigation */}
         <MobileBottomBar />
       </SidebarInset>
+
+      {showActivityToasts && <ActivityToasts />}
     </SidebarProvider>
   )
 }

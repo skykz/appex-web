@@ -4,3 +4,4 @@
  */
 export { AppSidebar } from './app-sidebar'
 export { MobileBottomBar } from './mobile-bottom-bar'
+export { ActivityToasts } from './activity-toasts'
