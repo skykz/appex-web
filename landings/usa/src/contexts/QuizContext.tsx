@@ -86,7 +86,7 @@ const defaultAnswers: QuizAnswers = {
 
 const QuizContext = createContext<QuizContextType | null>(null);
 
-const TOTAL_STEPS = 45;
+export const TOTAL_STEPS = 45;
 
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [answers, setAnswers] = useState<QuizAnswers>(() => {

@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useQuiz } from "@/contexts/QuizContext";
 import { ga4QuizStep } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
-import { stepByIndex } from "@/lib/quiz-steps";
+import { stepByIndex, assertStepMapInSync } from "@/lib/quiz-steps";
+import { TOTAL_STEPS } from "@/contexts/QuizContext";
+
+assertStepMapInSync(TOTAL_STEPS);
 import QuizShell from "./QuizShell";
 import StepAge from "./steps/StepAge";
 import StepGoal from "./steps/StepGoal";
