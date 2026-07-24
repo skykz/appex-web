@@ -1,10 +1,20 @@
 import { useQuiz } from "@/contexts/QuizContext";
 import ContinueButton from "../ContinueButton";
 import { useState } from "react";
+import { trackCompleteRegistration } from "@/lib/meta-pixel";
+import { ga4NameSubmit } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export default function StepName() {
   const { answers, setAnswer, nextStep } = useQuiz();
   const [name, setName] = useState(answers.userName || "");
+
+  const handleContinue = () => {
+    trackCompleteRegistration();
+    ga4NameSubmit();
+    pushToDataLayer("name_submit");
+    nextStep();
+  };
 
   return (
     <div>
@@ -19,7 +29,7 @@ export default function StepName() {
         className="w-full rounded-xl border px-5 py-4 text-[16px] outline-none mb-8"
         style={{ borderColor: '#E5E5E5', color: '#111' }}
       />
-      <ContinueButton onClick={nextStep} disabled={!name.trim()} />
+      <ContinueButton onClick={handleContinue} disabled={!name.trim()} />
     </div>
   );
 }

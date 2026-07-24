@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
-import { ga4QuizStart, ga4QuizComplete } from "@/lib/ga4";
+import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
+import { stepIdForAnswerKey } from "@/lib/quiz-steps";
 
 export interface QuizAnswers {
   gender: string;
@@ -137,6 +138,12 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       trackQuizStart();
       ga4QuizStart();
       pushToDataLayer("quiz_start");
+    }
+    // Per-answer event — powers answer-distribution reports. Keyed to step_id.
+    const stepId = stepIdForAnswerKey(key as string);
+    if (stepId) {
+      ga4QuizAnswer({ step_id: stepId, answer: value });
+      pushToDataLayer("quiz_answer", { step_id: stepId, answer: value });
     }
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }, []);

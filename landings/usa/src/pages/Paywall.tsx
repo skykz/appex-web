@@ -3,7 +3,7 @@ import { LegalLink } from "@/components/legal/LegalLink";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
-import { ga4BeginCheckout, getGa4ClientId } from "@/lib/ga4";
+import { ga4CheckoutStart, ga4PaywallView, getGa4ClientId } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import {
   PAYWALL_PLANS,
@@ -78,7 +78,7 @@ function Laurel({ side }: { side: "left" | "right" }) {
   );
 }
 
-/** Renders one Trustpilot-style square star (full or half for the 4.5 rating). */
+/* Trustpilot star — temporarily disabled (kept in code)
 function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
   const starPath =
     "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
@@ -98,13 +98,13 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
     </svg>
   );
 }
+*/
 
-/** Trustpilot rating and learner count shown beneath subscription plan cards. */
+/** Learner count badge shown beneath subscription plan cards. */
 function PaywallTrustBadges() {
-  const halfStarClipId = "paywall-trust-half-star";
-
   return (
     <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4 flex-wrap">
+      {/* Trustpilot rating badge — temporarily hidden (kept in code)
       <div className="flex items-center gap-2">
         <Laurel side="left" />
         <div className="text-center">
@@ -123,6 +123,7 @@ function PaywallTrustBadges() {
         </div>
         <Laurel side="right" />
       </div>
+      */}
 
       <div className="flex items-center gap-2">
         <Laurel side="left" />
@@ -290,6 +291,15 @@ export default function Paywall() {
   // fallback in case another entry path sets it.
   const quizName = ((data.userName ?? data.name) as string | undefined)?.trim();
   const planSavedRef = useRef<string | null>(null);
+  const paywallViewFired = useRef(false);
+
+  // Fire paywall_view once on mount (spec funnel step 38, screen shown).
+  useEffect(() => {
+    if (paywallViewFired.current) return;
+    paywallViewFired.current = true;
+    ga4PaywallView();
+    pushToDataLayer("paywall_view");
+  }, []);
 
   useEffect(() => {
     if (!quizEmail) return;
@@ -342,8 +352,8 @@ export default function Paywall() {
       currency: "USD",
       plan: interval,
     });
-    ga4BeginCheckout({ value: conversionValue, currency: "USD", plan: interval });
-    pushToDataLayer("begin_checkout", { value: conversionValue, currency: "USD", plan: interval });
+    ga4CheckoutStart({ value: conversionValue, currency: "USD", plan: interval });
+    pushToDataLayer("checkout_start", { value: conversionValue, currency: "USD", plan: interval });
     // Persist the chosen plan/value so the success page fires the browser Purchase
     // with the same value the server reports.
     try {

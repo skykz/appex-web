@@ -27,7 +27,7 @@
  * same GA4 `client_id` captured here so both hits attribute to one user/session.
  */
 
-import { getAttributionParams } from './attribution'
+import { getEventEnvelope } from './attribution'
 
 type GtagFn = (...args: unknown[]) => void
 
@@ -96,9 +96,9 @@ export function initGa4(): void {
   first?.parentNode?.insertBefore(script, first)
 }
 
-/** Merges captured creative/UTM attribution into every event's params. */
+/** Stamps the standard envelope (anon_id/session_id/timestamp + attribution). */
 function withAttribution(params?: Record<string, unknown>): Record<string, unknown> {
-  return { ...getAttributionParams(), ...(params ?? {}) }
+  return { ...getEventEnvelope(), ...(params ?? {}) }
 }
 
 /** Fires a GA4 event via gtag; no-op when disabled or gtag isn't ready. */
@@ -156,9 +156,9 @@ export function ga4PageView(path?: string): void {
   event('page_view', params)
 }
 
-/** view_item — opened a landing / course page. */
-export function ga4ViewItem(params?: { item_name?: string }): void {
-  event('view_item', params?.item_name ? { items: [{ item_name: params.item_name }] } : undefined)
+/** landing_view — opened the landing (spec funnel step 1). */
+export function ga4LandingView(params?: { item_name?: string }): void {
+  event('landing_view', params?.item_name ? { item_name: params.item_name } : undefined)
 }
 
 /** quiz_start (custom) — first quiz answer. */
@@ -171,18 +171,48 @@ export function ga4QuizComplete(): void {
   event('quiz_complete')
 }
 
-/** generate_lead — submitted email in the quiz. */
-export function ga4GenerateLead(): void {
-  event('generate_lead')
+/** quiz_step — fired on every quiz screen view (drop-off funnel by step_index). */
+export function ga4QuizStep(params: {
+  step_index: number
+  step_id: string
+  section: string
+  type: string
+}): void {
+  event('quiz_step', params)
 }
 
-/** begin_checkout — opened Stripe checkout from the paywall (value+currency). */
-export function ga4BeginCheckout(params: {
+/** quiz_answer — fired when the user picks an answer on a question screen. */
+export function ga4QuizAnswer(params: { step_id: string; answer: unknown }): void {
+  event('quiz_answer', { step_id: params.step_id, answer: params.answer })
+}
+
+/** lead — submitted email in the quiz (spec funnel step 34). */
+export function ga4Lead(): void {
+  event('lead')
+}
+
+/** name_submit — submitted name (spec funnel step 35). */
+export function ga4NameSubmit(): void {
+  event('name_submit')
+}
+
+/** plan_view — reached the personal-plan reveal (spec funnel step 36). */
+export function ga4PlanView(): void {
+  event('plan_view')
+}
+
+/** paywall_view — paywall screen shown (spec funnel step 38). */
+export function ga4PaywallView(): void {
+  event('paywall_view')
+}
+
+/** checkout_start — clicked a plan / opened Stripe checkout (spec step 38, value+currency). */
+export function ga4CheckoutStart(params: {
   value: number
   currency: string
   plan: string
 }): void {
-  event('begin_checkout', {
+  event('checkout_start', {
     value: params.value,
     currency: params.currency,
     items: [{ item_id: params.plan, item_name: `Appex ${params.plan}` }],

@@ -17,6 +17,8 @@
  * are already sent by the app and would duplicate every conversion.
  */
 
+import { getEventEnvelope } from './attribution'
+
 declare global {
   interface Window {
     dataLayer?: unknown[]
@@ -24,15 +26,16 @@ declare global {
 }
 
 /**
- * Pushes a funnel event + params onto the GTM dataLayer. Never throws; no-op when
- * the dataLayer isn't available (GTM blocked / not yet loaded — GTM creates the
- * array itself, and pushes made before it loads are replayed on load).
+ * Pushes a funnel event + the standard envelope (anon_id/session_id/timestamp +
+ * attribution) + params onto the GTM dataLayer. Never throws; no-op when the
+ * dataLayer isn't available (GTM blocked / not yet loaded — GTM creates the array
+ * itself, and pushes made before it loads are replayed on load).
  */
 export function pushToDataLayer(event: string, params?: Record<string, unknown>): void {
   if (typeof window === 'undefined') return
   try {
     window.dataLayer = window.dataLayer || []
-    window.dataLayer.push({ event, ...(params ?? {}) })
+    window.dataLayer.push({ event, ...getEventEnvelope(), ...(params ?? {}) })
   } catch {
     /* analytics must never break the funnel */
   }
