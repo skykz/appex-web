@@ -188,6 +188,8 @@ export async function createLandingCheckout(args: {
   email: string;
   name?: string;
   interval: LandingPlanId;
+  /** Discount tier the paywall was showing when the user clicked (server picks the coupon). */
+  discountTier?: "intro" | "exit" | "expired";
   meta?: MetaAttribution;
   ga4?: Ga4Attribution;
 }): Promise<{ url: string } | { error: string }> {
@@ -209,6 +211,7 @@ export async function createLandingCheckout(args: {
         email: args.email.trim().toLowerCase(),
         name: args.name?.trim() || undefined,
         interval: args.interval,
+        discount_tier: args.discountTier || "intro",
         meta_event_id: args.meta?.event_id || undefined,
         fbp: args.meta?.fbp || undefined,
         fbc: args.meta?.fbc || undefined,

@@ -12,6 +12,10 @@ import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
 import { submitLandingQuiz } from "@/lib/landing-api";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
+import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
+import { ga4QuizStep, ga4Lead, ga4NameSubmit, ga4PlanView } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
+import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
 import womanIncomeImg from "@/assets/quiz-woman-income.jpg";
@@ -1206,7 +1210,7 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
 }
 
 function S23() {
-  const { set, next, answers } = useQuiz();
+  const { set, next, answers, commitAnswer } = useQuiz();
   const [email, setEmail] = useState(answers.email || "");
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   return (
@@ -1238,6 +1242,12 @@ function S23() {
         disabled={!valid}
         onClick={() => {
           set("email", email);
+          // Lead milestone. commitAnswer reports "provided" — never send the
+          // address itself as an analytics param.
+          commitAnswer("email_capture", "provided");
+          trackLead();
+          ga4Lead();
+          pushToDataLayer("lead");
           void submitLandingQuiz({ email, answers: { ...answers, email } });
           next();
         }}
@@ -1249,12 +1259,17 @@ function S23() {
 }
 
 function S24() {
-  const { set, next, answers, close } = useQuiz();
+  const { set, next, answers, close, commitAnswer } = useQuiz();
   const [name, setName] = useState(answers.name || "");
   const valid = name.trim().length > 0;
   const finish = () => {
     const trimmed = name.trim();
     set("name", trimmed);
+    // Registration-intent milestone. Don't send the name itself as a param.
+    commitAnswer("name_capture", "provided");
+    trackCompleteRegistration();
+    ga4NameSubmit();
+    pushToDataLayer("name_submit");
     void submitLandingQuiz({
       email: answers.email || "",
       name: trimmed,
@@ -1285,6 +1300,13 @@ function S24() {
 function S25() {
   const { answers, close } = useQuiz();
   const navigate = useNavigate();
+
+  // plan_view — the personal-plan reveal, last screen before the paywall.
+  useEffect(() => {
+    ga4PlanView();
+    pushToDataLayer("plan_view");
+  }, []);
+
   const weeks = [
     { label: "Week 1", text: "Claude Fundamentals — learn how to communicate with AI and get useful, accurate results" },
     { label: "Week 2", text: "Claude Code Basics — let Claude handle tasks on your computer and automate simple workflows" },
@@ -1648,6 +1670,26 @@ export default function QuizOverlay() {
     }
     return () => document.body.classList.remove("overlay-open");
   }, [isOpen]);
+
+  // quiz_step on every screen view — the drop-off funnel signal for the overlay
+  // quiz (build the funnel by descending step_index). Only while open, so
+  // closing and reopening doesn't emit a step for a hidden overlay.
+  useEffect(() => {
+    if (!isOpen) return;
+    const meta = overlayStepByIndex(step);
+    ga4QuizStep({
+      step_index: step,
+      step_id: meta.id,
+      section: meta.section,
+      type: meta.type,
+    });
+    pushToDataLayer("quiz_step", {
+      step_index: step,
+      step_id: meta.id,
+      section: meta.section,
+      type: meta.type,
+    });
+  }, [isOpen, step]);
 
   if (!isOpen) return null;
   const Step = STEPS[step] || S1;

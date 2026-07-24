@@ -6,11 +6,14 @@ import { ga4Lead } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 
 export default function StepEmail() {
-  const { answers, setAnswer, nextStep } = useQuiz();
+  const { answers, setAnswer, commitAnswer, nextStep } = useQuiz();
   const [email, setEmail] = useState(answers.email || "");
   const [agreed, setAgreed] = useState(false);
 
   const handleContinue = () => {
+    // Commit the answer once (setAnswer fires per keystroke). Report "provided"
+    // rather than the address itself — never send an email as an event param.
+    commitAnswer("email", "provided");
     trackLead();
     ga4Lead();
     pushToDataLayer("lead");

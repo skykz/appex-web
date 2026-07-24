@@ -3,8 +3,15 @@ import ContinueButton from "../ContinueButton";
 import { useState } from "react";
 
 export default function StepPriceInput() {
-  const { answers, setAnswer, nextStep } = useQuiz();
+  const { answers, setAnswer, commitAnswer, nextStep } = useQuiz();
   const [value, setValue] = useState(answers.priceFeeling || "");
+
+  // Commit the final price once on continue — setAnswer fires per keystroke, so
+  // firing quiz_answer there would emit an event per digit typed.
+  const handleContinue = () => {
+    commitAnswer("priceFeeling", value);
+    nextStep();
+  };
 
   return (
     <div>
@@ -24,7 +31,7 @@ export default function StepPriceInput() {
           />
         </div>
       </div>
-      <ContinueButton onClick={nextStep} disabled={!value} />
+      <ContinueButton onClick={handleContinue} disabled={!value} />
     </div>
   );
 }

@@ -135,6 +135,18 @@ export async function userEligibleForIntroCoupon(userId: string): Promise<boolea
   return !sub?.stripe_subscription_id
 }
 
+/**
+ * Discount tier requested by the paywall.
+ * - `intro`   — default offer (61% off)
+ * - `exit`    — exit-intent upgrade (71% off)
+ * - `expired` — the countdown ran out; charge full price
+ *
+ * This is a *hint* from the client, never a price. The server resolves the
+ * actual coupon id, so a tampered request can at worst ask for a discount tier
+ * we already publish — it can never invent an amount or name a coupon.
+ */
+export type DiscountTier = 'intro' | 'exit' | 'expired'
+
 /** Resolves the Stripe coupon id for a first-time intro checkout on the given plan. */
 export function introCouponIdForInterval(interval: BillingInterval): string | undefined {
   const byPlan: Record<BillingInterval, string | undefined> = {
@@ -143,6 +155,34 @@ export function introCouponIdForInterval(interval: BillingInterval): string | un
     year: env.STRIPE_INTRO_COUPON_YEAR,
   }
   return byPlan[interval]
+}
+
+/** Resolves the 71% exit-intent coupon id for the given plan, if configured. */
+export function exitCouponIdForInterval(interval: BillingInterval): string | undefined {
+  const byPlan: Record<BillingInterval, string | undefined> = {
+    week_1: env.STRIPE_EXIT_COUPON_1WEEK,
+    week_4: env.STRIPE_EXIT_COUPON_4WEEK,
+    year: env.STRIPE_EXIT_COUPON_YEAR,
+  }
+  return byPlan[interval]
+}
+
+/**
+ * Resolves the coupon to attach for a given plan + discount tier.
+ *
+ * `expired` attaches nothing (full price). `exit` falls back to the intro coupon
+ * when no exit coupon is configured, so a missing env var under-charges rather
+ * than billing someone the full price we just promised them a discount off.
+ */
+export function couponIdForTier(
+  interval: BillingInterval,
+  tier: DiscountTier
+): string | undefined {
+  if (tier === 'expired') return undefined
+  if (tier === 'exit') {
+    return exitCouponIdForInterval(interval) ?? introCouponIdForInterval(interval)
+  }
+  return introCouponIdForInterval(interval)
 }
 
 interface CheckoutInput {
@@ -200,6 +240,11 @@ export interface LandingCheckoutInput {
   name?: string
   interval: BillingInterval
   landing?: string
+  /**
+   * Discount tier the paywall was showing. Defaults to `intro` so an older
+   * client that doesn't send the field still gets the standard 61% offer.
+   */
+  tier?: DiscountTier
   /** Meta attribution stored on the session for server-side Purchase dedup. */
   meta?: {
     eventId?: string
@@ -260,11 +305,12 @@ export async function createLandingCheckoutSession(
     applyIntro = await userEligibleForIntroCoupon(existingUser.id)
   }
 
+  // Returning payers never get a first-time discount, whatever tier the paywall
+  // claimed; otherwise the server picks the coupon for the requested tier.
+  const tier: DiscountTier = applyIntro ? (input.tier ?? 'intro') : 'expired'
   const discounts: Array<{ coupon: string }> = []
-  if (applyIntro) {
-    const couponId = introCouponIdForInterval(input.interval)
-    if (couponId) discounts.push({ coupon: couponId })
-  }
+  const tierCoupon = couponIdForTier(input.interval, tier)
+  if (tierCoupon) discounts.push({ coupon: tierCoupon })
 
   const landing = input.landing ?? 'usa'
   const session = await stripe.checkout.sessions.create({
@@ -276,6 +322,9 @@ export async function createLandingCheckoutSession(
       landing,
       interval: input.interval,
       email,
+      // Which discount tier actually applied — lets you reconcile 61% vs 71% vs
+      // full-price sales in Stripe without re-deriving it from the coupon id.
+      discount_tier: tier,
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
       // Meta attribution for the server-side Purchase event (read in provisioning).
       ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),

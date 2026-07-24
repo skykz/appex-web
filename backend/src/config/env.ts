@@ -67,10 +67,18 @@ const envSchema = z.object({
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe coupon for the first-cycle intro price on the 4-week plan (legacy single-coupon fallback). */
   STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
-  /** Per-plan intro coupons (USA paywall). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
+  /** Per-plan intro coupons (USA paywall, 61% off). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
   STRIPE_INTRO_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * Per-plan exit-intent coupons (USA paywall, 71% off). When a plan has no exit
+   * coupon configured, the checkout silently falls back to its 61% intro coupon —
+   * never to full price — so a missing env var can't overcharge a promised discount.
+   */
+  STRIPE_EXIT_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_EXIT_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_EXIT_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
 
   // --- Mailgun (transactional + marketing email) ---
   /** Mailgun private API key (Dashboard → Settings → API keys). */

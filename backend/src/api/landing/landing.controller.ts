@@ -259,6 +259,9 @@ const landingCheckoutSchema = z.object({
   name: z.string().max(200).optional(),
   landing: z.enum(LANDING_IDS).default('usa'),
   interval: z.enum(PLAN_IDS),
+  // Discount tier the paywall was showing. A hint only — the server maps it to
+  // a coupon, so the client can never name a coupon or an amount.
+  discount_tier: z.enum(['intro', 'exit', 'expired']).default('intro'),
   // Meta attribution for server-side Purchase deduplication (all optional).
   // Capped at 500 — Stripe rejects metadata VALUES longer than 500 chars, which
   // would 500 the whole checkout (fbc embeds a variable-length fbclid).
@@ -316,6 +319,7 @@ export async function createLandingCheckout(
       name: body.name,
       interval,
       landing: body.landing,
+      tier: body.discount_tier,
       meta: {
         eventId: body.meta_event_id,
         fbp: body.fbp,
