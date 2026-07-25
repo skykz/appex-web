@@ -216,6 +216,7 @@ export function CoursesPage() {
                     ? 'Move up in catalog'
                     : 'Sort by “manual order”, clear search, and show all categories to reorder'
                 }
+                aria-label={`Move ${c.title} up in catalog`}
                 onClick={() => moveCourseRow(c.id, -1)}
               >
                 <ChevronUp className="h-4 w-4" />
@@ -231,6 +232,7 @@ export function CoursesPage() {
                     ? 'Move down in catalog'
                     : 'Sort by “manual order”, clear search, and show all categories to reorder'
                 }
+                aria-label={`Move ${c.title} down in catalog`}
                 onClick={() => moveCourseRow(c.id, 1)}
               >
                 <ChevronDown className="h-4 w-4" />
@@ -242,10 +244,22 @@ export function CoursesPage() {
                 <ChevronRight className="h-4 w-4" />
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(c)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setEditing(c)}
+              aria-label={`Edit course ${c.title}`}
+            >
               <Pencil className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteTarget(c)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setDeleteTarget(c)}
+              aria-label={`Delete course ${c.title}`}
+            >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>

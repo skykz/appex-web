@@ -1,4 +1,7 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
+import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 
 export type Answers = {
   experience_with_claude?: "yes" | "no";
@@ -61,6 +64,9 @@ interface Ctx {
   step: number;
   answers: Answers;
   set: <K extends keyof Answers>(key: K, value: Answers[K]) => void;
+  /** Emits quiz_answer for a committed answer — used by free-text screens
+   * (email/name), which call `set` per keystroke and so skip auto-firing. */
+  commitAnswer: (key: string, value: unknown) => void;
   next: () => void;
   prev: () => void;
   goto: (n: number) => void;
@@ -68,15 +74,65 @@ interface Ctx {
 
 const QuizCtx = createContext<Ctx | null>(null);
 
+/**
+ * Answer keys typed into free-text inputs (fired per keystroke by `set`), so they
+ * emit quiz_answer once on commit instead of once per character.
+ */
+const FREE_TEXT_KEYS = new Set<string>(["email", "name"]);
+
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
   const [state, dispatch] = useReducer(reducer, { step: 1, answers: {} });
+
+  // Fire quiz_start / quiz_complete once each, persisted so a reload mid-funnel
+  // doesn't re-count them (mirrors the /quiz route's guards).
+  const quizStartFired = useRef<boolean>(
+    typeof sessionStorage !== "undefined" && sessionStorage.getItem("appexOverlayStartFired") === "1"
+  );
+  const quizCompleteFired = useRef<boolean>(
+    typeof sessionStorage !== "undefined" && sessionStorage.getItem("appexOverlayCompleteFired") === "1"
+  );
 
   const open = useCallback(() => {
     dispatch({ type: "RESET_STEP" });
     setIsOpen(true);
   }, []);
   const close = useCallback(() => setIsOpen(false), []);
+
+  /** Emits quiz_answer for a committed answer. The overlay's answer keys are
+   * already clean slugs (work_status, age_band, …) so they double as step_id. */
+  const commitAnswer = useCallback((key: string, value: unknown) => {
+    ga4QuizAnswer({ step_id: key, answer: value });
+    pushToDataLayer("quiz_answer", { step_id: key, answer: value });
+  }, []);
+
+  /** Fires quiz_start on the very first answer (Meta + GA4 + dataLayer). */
+  const fireQuizStartOnce = useCallback(() => {
+    if (quizStartFired.current) return;
+    quizStartFired.current = true;
+    try {
+      sessionStorage.setItem("appexOverlayStartFired", "1");
+    } catch {
+      /* storage disabled — in-memory guard still holds for this page life */
+    }
+    trackQuizStart();
+    ga4QuizStart();
+    pushToDataLayer("quiz_start");
+  }, []);
+
+  // quiz_complete when the last overlay step is reached.
+  useEffect(() => {
+    if (quizCompleteFired.current || state.step < TOTAL_STEPS) return;
+    quizCompleteFired.current = true;
+    try {
+      sessionStorage.setItem("appexOverlayCompleteFired", "1");
+    } catch {
+      /* non-fatal */
+    }
+    trackQuizComplete();
+    ga4QuizComplete();
+    pushToDataLayer("quiz_complete");
+  }, [state.step]);
 
   // Persist answers to sessionStorage whenever answers change (for paywall personalization)
   useEffect(() => {
@@ -113,11 +169,18 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     close,
     step: state.step,
     answers: state.answers,
-    set: (k, v) => dispatch({ type: "SET", key: k, value: v }),
+    set: (k, v) => {
+      fireQuizStartOnce();
+      // Free-text keys are set per keystroke — those screens call commitAnswer
+      // once from their own submit handler instead.
+      if (!FREE_TEXT_KEYS.has(k as string)) commitAnswer(k as string, v);
+      dispatch({ type: "SET", key: k, value: v });
+    },
+    commitAnswer,
     next: () => dispatch({ type: "NEXT" }),
     prev: () => dispatch({ type: "PREV" }),
     goto: (n) => dispatch({ type: "GOTO", step: n }),
-  }), [isOpen, open, close, state]);
+  }), [isOpen, open, close, state, fireQuizStartOnce, commitAnswer]);
 
   return <QuizCtx.Provider value={value}>{children}</QuizCtx.Provider>;
 }

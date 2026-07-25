@@ -7,6 +7,15 @@ import {
 } from "@/lib/landing-api";
 import { trackPurchase } from "@/lib/meta-pixel";
 import { ga4Purchase } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
+import { PAYWALL_PLANS, PAYWALL_DEFAULT_INDEX } from "@/lib/paywall-plans";
+
+/**
+ * Value reported when the stored checkout value is unavailable — the default
+ * plan's recurring price, matching what the paywall and the server-side Purchase
+ * would report. Better a correct-order-of-magnitude value than $0.
+ */
+const FALLBACK_PURCHASE_VALUE = Number(PAYWALL_PLANS[PAYWALL_DEFAULT_INDEX].renewalPrice);
 
 /**
  * Fires the browser Purchase (Meta) + purchase (GA4) exactly once on the success
@@ -16,12 +25,22 @@ import { ga4Purchase } from "@/lib/ga4";
  */
 function firePurchaseOnce(sessionId: string): void {
   try {
-    const raw = sessionStorage.getItem("appexCheckout");
+    // Read from localStorage first (survives a new tab / restored session after
+    // the Stripe round-trip); fall back to the legacy sessionStorage key.
+    const raw =
+      localStorage.getItem("appexCheckout") ?? sessionStorage.getItem("appexCheckout");
     const c = raw ? (JSON.parse(raw) as { plan?: string; value?: number; currency?: string }) : {};
-    const value = typeof c.value === "number" ? c.value : 0;
+    // NEVER report 0 — a $0 Purchase silently poisons value-based bidding. If the
+    // stored value is missing (storage cleared / different tab), fall back to the
+    // default plan's price so the conversion still carries a sane value.
+    const stored = typeof c.value === "number" && c.value > 0 ? c.value : null;
+    const value = stored ?? FALLBACK_PURCHASE_VALUE;
     const currency = c.currency || "USD";
     trackPurchase({ stripeSessionId: sessionId, value, currency, plan: c.plan });
     ga4Purchase({ transactionId: sessionId, value, currency, plan: c.plan });
+    // GTM trigger for the marketer's own tags (e.g. Google Ads purchase
+    // conversion). transaction_id lets them dedup; do NOT add GA4/Pixel in GTM.
+    pushToDataLayer("purchase", { transaction_id: sessionId, value, currency, plan: c.plan });
   } catch {
     /* never block the success page on tracking */
   }

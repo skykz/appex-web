@@ -140,3 +140,9 @@ body {
 .animate-pulse-cta {
   animation: pulse-cta 1.6s ease-in-out infinite;
 }
+
+/* iOS slide-to-unlock style light sweep across the CTA. */
+@keyframes paywall-cta-slide {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  60%, 100% { transform: translateX(420%) skewX(-12deg); }
+}

@@ -1,4 +1,11 @@
+import { useEffect } from "react";
 import { useQuiz } from "@/contexts/QuizContext";
+import { ga4QuizStep } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
+import { stepByIndex, assertStepMapInSync } from "@/lib/quiz-steps";
+import { TOTAL_STEPS } from "@/contexts/QuizContext";
+
+assertStepMapInSync(TOTAL_STEPS);
 import QuizShell from "./QuizShell";
 import StepAge from "./steps/StepAge";
 import StepGoal from "./steps/StepGoal";
@@ -97,6 +104,20 @@ const stepComponents = [
 export default function QuizFlow() {
   const { currentStep } = useQuiz();
   const StepComponent = stepComponents[currentStep - 1] || StepAge;
+
+  // Fire quiz_step on every screen view — this is the drop-off funnel signal
+  // (build the funnel by descending step_index in GA4).
+  useEffect(() => {
+    const meta = stepByIndex(currentStep);
+    if (!meta) return;
+    ga4QuizStep({ step_index: meta.index, step_id: meta.id, section: meta.section, type: meta.type });
+    pushToDataLayer("quiz_step", {
+      step_index: meta.index,
+      step_id: meta.id,
+      section: meta.section,
+      type: meta.type,
+    });
+  }, [currentStep]);
 
   return (
     <QuizShell>

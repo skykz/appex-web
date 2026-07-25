@@ -10,11 +10,12 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, ThumbsUp, ThumbsDown, Send, Sparkles } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { X, ThumbsUp, ThumbsDown, Send, ArrowUpRight, PenSquare, Copy, Check } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Textarea } from '@shared/ui'
 import { useAuthStore } from '@entities/user'
-import { LiveChatBubble } from './lesson-chat-message-blocks'
+import { LiveChatBubble, LexiMark } from './lesson-chat-message-blocks'
 import {
   streamLexiMessage,
   submitLexiFeedback,
@@ -43,21 +44,20 @@ interface Message {
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 
 /**
- * Lexi avatar — a branded sparkle mark on the warm-orange gradient. Lexi is an AI
- * mentor, so an illustrated glyph reads honestly as an assistant (no fake face) and
- * ships as pure CSS/SVG — no image asset to download.
+ * Lexi avatar — the same friendly face mark used in chat bubbles, with a ring/shadow
+ * so it reads well as a standalone mark (trigger bubble, panel header, empty state).
  */
 function LexiAvatar({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-sm ring-2 ring-primary/30',
+        'shrink-0 overflow-hidden rounded-full shadow-sm ring-2 ring-primary/30',
         className
       )}
       role="img"
       aria-label="Lexi AI learning mentor"
     >
-      <Sparkles className="size-1/2" strokeWidth={2.25} aria-hidden />
+      <LexiMark />
     </span>
   )
 }
@@ -134,23 +134,26 @@ const LEXI_SUGGESTIONS = [
  */
 function EmptyState({ onPick }: { onPick: (q: string) => void }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center px-2 text-center">
-      <LexiAvatar className="size-12" />
-      <p className="mt-3 text-sm font-semibold text-foreground">
-        Ask me anything about this lesson
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-        I coach, you build — that's how you become an AI Operator.
-      </p>
-      <div className="mt-4 flex flex-wrap justify-center gap-2">
+    <div className="flex min-h-full flex-col">
+      <div className="flex flex-1 flex-col items-center justify-center px-2 py-5 text-center">
+        <LexiAvatar className="size-14" />
+        <p className="mt-3.5 text-lg font-bold text-foreground">
+          Hi, I'm Lexi 👋
+        </p>
+        <p className="mt-1.5 max-w-[15rem] text-sm leading-relaxed text-muted-foreground">
+          Your AI mentor for this lesson. Ask me anything — I coach, you build.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
         {LEXI_SUGGESTIONS.map((s) => (
           <button
             key={s.short}
             type="button"
             onClick={() => onPick(s.full)}
-            className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:border-primary/40 hover:bg-primary/[0.05] active:scale-95"
+            className="group flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left shadow-sm transition-all hover:border-primary/40 hover:bg-primary/[0.04] active:scale-[0.99]"
           >
-            {s.short}
+            <span className="text-sm font-medium text-foreground">{s.short}</span>
+            <ArrowUpRight className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
           </button>
         ))}
       </div>
@@ -183,7 +186,7 @@ function TypingDots() {
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
 /**
- * Renders a single chat bubble with optional 👍/👎 feedback for assistant messages.
+ * Renders a single chat bubble with copy + 👍/👎 actions for assistant messages.
  */
 function MessageBubble({
   message,
@@ -195,36 +198,55 @@ function MessageBubble({
   onFeedback?: (id: string, value: 1 | -1) => void
 }) {
   const isUser = message.role === 'user'
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(message.content).then(
+      () => {
+        setCopied(true)
+        window.setTimeout(() => setCopied(false), 1500)
+      },
+      () => {}
+    )
+  }
+
+  const actionBtn =
+    'flex size-7 items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground'
 
   return (
     <LiveChatBubble
       role={isUser ? 'user' : 'assistant'}
       label={isUser ? userLabel : 'Lexi'}
       footer={
-        !isUser && message.content && onFeedback ? (
-          <div className="flex gap-1 px-1">
-            <button
-              type="button"
-              onClick={() => onFeedback(message.id, 1)}
-              aria-label="Helpful"
-              className={cn(
-                'rounded p-1 text-muted-foreground/50 transition-colors hover:text-green-500',
-                message.feedback === 1 && 'text-green-500'
+        !isUser && message.content ? (
+          <div className="flex gap-0.5 px-1">
+            <button type="button" onClick={handleCopy} aria-label="Copy" className={actionBtn}>
+              {copied ? (
+                <Check className="size-4 text-emerald-500" />
+              ) : (
+                <Copy className="size-4" />
               )}
-            >
-              <ThumbsUp className="size-3" />
             </button>
-            <button
-              type="button"
-              onClick={() => onFeedback(message.id, -1)}
-              aria-label="Not helpful"
-              className={cn(
-                'rounded p-1 text-muted-foreground/50 transition-colors hover:text-red-400',
-                message.feedback === -1 && 'text-red-400'
-              )}
-            >
-              <ThumbsDown className="size-3" />
-            </button>
+            {onFeedback ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => onFeedback(message.id, 1)}
+                  aria-label="Helpful"
+                  className={cn(actionBtn, message.feedback === 1 && 'text-emerald-500')}
+                >
+                  <ThumbsUp className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onFeedback(message.id, -1)}
+                  aria-label="Not helpful"
+                  className={cn(actionBtn, message.feedback === -1 && 'text-red-400')}
+                >
+                  <ThumbsDown className="size-4" />
+                </button>
+              </>
+            ) : null}
           </div>
         ) : undefined
       }
@@ -253,6 +275,27 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  /**
+   * Effective id of the just-sent optimistic user message. Starts as the temp id,
+   * then becomes the real server id once `onThread` fires — so error cleanup can
+   * remove the correct message regardless of whether the swap already happened.
+   */
+  const sentUserIdRef = useRef<string | null>(null)
+
+  /**
+   * Lock body scroll only while the full-screen mobile sheet is open (Tailwind `sm` = 640px).
+   * On desktop the panel is a small floating card, so the page behind must stay scrollable.
+   */
+  useEffect(() => {
+    if (!open) return
+    const isMobile = window.matchMedia('(max-width: 639px)').matches
+    if (!isMobile) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
   /** Auto-scroll to bottom on new content. */
   useEffect(() => {
@@ -298,6 +341,7 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
 
     // Optimistic user message (will get a real ID from the server)
     const tempId = `tmp-${Date.now()}`
+    sentUserIdRef.current = tempId
     setMessages((prev) => [...prev, { id: tempId, role: 'user', content: question }])
     setInputText('')
     setError(null)
@@ -306,6 +350,7 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
 
     let assistantContent = ''
     let assistantMessageId: string | undefined
+    let hadError = false
 
     await streamLexiMessage(
       { threadId, content: question, lessonCtx },
@@ -316,6 +361,8 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           setMessages((prev) =>
             prev.map((m) => (m.id === tempId ? { ...m, id: userMessageId } : m))
           )
+          // Track the effective id so error cleanup removes the right message.
+          sentUserIdRef.current = userMessageId
         },
         onDelta(chunk) {
           assistantContent += chunk
@@ -325,27 +372,37 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           assistantMessageId = messageId
         },
         onError(message) {
+          hadError = true
           setError(message)
-          // Remove the optimistic user message on error
-          setMessages((prev) => prev.filter((m) => m.id !== tempId))
+          // Remove the optimistic user message on error. `onThread` may have
+          // already swapped tempId for the real id, so remove by the tracked id.
+          const removeId = sentUserIdRef.current
+          if (removeId) {
+            setMessages((prev) => prev.filter((m) => m.id !== removeId))
+          }
         },
       }
     )
 
     setStreaming(false)
+    sentUserIdRef.current = null
 
-    if (assistantContent) {
+    if (hadError) {
+      // On error, discard any partial reply — show only the error banner.
+      setStreamingContent('')
+    } else {
       setMessages((prev) => [
         ...prev,
         {
           id: assistantMessageId ?? `ai-${Date.now()}`,
           role: 'assistant',
-          content: assistantContent,
+          content:
+            assistantContent || "I didn't catch that — try rephrasing?",
           feedback: null,
         },
       ])
+      setStreamingContent('')
     }
-    setStreamingContent('')
 
     // Re-focus input after response
     setTimeout(() => textareaRef.current?.focus(), 50)
@@ -369,47 +426,90 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
         type="button"
         onClick={() => setOpen(true)}
         className={cn(
-          'group fixed bottom-16 right-4 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background/90 p-1.5 shadow-lg backdrop-blur transition-all hover:shadow-xl active:scale-95 max-[380px]:gap-0 sm:bottom-20 sm:right-6 sm:pr-3.5',
+          'group fixed bottom-16 right-4 z-20 flex items-center gap-2.5 rounded-full border border-border/70 bg-card/95 p-1.5 pr-4 shadow-lg ring-1 ring-black/[0.02] backdrop-blur transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-95 max-[380px]:gap-0 max-[380px]:pr-1.5 sm:bottom-20 sm:right-6',
           open && 'pointer-events-none scale-75 opacity-0'
         )}
         aria-label="Open Lexi AI learning mentor"
       >
-        <LexiAvatar className="size-9 transition-transform group-hover:scale-105" />
-        <div className="pr-1.5 text-left max-[380px]:hidden sm:pr-0">
-          <p className="text-sm font-semibold leading-none text-foreground">Ask Lexi</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">AI learning mentor</p>
+        <LexiAvatar className="size-10 transition-transform group-hover:scale-105" />
+        <div className="text-left max-[380px]:hidden">
+          <p className="text-sm font-bold leading-none text-foreground">Ask Lexi</p>
+          <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
+            AI learning mentor
+          </p>
         </div>
       </button>
 
-      {/* Chat panel */}
-      {open ? (
-        <div className="fixed bottom-16 right-4 z-30 flex h-[min(480px,calc(100dvh-8rem))] w-[calc(100vw-2rem)] max-w-sm flex-col overflow-hidden rounded-2xl border border-border/80 bg-background shadow-2xl sm:bottom-20 sm:right-6 sm:w-[360px]">
+      {/* Chat panel — portalled to body so it escapes the lesson's stacking context.
+          Bottom sheet (~68% height) on mobile with the lesson dimmed behind it;
+          floating card on desktop. */}
+      {open && typeof document !== 'undefined'
+        ? createPortal(
+        <>
+          {/* Dimmed backdrop — tap to close (mobile sheet only) */}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close lesson assistant"
+            className="fixed inset-0 z-[199] bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-200 sm:hidden"
+          />
+          <div className="fixed inset-x-0 bottom-0 z-[200] flex h-[68dvh] max-h-[68dvh] flex-col overflow-hidden rounded-t-3xl border-t border-border/80 bg-background shadow-2xl animate-in slide-in-from-bottom duration-300 sm:inset-auto sm:bottom-20 sm:right-6 sm:h-[560px] sm:w-[400px] sm:rounded-2xl sm:border">
+          {/* Grab handle (mobile sheet affordance) */}
+          <div className="flex shrink-0 justify-center pb-1 pt-2.5 sm:hidden">
+            <span className="h-1 w-9 rounded-full bg-muted-foreground/25" aria-hidden />
+          </div>
           {/* Header */}
-          <div className="flex items-center gap-2.5 border-b border-border/70 px-3.5 py-2.5">
-            <LexiAvatar className="size-8" />
+          <div className="flex items-center gap-3 border-b border-border/70 px-4 pb-3 pt-1 sm:py-3">
+            <LexiAvatar className="size-9" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-tight">Lexi</p>
-              <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <p className="text-[15px] font-semibold leading-tight">Lexi</p>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
                 AI mentor · always here
               </p>
             </div>
             <button
               type="button"
+              onClick={() => {
+                if (
+                  messages.length > 0 &&
+                  !window.confirm('Clear this conversation?')
+                ) {
+                  return
+                }
+                setMessages([])
+                setThreadId(undefined)
+                setError(null)
+                setStreamingContent('')
+              }}
+              disabled={streaming || messages.length === 0}
+              className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+              aria-label="New chat"
+              title="New chat"
+            >
+              <PenSquare className="size-[18px]" aria-hidden />
+            </button>
+            <button
+              type="button"
               onClick={() => setOpen(false)}
-              className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Close lesson assistant"
             >
-              <X className="size-4" aria-hidden />
+              <X className="size-5" aria-hidden />
             </button>
           </div>
 
           {/* Message list */}
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3.5">
+          <div
+            ref={scrollRef}
+            aria-live="polite"
+            className="lexi-canvas min-h-0 flex-1 overflow-y-auto px-4 py-4"
+          >
             {messages.length === 0 && !streaming ? (
               <EmptyState onPick={(q) => handleSend(q)} />
             ) : (
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-4">
                 {messages.map((msg) => (
                   <MessageBubble
                     key={msg.id}
@@ -440,17 +540,16 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-border/70 bg-muted/20 p-2.5">
-            <div className="flex items-end gap-2 rounded-2xl border bg-card py-1.5 pl-3 pr-1.5 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15">
+          <div className="border-t border-border/70 bg-muted/20 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+            <div className="flex items-end gap-2 rounded-[1.4rem] border bg-card py-2 pl-4 pr-2 shadow-sm focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/15">
               <Textarea
                 ref={textareaRef}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about this lesson…"
-                disabled={streaming}
+                placeholder="Message Lexi…"
                 rows={1}
-                className="max-h-[120px] min-h-[28px] w-full resize-none self-center border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0"
+                className="max-h-[120px] min-h-[28px] w-full resize-none self-center border-0 bg-transparent p-0 text-[15px] shadow-none focus-visible:ring-0"
               />
               <button
                 type="button"
@@ -458,35 +557,25 @@ export function LessonAssistantWidget(props: LessonAssistantWidgetProps) {
                 disabled={!canSend}
                 aria-label="Send message"
                 className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-200',
+                  'flex size-10 shrink-0 items-center justify-center rounded-full transition-all duration-200',
                   canSend
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
                     : 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'
                 )}
               >
-                <Send className="size-4" />
+                <Send className="size-[18px]" />
               </button>
             </div>
 
-            <div className="mt-1.5 flex items-center justify-between px-1">
-              <p className="text-[11px] text-muted-foreground/50">Powered by Claude</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setMessages([])
-                  setThreadId(undefined)
-                  setError(null)
-                  setStreamingContent('')
-                }}
-                disabled={streaming || messages.length === 0}
-                className="text-[11px] font-medium text-muted-foreground/60 transition-colors hover:text-muted-foreground disabled:opacity-40"
-              >
-                Clear chat
-              </button>
-            </div>
+            <p className="mt-2 text-center text-[11px] text-muted-foreground/50">
+              Lexi is AI and can make mistakes · Powered by Claude
+            </p>
           </div>
-        </div>
-      ) : null}
+          </div>
+        </>,
+          document.body
+        )
+        : null}
     </>
   )
 }

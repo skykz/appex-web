@@ -104,7 +104,7 @@ export function LoginPage() {
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="admin@appex.kz"
+              placeholder="hello@appexme.com"
               className="h-12 border-border/80 shadow-sm"
               {...register('email')}
             />

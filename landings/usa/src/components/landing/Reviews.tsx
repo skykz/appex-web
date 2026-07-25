@@ -4,52 +4,119 @@ import review3 from "@/assets/review-3.jpg";
 import review4 from "@/assets/review-4.jpg";
 import review5 from "@/assets/review-5.jpg";
 import review6 from "@/assets/review-6.jpg";
+import testimonial1 from "@/assets/testimonial-1.jpg";
+import testimonial2 from "@/assets/testimonial-2.jpg";
+import testimonial3 from "@/assets/testimonial-3.jpg";
+import testimonial4 from "@/assets/testimonial-4.jpg";
+import testimonial5 from "@/assets/testimonial-5.jpg";
 
-const reviews = [
+interface Review {
+  name: string;
+  date: string;
+  img: string;
+  rating: number;
+  text: string;
+}
+
+const reviews: Review[] = [
   {
     name: "Daniel R.",
-    date: "Freelance marketer",
+    date: "3 weeks ago",
     img: review1,
-    text: "I went from never touching automation to shipping a working AI support bot for my first client in under a month. The lessons are practical with zero fluff.",
+    rating: 5,
+    text: "honestly wasn't sure this would be worth it but it was. built a little AI bot that answers my client's support emails and it actually works. took me about 3 weeks going at it after work.",
   },
   {
     name: "Aisha K.",
-    date: "Career changer",
+    date: "1 month ago",
     img: review2,
-    text: "I was stuck in a job with no growth. Appex gave me a clear plan I could follow after work, and now I have real AI skills that keep me relevant.",
+    rating: 5,
+    text: "I'm not techy at all so I was nervous. the steps are broken down enough that I could keep up. still using my notes from the automation module honestly, that part was gold.",
   },
   {
     name: "Marcus T.",
-    date: "Small business owner",
+    date: "2 months ago",
     img: review3,
-    text: "We replaced hours of manual follow-up with an AI agent I built myself. I didn't write a single line of code to do it.",
+    rating: 5,
+    text: "Runs my follow-ups now so I stopped doing them by hand. Didn't write any code which I still can't believe. Wish the video audio was a bit louder in a couple lessons but no big deal.",
   },
   {
     name: "Priya S.",
-    date: "Virtual assistant",
+    date: "2 weeks ago",
     img: review4,
-    text: "Learning AI automation gave me a whole new set of skills and the confidence to use them. The certification gave me real credibility, and my work has leveled up.",
+    rating: 4,
+    text: "Good course, learned a lot and the cert helped me land 2 new VA clients. Some lessons felt a little basic for me but the automation ones made up for it. Would recommend to a friend.",
   },
   {
     name: "Tom B.",
-    date: "Sales professional",
+    date: "1 month ago",
     img: review5,
-    text: "The outreach system I built from the course books meetings while I sleep. Easily the best skill investment I've made this year.",
+    rating: 5,
+    text: "the outreach setup i built books calls while im asleep, no joke. i check the calendar in the morning and there's meetings on it. best money i've spent on myself this year.",
   },
   {
     name: "Elena V.",
-    date: "Student",
+    date: "3 weeks ago",
     img: review6,
-    text: "I started with no experience at all. Now I have a portfolio of AI agents and skills employers actually want before I've even graduated.",
+    rating: 5,
+    text: "started with literally zero experience. still a student. i've got like 4 small AI projects i can show now which is more than most people i graduate with. thank you 🙏",
+  },
+  {
+    name: "James W.",
+    date: "1 week ago",
+    img: testimonial4,
+    rating: 5,
+    text: "Was skeptical about another online course tbh. But this one actually made me DO things instead of just watching. Built my first workflow by day 4.",
+  },
+  {
+    name: "Sofia M.",
+    date: "2 months ago",
+    img: testimonial1,
+    rating: 5,
+    text: "My manager noticed the reports I automated and asked me to teach the team lol. Didn't expect that. Worth every penny and I don't say that lightly.",
+  },
+  {
+    name: "Chris P.",
+    date: "3 weeks ago",
+    img: testimonial5,
+    rating: 4,
+    text: "Solid content, no fluff which I appreciated. Went a bit fast in the middle section so I had to rewatch, but the community helped when I got stuck. Happy overall.",
+  },
+  {
+    name: "Nadia H.",
+    date: "1 month ago",
+    img: testimonial2,
+    rating: 5,
+    text: "I do freelance admin work and this basically doubled what I can charge. Clients think I'm some kind of wizard now 😂 really glad I gave it a shot.",
+  },
+  {
+    name: "Ryan K.",
+    date: "5 days ago",
+    img: testimonial3,
+    rating: 5,
+    text: "Quit doom-scrolling job boards and actually built skills instead. Have a portfolio now. The step-by-step layout kept me from getting overwhelmed which is usually my problem.",
+  },
+  {
+    name: "Lauren D.",
+    date: "2 weeks ago",
+    img: review2,
+    rating: 5,
+    text: "Came back to work after maternity leave feeling out of the loop with all the AI stuff. This got me caught up fast. Fit it around nap times which was the only way it was happening.",
   },
 ];
 
 const doubled = [...reviews, ...reviews];
 
-const Stars = () => (
-  <div className="flex gap-0.5">
+const Stars = ({ rating = 5 }: { rating?: number }) => (
+  <div className="flex gap-0.5" aria-label={`${rating} out of 5 stars`}>
     {[...Array(5)].map((_, i) => (
-      <svg key={i} className="w-4 h-4 text-primary" fill="currentColor" viewBox="0 0 20 20">
+      <svg
+        key={i}
+        className={i < rating ? "w-4 h-4 text-primary" : "w-4 h-4 text-muted-foreground/25"}
+        fill="currentColor"
+        viewBox="0 0 20 20"
+        aria-hidden
+      >
         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
       </svg>
     ))}
@@ -96,7 +163,7 @@ export default function Reviews() {
               </div>
             </div>
 
-            <Stars />
+            <Stars rating={r.rating} />
 
             <p className="text-muted-foreground text-[13px] leading-relaxed mt-3 font-body">
               {r.text}
@@ -130,7 +197,7 @@ export default function Reviews() {
                 </div>
               </div>
 
-              <Stars />
+              <Stars rating={r.rating} />
 
               <p className="text-muted-foreground text-[15px] leading-relaxed mt-4 font-body">
                 {r.text}

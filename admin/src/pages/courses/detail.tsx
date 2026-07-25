@@ -283,6 +283,7 @@ export function CourseDetailPage() {
                       className="h-8 w-8"
                       disabled={reorderBusy || moduleIndex <= 0}
                       title="Move module up"
+                      aria-label={`Move module ${m.title} up`}
                       onClick={() => moveModule(moduleIndex, -1)}
                     >
                       <ChevronUp className="h-4 w-4" />
@@ -294,6 +295,7 @@ export function CourseDetailPage() {
                       className="h-8 w-8"
                       disabled={reorderBusy || moduleIndex >= data.modules.length - 1}
                       title="Move module down"
+                      aria-label={`Move module ${m.title} down`}
                       onClick={() => moveModule(moduleIndex, 1)}
                     >
                       <ChevronDown className="h-4 w-4" />
@@ -314,6 +316,7 @@ export function CourseDetailPage() {
                     className="h-9 w-9"
                     onClick={() => setEditingModule(m)}
                     title="Edit module"
+                    aria-label={`Edit module ${m.title}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -325,6 +328,8 @@ export function CourseDetailPage() {
                       setDeleteTarget({ kind: 'module', id: m.id, title: m.title })
                       setDeleteError(null)
                     }}
+                    title="Delete module"
+                    aria-label={`Delete module ${m.title}`}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -370,6 +375,7 @@ export function CourseDetailPage() {
                                 className="h-8 w-8"
                                 disabled={reorderBusy || lessonIndex <= 0}
                                 title="Move lesson up"
+                                aria-label={`Move lesson ${l.title} up`}
                                 onClick={() => moveLesson(m.id, lessonIndex, -1, m.lessons)}
                               >
                                 <ChevronUp className="h-3.5 w-3.5" />
@@ -381,6 +387,7 @@ export function CourseDetailPage() {
                                 className="h-8 w-8"
                                 disabled={reorderBusy || lessonIndex >= m.lessons.length - 1}
                                 title="Move lesson down"
+                                aria-label={`Move lesson ${l.title} down`}
                                 onClick={() => moveLesson(m.id, lessonIndex, 1, m.lessons)}
                               >
                                 <ChevronDown className="h-3.5 w-3.5" />
@@ -413,6 +420,8 @@ export function CourseDetailPage() {
                                 setDeleteTarget({ kind: 'lesson', id: l.id, title: l.title })
                                 setDeleteError(null)
                               }}
+                              title="Delete lesson"
+                              aria-label={`Delete lesson ${l.title}`}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>

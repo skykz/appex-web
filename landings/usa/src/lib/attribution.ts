@@ -126,3 +126,55 @@ export function getAttributionParams(): Partial<Record<keyof Attribution, string
   }
   return out
 }
+
+const ANON_ID_KEY = 'appexAnonId'
+const SESSION_ID_KEY = 'appexSessionId'
+
+/** Generates a UUID (falls back to a timestamp-based id where crypto is unavailable). */
+function newId(prefix: string): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+/**
+ * Persistent anonymous visitor id — survives across visits (localStorage). Used
+ * to stitch a user's events together over time in the product analytics.
+ */
+export function getAnonId(): string {
+  try {
+    const existing = localStorage.getItem(ANON_ID_KEY)
+    if (existing) return existing
+    const id = newId('anon')
+    localStorage.setItem(ANON_ID_KEY, id)
+    return id
+  } catch {
+    return newId('anon')
+  }
+}
+
+/** Per-visit session id (sessionStorage) — one funnel run through the quiz. */
+export function getSessionId(): string {
+  try {
+    const existing = sessionStorage.getItem(SESSION_ID_KEY)
+    if (existing) return existing
+    const id = newId('sess')
+    sessionStorage.setItem(SESSION_ID_KEY, id)
+    return id
+  } catch {
+    return newId('sess')
+  }
+}
+
+/**
+ * The standard param envelope stamped on EVERY analytics event: identity
+ * (anon_id/session_id), a per-event timestamp, and first-touch attribution.
+ * This is what `quiz_step`, `quiz_answer`, and all milestone events carry.
+ */
+export function getEventEnvelope(): Record<string, string | number> {
+  return {
+    anon_id: getAnonId(),
+    session_id: getSessionId(),
+    timestamp: Date.now(),
+    ...getAttributionParams(),
+  }
+}

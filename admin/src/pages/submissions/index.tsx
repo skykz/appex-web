@@ -12,10 +12,13 @@ import {
   type LessonSubmissionRow,
 } from '@features/submissions-admin/api'
 import { Button } from '@shared/ui/button'
+import { Checkbox } from '@shared/ui/checkbox'
 import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
 import { Card, CardContent } from '@shared/ui/card'
+import { ExpandableInboxCard } from '@shared/ui/expandable-inbox-card'
 import { PageHeader } from '@shared/ui/page-header'
+import { Pagination } from '@shared/ui/pagination'
 import { Skeleton } from '@shared/ui/skeleton'
 import { Select } from '@shared/ui/select'
 import { ApiError } from '@shared/api/http-client'
@@ -113,7 +116,8 @@ export function SubmissionsPage() {
   })
 
   const rows = data?.items ?? []
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE))
+  const total = data?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / PAGE))
 
   return (
     <div className="space-y-8">
@@ -155,8 +159,7 @@ export function SubmissionsPage() {
             </Select>
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-sm sm:mb-2">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={unreadOnly}
               onChange={(e) => {
                 setUnreadOnly(e.target.checked)
@@ -200,25 +203,13 @@ export function SubmissionsPage() {
         </ul>
       )}
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          Page {page} / {totalPages}
-        </span>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        total={total}
+        itemNoun="submission"
+      />
     </div>
   )
 }
@@ -237,91 +228,75 @@ function SubmissionCard({
   onMarkRead: () => void
   onSave: (feedback: string, grade: string) => void
 }) {
-  const [open, setOpen] = useState(false)
   const [feedback, setFeedback] = useState(s.admin_feedback ?? '')
   const [grade, setGrade] = useState(s.grade ?? '')
 
-  /** Expands the submission and marks it read on first open. */
-  function toggleOpen() {
-    const next = !open
-    setOpen(next)
-    if (next) onOpen()
-  }
-
   return (
-    <li className="rounded-xl border border-border/70 bg-card shadow-sm">
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left"
-        onClick={toggleOpen}
-      >
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {!s.read_at ? (
-              <span className="rounded-full bg-red-600/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-600">
-                New
-              </span>
-            ) : null}
-            <span
-              className={
-                s.status === 'reviewed'
-                  ? 'rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700'
-                  : 'rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800'
-              }
-            >
-              {s.status}
-            </span>
-          </div>
-          <p className="mt-1 font-medium">
-            {s.lesson_title}{' '}
-            <span className="font-normal text-muted-foreground">({s.lesson_label})</span>
-          </p>
+    <ExpandableInboxCard
+      unread={!s.read_at}
+      icon={FileText}
+      onFirstOpen={onOpen}
+      badges={
+        <span
+          className={
+            s.status === 'reviewed'
+              ? 'rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-emerald-700'
+              : 'rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-800'
+          }
+        >
+          {s.status}
+        </span>
+      }
+      title={
+        <>
+          {s.lesson_title}{' '}
+          <span className="font-normal text-muted-foreground">({s.lesson_label})</span>
+        </>
+      }
+      meta={
+        <>
           <p className="text-xs text-muted-foreground">
             {s.user_name} · {s.user_email} · lesson #{s.lesson_id}
           </p>
           <p className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleString()}</p>
-        </div>
-        <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      </button>
-      {open ? (
-        <div className="border-t border-border/60 px-4 py-3">
-          {s.message ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{s.message}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">No message text.</p>
-          )}
-          {s.attachment_url ? (
-            <a
-              href={s.attachment_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-block text-sm text-primary underline"
-            >
-              Submitted file
-            </a>
-          ) : null}
-          <Input
-            className="mt-3 max-w-xs border-border/80"
-            placeholder="Grade, e.g. A, 95/100, Passed"
-            value={grade}
-            onChange={(e) => setGrade(e.target.value)}
-          />
-          <Textarea
-            className="mt-3 min-h-[72px] border-border/80"
-            placeholder="Staff feedback to learner…"
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-          />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" onClick={() => onSave(feedback, grade)}>
-              Save grade, feedback & mark reviewed
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onMarkRead}>
-              {s.read_at ? 'Mark unread' : 'Mark read'}
-            </Button>
-          </div>
-        </div>
+        </>
+      }
+    >
+      {s.message ? (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{s.message}</p>
+      ) : (
+        <p className="text-sm text-muted-foreground">No message text.</p>
+      )}
+      {s.attachment_url ? (
+        <a
+          href={s.attachment_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-block text-sm text-primary underline"
+        >
+          Submitted file
+        </a>
       ) : null}
-    </li>
+      <Input
+        className="mt-3 max-w-xs border-border/80"
+        placeholder="Grade, e.g. A, 95/100, Passed"
+        value={grade}
+        onChange={(e) => setGrade(e.target.value)}
+      />
+      <Textarea
+        className="mt-3 min-h-[72px] border-border/80"
+        placeholder="Staff feedback to learner…"
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+      />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" size="sm" onClick={() => onSave(feedback, grade)}>
+          Save grade, feedback & mark reviewed
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onMarkRead}>
+          {s.read_at ? 'Mark unread' : 'Mark read'}
+        </Button>
+      </div>
+    </ExpandableInboxCard>
   )
 }

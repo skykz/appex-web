@@ -67,10 +67,18 @@ const envSchema = z.object({
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe coupon for the first-cycle intro price on the 4-week plan (legacy single-coupon fallback). */
   STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
-  /** Per-plan intro coupons (USA paywall). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
+  /** Per-plan intro coupons (USA paywall, 61% off). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
   STRIPE_INTRO_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * Per-plan exit-intent coupons (USA paywall, 71% off). When a plan has no exit
+   * coupon configured, the checkout silently falls back to its 61% intro coupon —
+   * never to full price — so a missing env var can't overcharge a promised discount.
+   */
+  STRIPE_EXIT_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_EXIT_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_EXIT_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
 
   // --- Mailgun (transactional + marketing email) ---
   /** Mailgun private API key (Dashboard → Settings → API keys). */
@@ -118,8 +126,16 @@ const envSchema = z.object({
   META_TEST_EVENT_CODE: z.string().optional().transform((v) => (v ? v : undefined)),
 
   // --- GA4 Measurement Protocol (server-side purchase for the ads funnel) ---
-  /** GA4 Measurement ID (G-XXXX) — same id as VITE_GA4_MEASUREMENT_ID on the landing. */
-  GA4_MEASUREMENT_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * GA4 Measurement ID — defaults to the dedicated "Appex Landing" stream
+   * (G-9VSNWFGHR6), the same id the landing's gtag.js layer sends to. Public, so
+   * safe to bake in. The server purchase still stays OFF until GA4_API_SECRET (a
+   * secret) is also set; see ga4MpEnabled below.
+   */
+  GA4_MEASUREMENT_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : 'G-9VSNWFGHR6')),
   /** GA4 Measurement Protocol API secret (Admin → Data Streams → Measurement Protocol). */
   GA4_API_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
 })

@@ -1,22 +1,24 @@
 import type { ReactNode } from 'react'
-import { Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Avatar, AvatarFallback } from '@shared/ui'
+import lexiAvatar from '@/assets/lexi-avatar.jpg'
 
 /**
- * Lexi's mark — a sparkle on the warm-orange brand gradient. Reads honestly as an
- * AI mentor (no fake face) and needs no image asset.
+ * Lexi's mark — the mentor's photo, shown wherever Lexi appears (chat bubbles, trigger
+ * bubble, panel header, empty state). Fills its container as a cover-cropped circle.
  */
-function LexiMark({ className }: { className?: string }) {
+export function LexiMark({ className }: { className?: string }) {
   return (
     <span
-      className={cn(
-        'flex size-full items-center justify-center bg-linear-to-br from-orange-500 to-amber-500 text-white',
-        className
-      )}
+      className={cn('block size-full overflow-hidden', className)}
       aria-hidden
     >
-      <Sparkles className="size-1/2" strokeWidth={2.25} />
+      <img
+        src={lexiAvatar}
+        alt=""
+        loading="lazy"
+        className="size-full object-cover"
+      />
     </span>
   )
 }

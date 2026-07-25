@@ -1,13 +1,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { Download, Search } from 'lucide-react'
+import { Download } from 'lucide-react'
 import type { AdminUserRow } from '@features/users/api'
 import { fetchAdminUsers } from '@features/users/api'
+import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
-import { Input } from '@shared/ui/input'
-import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
+import { Pagination } from '@shared/ui/pagination'
+import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
 
@@ -17,39 +18,11 @@ const PAGE_SIZE = 25
  * Builds a CSV string from user rows with RFC-style quoted fields where needed.
  */
 function buildUsersCsv(rows: AdminUserRow[]): string {
-  const headers = ['id', 'email', 'name', 'role', 'created_at', 'credits', 'streak_current'] as const
-  const esc = (v: string) => {
-    if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`
-    return v
-  }
-  const lines = [
-    headers.join(','),
-    ...rows.map((r) =>
-      [
-        esc(r.id),
-        esc(r.email),
-        esc(r.name ?? ''),
-        esc(r.role),
-        esc(r.created_at),
-        esc(String(r.credits)),
-        esc(String(r.streak_current)),
-      ].join(',')
-    ),
-  ]
-  return lines.join('\r\n')
-}
-
-/**
- * Triggers a browser download of the given CSV text as appex-users.csv.
- */
-function downloadCsvFile(csv: string, filename: string) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  return toCsv(
+    ['id', 'email', 'name', 'role', 'created_at', 'credits', 'streak_current'],
+    rows,
+    (r) => [r.id, r.email, r.name ?? '', r.role, r.created_at, r.credits, r.streak_current]
+  )
 }
 
 /**
@@ -148,23 +121,18 @@ export function UsersPage() {
         description="Registered users with server-side search and pagination."
       />
 
-      <Card className="border-border/70 shadow-sm">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-md flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-10 border-border/80 pl-9 shadow-sm"
-              placeholder="Search by name or email…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Button type="button" variant="outline" size="sm" className="shrink-0 gap-2" onClick={exportCsv}>
+      <SearchToolbar
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by name or email…"
+        label="Search users"
+        actions={
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={exportCsv}>
             <Download className="h-4 w-4" />
             Export CSV (up to 500)
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3 rounded-xl border border-border/80 bg-card p-6 shadow-sm">
@@ -174,31 +142,13 @@ export function UsersPage() {
       ) : (
         <>
           <DataTable rows={rows} columns={columns} getRowKey={(u) => u.id} />
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {total} user{total === 1 ? '' : 's'}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={total}
+            itemNoun="user"
+          />
         </>
       )}
     </div>

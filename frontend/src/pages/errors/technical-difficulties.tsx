@@ -4,7 +4,7 @@ import { useAuthStore } from '@entities/user'
 import { Button } from '@shared/ui'
 import { TechnicalDifficultiesIllustration } from './technical-difficulties-illustration'
 
-export const SUPPORT_EMAIL = 'support@appex.me'
+export const SUPPORT_EMAIL = 'hello@appexme.com'
 
 export type TechnicalDifficultiesVariant = 'technical' | 'not-found'
 

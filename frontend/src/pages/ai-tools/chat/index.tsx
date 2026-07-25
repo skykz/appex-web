@@ -25,6 +25,7 @@ export default function AIChatPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [credits, setCredits] = useState<number | null>(null)
+  const [creditsError, setCreditsError] = useState(false)
   const [sessionId, setSessionId] = useState<string | undefined>()
   const [sessionModelId, setSessionModelId] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -58,8 +59,11 @@ export default function AIChatPage() {
   useEffect(() => {
     chatApi
       .getCredits()
-      .then((data) => setCredits(data.balance))
-      .catch(() => setCredits(null))
+      .then((data) => {
+        setCredits(data.balance)
+        setCreditsError(false)
+      })
+      .catch(() => setCreditsError(true))
   }, [])
 
   /** Keeps the transcript scrolled to the latest bubble as messages stream in. */
@@ -192,8 +196,11 @@ export default function AIChatPage() {
     lastSendModelRef.current = null
     chatApi
       .getCredits()
-      .then((data) => setCredits(data.balance))
-      .catch(() => {})
+      .then((data) => {
+        setCredits(data.balance)
+        setCreditsError(false)
+      })
+      .catch(() => setCreditsError(true))
   }
 
   /**
@@ -205,7 +212,10 @@ export default function AIChatPage() {
       const session = await chatApi.getSession(id)
       setSessionId(session.id)
       setSessionModelId(session.model_id ?? null)
-      lastSendModelRef.current = resolveModel(session.model_id ?? 'chatgpt')
+      const fallbackModelId = session.model_id ?? remoteModels[0]?.id
+      lastSendModelRef.current = fallbackModelId
+        ? resolveModel(fallbackModelId)
+        : null
       setMessages(
         session.messages.map((m) => ({
           id: m.id,
@@ -264,6 +274,17 @@ export default function AIChatPage() {
               >
                 <Sparkles className="size-3" />
                 {`${credits} credits`}
+              </span>
+            ) : creditsError ? (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border border-primary/20 px-2.5 py-1',
+                  'text-xs font-semibold text-muted-foreground'
+                )}
+                title="Credit balance unavailable"
+              >
+                <Sparkles className="size-3" />
+                {'— credits'}
               </span>
             ) : (
               <Skeleton className="h-6 w-20 rounded-full" />

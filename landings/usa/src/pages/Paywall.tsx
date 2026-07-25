@@ -1,16 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { LegalLink } from "@/components/legal/LegalLink";
+import CheckoutModal from "@/components/paywall/CheckoutModal";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
-import { ga4BeginCheckout, getGa4ClientId } from "@/lib/ga4";
+import { ga4CheckoutStart, ga4PaywallView, getGa4ClientId } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
   PAYWALL_FEATURES,
-  PAYWALL_DISCOUNT_LABEL,
+  DISCOUNT_LABEL,
   ftcDisclosure,
+  priceFor,
   type PaywallPlan,
+  type DiscountState,
 } from "@/lib/paywall-plans";
 import paywallAfter from "@/assets/paywall-after.webp";
 import paywallAfterMale from "@/assets/paywall-after-male.webp";
@@ -20,17 +24,63 @@ import paywallSophia from "@/assets/paywall-sophia.jpg";
 
 const ORANGE = "#F97316";
 const BLACK = "#111";
+/** Matches the "Start with 61% off" counter green at the top of the paywall. */
+const GREEN = "#16A34A";
 
 /* ── Countdown Timer ── */
+/**
+ * Counts down from `minutes`, surviving reloads via sessionStorage so the offer
+ * can't be reset by refreshing the page (an expired timer must stay expired).
+ */
 function useCountdown(minutes: number) {
-  const [secs, setSecs] = useState(minutes * 60);
+  const totalMs = minutes * 60 * 1000;
+
+  const [secs, setSecs] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem("appexPaywallDeadline");
+      const deadline = stored ? Number(stored) : NaN;
+      if (Number.isFinite(deadline)) {
+        return Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      }
+      sessionStorage.setItem("appexPaywallDeadline", String(Date.now() + totalMs));
+    } catch {
+      /* storage disabled — fall back to a fresh in-memory countdown */
+    }
+    return minutes * 60;
+  });
+
   useEffect(() => {
+    if (secs <= 0) return;
     const iv = setInterval(() => setSecs((s) => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(iv);
-  }, []);
+  }, [secs > 0]);
+
   const m = Math.floor(secs / 60).toString().padStart(2, "0");
   const s = (secs % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
+  return { label: `${m}:${s}`, expired: secs <= 0 };
+}
+
+/**
+ * Fires once when the pointer leaves through the top of the viewport (classic
+ * exit-intent). Desktop only — mouseout is unreliable on touch, so mobile keeps
+ * the default offer rather than showing a discount that never triggers.
+ */
+function useExitIntent(onExit: () => void, enabled: boolean) {
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (!enabled) return;
+    if (window.matchMedia("(hover: none)").matches) return;
+
+    const handler = (e: MouseEvent) => {
+      if (firedRef.current) return;
+      // relatedTarget is null when the cursor leaves the document entirely.
+      if (e.clientY > 0 || e.relatedTarget) return;
+      firedRef.current = true;
+      onExit();
+    };
+    document.addEventListener("mouseout", handler);
+    return () => document.removeEventListener("mouseout", handler);
+  }, [enabled, onExit]);
 }
 
 function getQuizData() {
@@ -75,7 +125,7 @@ function Laurel({ side }: { side: "left" | "right" }) {
   );
 }
 
-/** Renders one Trustpilot-style square star (full or half for the 4.5 rating). */
+/* Trustpilot star — temporarily disabled (kept in code)
 function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
   const starPath =
     "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
@@ -95,13 +145,13 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
     </svg>
   );
 }
+*/
 
-/** Trustpilot rating and learner count shown beneath subscription plan cards. */
+/** Learner count badge shown beneath subscription plan cards. */
 function PaywallTrustBadges() {
-  const halfStarClipId = "paywall-trust-half-star";
-
   return (
     <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4 flex-wrap">
+      {/* Trustpilot rating badge — temporarily hidden (kept in code)
       <div className="flex items-center gap-2">
         <Laurel side="left" />
         <div className="text-center">
@@ -120,12 +170,13 @@ function PaywallTrustBadges() {
         </div>
         <Laurel side="right" />
       </div>
+      */}
 
       <div className="flex items-center gap-2">
         <Laurel side="left" />
         <div className="text-center">
           <p className="text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
-            50K+ learners
+            5K+ learners
           </p>
           <p className="text-[11px] mt-1" style={{ color: "#475569" }}>
             Learned new skills
@@ -142,12 +193,17 @@ function PricingRow({
   plan,
   selected,
   onClick,
+  state,
 }: {
   plan: PaywallPlan;
   selected: boolean;
   onClick: () => void;
+  state: DiscountState;
 }) {
-  const isDark = plan.popular && selected;
+  const price = priceFor(plan, state);
+  const discounted = state !== "expired";
+  // Spec: the "Most popular" card is always the black brand card, selected or not.
+  const isDark = Boolean(plan.popular);
 
   const inner = (
     <button
@@ -156,29 +212,46 @@ function PricingRow({
       className="relative w-full rounded-2xl px-4 py-3 text-left cursor-pointer transition-all flex items-center justify-between gap-3"
       style={{
         background: isDark ? BLACK : selected ? '#FFF7ED' : 'white',
-        border: isDark ? `2px solid ${BLACK}` : selected ? `2px solid ${ORANGE}` : '2px solid #E5E5E5',
+        // The black card keeps its brand fill whether or not it's chosen, so the
+        // selected state is carried by an orange ring instead of the fill.
+        border: isDark
+          ? `2px solid ${selected ? ORANGE : BLACK}`
+          : selected
+            ? `2px solid ${ORANGE}`
+            : '2px solid #E5E5E5',
       }}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0"
-          style={{ borderColor: selected ? (isDark ? 'white' : ORANGE) : '#D1D5DB', background: selected ? (isDark ? 'white' : ORANGE) : 'white' }}>
+          style={{
+            borderColor: selected ? (isDark ? 'white' : ORANGE) : (isDark ? 'rgba(255,255,255,0.45)' : '#D1D5DB'),
+            background: selected ? (isDark ? 'white' : ORANGE) : 'transparent',
+          }}>
           {selected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={isDark ? BLACK : "white"} strokeWidth="3.5"><path d="M20 6L9 17l-5-5"/></svg>}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-[17px] font-extrabold leading-none" style={{ color: isDark ? 'white' : BLACK }}>{plan.label}</span>
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: isDark ? ORANGE : '#FFF7ED', color: isDark ? 'white' : ORANGE }}>Save {PAYWALL_DISCOUNT_LABEL}</span>
+            {discounted && (
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: isDark ? ORANGE : '#FFF7ED', color: isDark ? 'white' : ORANGE }}>Save {DISCOUNT_LABEL[state]}</span>
+            )}
           </div>
           <p className="text-[12px] leading-tight" style={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#6B7280' }}>
-            ${plan.introPrice} · Renews at <s>${plan.renewalPrice}</s>/{plan.renewUnit}
+            ${price} now, then auto-renews ${plan.renewalPrice} {plan.renewalCadence}
           </p>
         </div>
       </div>
-      <div className="flex-shrink-0 text-center px-3 py-2 rounded-xl min-w-[74px]"
-        style={{ background: isDark ? 'rgba(255,255,255,0.12)' : '#F3F4F6' }}>
-        <p className="text-[11px] line-through leading-none mb-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#94A3B8' }}>${plan.perDayWas}</p>
-        <p className="text-[20px] font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>${plan.perDay}</p>
-        <p className="text-[10px] mt-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#94A3B8' }}>per day</p>
+      {/* Price block — cycle price with the struck-through full price beneath it
+          (matches the reference paywall; no per-day figure on the card). */}
+      <div className="flex-shrink-0 text-right pl-2">
+        <p className="text-[22px] font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
+          ${price}
+        </p>
+        {discounted && (
+          <p className="text-[12px] line-through leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#94A3B8' }}>
+            ${plan.fullPrice}
+          </p>
+        )}
       </div>
     </button>
   );
@@ -204,12 +277,14 @@ function PricingBlock({
   selected,
   setSelected,
   checkoutLoading,
+  state,
 }: {
   onGetPlan: () => void;
   onSignIn: () => void;
   selected: number;
   setSelected: (i: number) => void;
   checkoutLoading: boolean;
+  state: DiscountState;
 }) {
   const plan = PAYWALL_PLANS[selected];
 
@@ -230,22 +305,31 @@ function PricingBlock({
       {/* Pricing cards */}
       <div className="space-y-2 mb-3">
         {PAYWALL_PLANS.map((p, i) => (
-          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => setSelected(i)} />
+          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => setSelected(i)} state={state} />
         ))}
       </div>
 
       <PaywallTrustBadges />
 
-      {/* GET MY PLAN button — same on mobile and desktop */}
+      {/* GET MY PLAN button — green (matches the top counter) with an iOS-style shimmer sweep */}
       <button
         id="get-my-plan-btn"
         type="button"
         onClick={onGetPlan}
         disabled={checkoutLoading}
-        className="animate-pulse-cta w-full py-4 rounded-2xl text-white font-bold text-[17px] border-none cursor-pointer mb-3 flex items-center justify-center tracking-wide disabled:opacity-60"
-        style={{ background: BLACK }}
+        className="relative w-full py-4 rounded-2xl text-white font-bold text-[17px] border-none cursor-pointer mb-3 flex items-center justify-center gap-2 tracking-wide overflow-hidden shadow-lg shadow-[#16A34A]/30 transition-transform active:scale-[0.99] disabled:opacity-60"
+        style={{ background: `linear-gradient(180deg, #22C55E 0%, ${GREEN} 100%)` }}
       >
-        {checkoutLoading ? "Redirecting…" : "GET MY PLAN"}
+        {/* iOS slide-to-unlock style light sweep */}
+        {!checkoutLoading && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-linear-to-r from-transparent via-white/35 to-transparent animate-[paywall-cta-slide_2.4s_ease-in-out_infinite] motion-reduce:hidden"
+          />
+        )}
+        <span className="relative z-10 flex items-center gap-2">
+          {checkoutLoading ? "Redirecting…" : "GET MY PLAN"}
+        </span>
       </button>
 
       <p className="text-[13px] text-center mb-3">
@@ -261,7 +345,7 @@ function PricingBlock({
 
       {/* FTC-required pre-checkout disclosure (dynamic per plan) */}
       <p className="text-center mb-5 leading-relaxed font-body text-[11px] md:text-[12.5px]" style={{ color: '#888888' }}>
-        {ftcDisclosure(plan)}
+        {ftcDisclosure(plan, state)}
       </p>
     </div>
   );
@@ -271,13 +355,37 @@ export default function Paywall() {
   const [showStickyCta, setShowStickyCta] = useState(false);
   const [selected, setSelected] = useState(PAYWALL_DEFAULT_INDEX);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const timer = useCountdown(10);
+
+  // Discount state machine: intro (61%) → exit-intent upgrade (71%) → expired (full price).
+  // `expired` always wins: once the countdown runs out the offer is gone, and the
+  // deadline is persisted so a reload can't resurrect it.
+  const [exitUnlocked, setExitUnlocked] = useState(false);
+  const discountState: DiscountState = timer.expired
+    ? "expired"
+    : exitUnlocked
+      ? "exit"
+      : "intro";
+
+  const handleExitIntent = useCallback(() => setExitUnlocked(true), []);
+  useExitIntent(handleExitIntent, !timer.expired && !exitUnlocked);
+
   const data = getQuizData();
   const quizEmail = (data.email as string | undefined)?.trim().toLowerCase();
   // The quiz stores the name under `userName` (StepName); keep `name` as a
   // fallback in case another entry path sets it.
   const quizName = ((data.userName ?? data.name) as string | undefined)?.trim();
   const planSavedRef = useRef<string | null>(null);
+  const paywallViewFired = useRef(false);
+
+  // Fire paywall_view once on mount (spec funnel step 38, screen shown).
+  useEffect(() => {
+    if (paywallViewFired.current) return;
+    paywallViewFired.current = true;
+    ga4PaywallView();
+    pushToDataLayer("paywall_view");
+  }, []);
 
   useEffect(() => {
     if (!quizEmail) return;
@@ -303,7 +411,21 @@ export default function Paywall() {
   const hours = data.daily_time_commitment || data.preferredHours || data.currentHours || "30 min/day";
   const barrier = data.primary_fear || data.stoppingYou || data.frustration || "Lack of free time";
 
-  const handleGetPlan = async () => {
+  /**
+   * Opens the order-summary modal. The quiz-email guard runs here so the user
+   * is redirected to the funnel before seeing a summary they can't act on.
+   */
+  const handleGetPlan = () => {
+    if (checkoutLoading) return;
+    if (!quizEmail) {
+      window.alert("Please complete the quiz so we can set up your account.");
+      window.location.href = "/quiz";
+      return;
+    }
+    setCheckoutOpen(true);
+  };
+
+  const handleConfirmCheckout = async () => {
     if (checkoutLoading) return;
     // No quiz email means the paywall was opened directly (fresh tab / bookmark)
     // without completing the funnel. Don't fire checkout events or create an
@@ -330,7 +452,8 @@ export default function Paywall() {
       currency: "USD",
       plan: interval,
     });
-    ga4BeginCheckout({ value: conversionValue, currency: "USD", plan: interval });
+    ga4CheckoutStart({ value: conversionValue, currency: "USD", plan: interval });
+    pushToDataLayer("checkout_start", { value: conversionValue, currency: "USD", plan: interval });
     // Persist the chosen plan/value so the success page fires the browser Purchase
     // with the same value the server reports.
     try {
@@ -349,11 +472,14 @@ export default function Paywall() {
         email: quizEmail ?? "",
         name: quizName,
         interval,
+        discountTier: discountState,
         meta: { event_id: eventId, fbp, fbc },
         ga4: { client_id: ga4ClientId },
       });
 
       if ("error" in result) {
+        // Drop back to the plan picker so the error isn't hidden behind the modal.
+        setCheckoutOpen(false);
         window.alert(result.error);
         return;
       }
@@ -361,6 +487,7 @@ export default function Paywall() {
     } catch {
       // Network/CORS failure rejects the promise — surface it and re-enable the
       // button (the finally below) instead of leaving it stuck on "Redirecting…".
+      setCheckoutOpen(false);
       window.alert("Could not reach the payment server. Please try again.");
     } finally {
       setCheckoutLoading(false);
@@ -391,19 +518,32 @@ export default function Paywall() {
   return (
     <div className="min-h-screen" style={{ background: '#FFFFFF' }}>
       {/* Top sticky promo banner */}
-      <div className="sticky top-0 z-50 flex items-center justify-center gap-3 py-2.5 px-4" style={{ background: '#ECFDF5', borderBottom: '1px solid #D1FAE5' }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
-        <span className="text-[14px] font-semibold" style={{ color: '#16A34A' }}>Start with {PAYWALL_DISCOUNT_LABEL} off</span>
-        <span className="text-[14px] font-mono font-bold px-2.5 py-0.5 rounded-lg" style={{ background: '#86EFAC', color: '#064E3B' }}>{timer}</span>
-      </div>
+      {discountState === "expired" ? (
+        <div className="sticky top-0 z-50 flex items-center justify-center gap-2 py-2.5 px-4" style={{ background: '#F1F5F9', borderBottom: '1px solid #E2E8F0' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/></svg>
+          <span className="text-[14px] font-semibold" style={{ color: '#64748B' }}>Your intro offer has expired</span>
+        </div>
+      ) : (
+        <div className="sticky top-0 z-50 flex items-center justify-center gap-3 py-2.5 px-4" style={{ background: '#ECFDF5', borderBottom: '1px solid #D1FAE5' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+          <span className="text-[14px] font-semibold" style={{ color: '#16A34A' }}>Start with {DISCOUNT_LABEL[discountState]} off</span>
+          <span className="text-[14px] font-mono font-bold px-2.5 py-0.5 rounded-lg" style={{ background: '#86EFAC', color: '#064E3B' }}>{timer.label}</span>
+        </div>
+      )}
 
       <div className="mx-auto px-4 pb-20" style={{ maxWidth: 600 }}>
 
         {/* Section 1 — Headline + Pricing */}
         <section id="plan-block" className="pt-8 mb-6">
           <h1 className="text-[32px] md:text-[42px] font-extrabold text-center mb-7 leading-[1.1] tracking-tight" style={{ color: BLACK }}>
-            Start mastering AI today with{" "}
-            <span style={{ color: ORANGE }}>{PAYWALL_DISCOUNT_LABEL} intro offer!</span>
+            {discountState === "expired" ? (
+              <>Start mastering AI today</>
+            ) : (
+              <>
+                Start mastering AI today with{" "}
+                <span style={{ color: ORANGE }}>{DISCOUNT_LABEL[discountState]} intro offer!</span>
+              </>
+            )}
           </h1>
           <PricingBlock
             onGetPlan={handleGetPlan}
@@ -411,6 +551,7 @@ export default function Paywall() {
             selected={selected}
             setSelected={setSelected}
             checkoutLoading={checkoutLoading}
+            state={discountState}
           />
         </section>
 
@@ -424,7 +565,7 @@ export default function Paywall() {
           <div className="rounded-3xl p-7 pt-12 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
             <h2 className="text-[24px] font-extrabold mb-3" style={{ color: BLACK }}>Money-back guarantee</h2>
             <p className="text-[14px] leading-relaxed mb-5" style={{ color: '#475569' }}>
-              If you aren't happy with your course after giving it your full attention, we'll refund your purchase. You just need to email us at hello@appex.me
+              If you aren't happy with your course after giving it your full attention, we'll refund your purchase. You just need to email us at hello@appexme.com
             </p>
             <button className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-semibold text-[14px] border-none cursor-pointer" style={{ background: BLACK }}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
@@ -664,6 +805,17 @@ export default function Paywall() {
           </p>
         </footer>
       </div>
+
+      {/* Order-summary modal — carries timer + discount to the final click */}
+      <CheckoutModal
+        open={checkoutOpen}
+        plan={PAYWALL_PLANS[selected]}
+        state={discountState}
+        timerLabel={timer.label}
+        loading={checkoutLoading}
+        onClose={() => setCheckoutOpen(false)}
+        onConfirm={handleConfirmCheckout}
+      />
 
       {/* Sticky CTA */}
       {showStickyCta && (

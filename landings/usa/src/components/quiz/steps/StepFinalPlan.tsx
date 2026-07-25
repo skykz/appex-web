@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ContinueButton from "../ContinueButton";
+import { ga4PlanView } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
 
 const weeks = [
   { label: "Week 1", text: "Claude Fundamentals — learn how to communicate with AI and get useful, accurate results" },
@@ -17,6 +20,12 @@ const bullets = [
 
 export default function StepFinalPlan() {
   const navigate = useNavigate();
+
+  // plan_view — reached the personal-plan reveal (spec funnel step 36).
+  useEffect(() => {
+    ga4PlanView();
+    pushToDataLayer("plan_view");
+  }, []);
 
   return (
     <div>

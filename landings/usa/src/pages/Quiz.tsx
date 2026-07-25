@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QuizProvider, useQuiz } from "@/contexts/QuizContext";
 import QuizFlow from "@/components/quiz/QuizFlow";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
+import { ga4QuizStep } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
+
+/** Fires quiz_step for a pre-QuizFlow intro screen (top of the funnel). */
+function trackIntroStep(step_index: number, step_id: string, type: string): void {
+  ga4QuizStep({ step_index, step_id, section: "intro", type });
+  pushToDataLayer("quiz_step", { step_index, step_id, section: "intro", type });
+}
 import maleImg from "@/assets/quiz-male.jpg";
 import femaleImg from "@/assets/quiz-female.jpg";
 
@@ -53,10 +61,10 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
           <p className="text-muted-foreground text-[13px] leading-relaxed">
             We will be glad to assist you via email. Please send your questions and feedback to{" "}
             <a
-              href="mailto:hello@appex.me"
+              href="mailto:hello@appexme.com"
               className="text-foreground font-semibold underline underline-offset-2 hover:text-primary transition-colors"
             >
-              hello@appex.me
+              hello@appexme.com
             </a>
           </p>
         </div>
@@ -69,6 +77,13 @@ function SideMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
 /* ── Intro splash screen ── */
 function IntroScreen({ onStart }: { onStart: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Top-of-funnel screen ("Have you ever used Claude?"). step_index 0 keeps it
+  // ahead of QuizFlow's 1..45. The gender screen that follows reports via
+  // quiz_answer (gender is in INTRO_STEP_IDS), so it isn't double-counted here.
+  useEffect(() => {
+    trackIntroStep(0, "quiz_intro", "info");
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#FFFFFF' }}>

@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
-import { ga4QuizStart, ga4QuizComplete } from "@/lib/ga4";
+import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer } from "@/lib/ga4";
+import { pushToDataLayer } from "@/lib/gtm";
+import { stepIdForAnswerKey } from "@/lib/quiz-steps";
 
 export interface QuizAnswers {
   gender: string;
@@ -43,6 +45,12 @@ interface QuizContextType {
   totalSteps: number;
   maxReachedStep: number;
   setAnswer: (key: keyof QuizAnswers, value: any) => void;
+  /**
+   * Emits the quiz_answer analytics event for a committed answer. Only needed by
+   * free-text screens (email/name/price), which call setAnswer per keystroke and
+   * so are excluded from automatic firing — call this once on continue.
+   */
+  commitAnswer: (key: keyof QuizAnswers, value: any) => void;
   nextStep: () => void;
   prevStep: () => void;
   goToStep: (n: number) => void;
@@ -84,7 +92,15 @@ const defaultAnswers: QuizAnswers = {
 
 const QuizContext = createContext<QuizContextType | null>(null);
 
-const TOTAL_STEPS = 45;
+export const TOTAL_STEPS = 45;
+
+/**
+ * Answer keys backed by free-text inputs, which fire setAnswer on EVERY keystroke.
+ * Excluded from automatic quiz_answer emission so a typed email doesn't produce
+ * one event per character (with partial values). These screens call
+ * `commitAnswer` from their continue handler instead.
+ */
+const FREE_TEXT_KEYS = new Set<string>(["email", "userName", "priceFeeling"]);
 
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const [answers, setAnswers] = useState<QuizAnswers>(() => {
@@ -125,25 +141,48 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem("appexQuizCompleteFired", "1");
       trackQuizComplete();
       ga4QuizComplete();
+      pushToDataLayer("quiz_complete");
     }
   }, [currentStep]);
 
-  const setAnswer = useCallback((key: keyof QuizAnswers, value: any) => {
-    if (!quizStartFired.current) {
-      quizStartFired.current = true;
-      sessionStorage.setItem("appexQuizStartFired", "1");
-      trackQuizStart();
-      ga4QuizStart();
-    }
-    setAnswers((prev) => ({ ...prev, [key]: value }));
+  /**
+   * Emits quiz_answer for a COMMITTED answer. Kept separate from setAnswer so
+   * free-text fields (which call setAnswer on every keystroke) don't spam one
+   * event per character — those call commitAnswer once, on continue.
+   */
+  const commitAnswer = useCallback((key: keyof QuizAnswers, value: any) => {
+    const stepId = stepIdForAnswerKey(key as string);
+    if (!stepId) return;
+    ga4QuizAnswer({ step_id: stepId, answer: value });
+    pushToDataLayer("quiz_answer", { step_id: stepId, answer: value });
   }, []);
+
+  const setAnswer = useCallback(
+    (key: keyof QuizAnswers, value: any) => {
+      if (!quizStartFired.current) {
+        quizStartFired.current = true;
+        sessionStorage.setItem("appexQuizStartFired", "1");
+        trackQuizStart();
+        ga4QuizStart();
+        pushToDataLayer("quiz_start");
+      }
+      // Option-based screens commit immediately (one click = one answer).
+      // FREE_TEXT_KEYS are typed character-by-character, so they emit
+      // quiz_answer from their own "continue" handler via commitAnswer instead.
+      if (!FREE_TEXT_KEYS.has(key as string)) {
+        commitAnswer(key, value);
+      }
+      setAnswers((prev) => ({ ...prev, [key]: value }));
+    },
+    [commitAnswer]
+  );
 
   const nextStep = useCallback(() => setCurrentStep((s: number) => Math.min(s + 1, TOTAL_STEPS)), []);
   const prevStep = useCallback(() => setCurrentStep((s: number) => Math.max(s - 1, 1)), []);
   const goToStep = useCallback((n: number) => setCurrentStep(n), []);
 
   return (
-    <QuizContext.Provider value={{ answers, currentStep, totalSteps: TOTAL_STEPS, maxReachedStep, setAnswer, nextStep, prevStep, goToStep }}>
+    <QuizContext.Provider value={{ answers, currentStep, totalSteps: TOTAL_STEPS, maxReachedStep, setAnswer, commitAnswer, nextStep, prevStep, goToStep }}>
       {children}
     </QuizContext.Provider>
   );

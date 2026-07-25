@@ -8,6 +8,7 @@ import {
 } from '@/widgets/lesson-viewer'
 import { streakApi } from '@features/streak/api'
 import { skillsApi, type SkillDetail } from '@features/skills'
+import { BookOpen } from 'lucide-react'
 import { PageLoader } from '@shared/ui'
 
 /**
@@ -68,10 +69,16 @@ export default function SkillLessonPage() {
     if (!Number.isFinite(numericLessonId)) {
       return { showDayStreak: false }
     }
-    await lessonApi.complete(numericLessonId, feedback)
-    const streak = await streakApi.checkIn()
-    void queryClient.invalidateQueries({ queryKey: ['streak'] })
-    return { showDayStreak: streak.firstCheckInToday === true }
+    try {
+      await lessonApi.complete(numericLessonId, feedback)
+      const streak = await streakApi.checkIn()
+      void queryClient.invalidateQueries({ queryKey: ['streak'] })
+      return { showDayStreak: streak.firstCheckInToday === true }
+    } catch (err) {
+      // Surface to the viewer so the learner isn't stuck on a silent failure.
+      console.error('Failed to commit lesson completion / streak check-in', err)
+      throw err
+    }
   }
 
   /**
@@ -95,7 +102,7 @@ export default function SkillLessonPage() {
   }
 
   if (isPending || !content) {
-    return <PageLoader label="Loading lesson…" />
+    return <PageLoader label="Loading lesson…" icon={BookOpen} />
   }
 
   if (isError) {

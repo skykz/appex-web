@@ -17,7 +17,7 @@ interface SendMessageResponse {
 interface ChatSession {
   id: string
   title: string
-  model_id: string
+  model_id: string | null
   created_at: string
 }
 

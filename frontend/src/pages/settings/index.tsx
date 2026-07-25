@@ -359,8 +359,8 @@ function AccountSection() {
             Subscription management
           </button>{' '}
           before removing your account. Contact{' '}
-          <a href="mailto:support@appex.me" className="font-medium underline underline-offset-2">
-            support@appex.me
+          <a href="mailto:hello@appexme.com" className="font-medium underline underline-offset-2">
+            hello@appexme.com
           </a>{' '}
           if you need help.
         </p>
@@ -446,8 +446,8 @@ function PasswordSection() {
           onToggle={() => setShowConfirm(!showConfirm)}
           inputRef={confirmRef}
         />
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {success && <p className="text-sm text-green-600">Password updated successfully</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {success && <p className="text-sm text-emerald-600">Password updated successfully</p>}
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -534,7 +534,7 @@ function BillingSection() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       )}
       {isError && (
-        <p className="text-sm text-red-500">Couldn't load billing history.</p>
+        <p className="text-sm text-destructive">Couldn't load billing history.</p>
       )}
       {!isLoading && !isError && (!data || data.length === 0) && (
         <div className="rounded-xl border p-6 text-center">
@@ -744,7 +744,7 @@ function ChoosePlanView({ subscription }: { subscription: Subscription | null })
         <p className="text-sm text-muted-foreground">Redirecting to secure checkout…</p>
       )}
       {isError && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-destructive">
           Couldn't load plans. The store may be temporarily unavailable — try again
           in a moment.
         </p>
@@ -769,7 +769,7 @@ function ChoosePlanView({ subscription }: { subscription: Subscription | null })
       )}
 
       {checkout.isError && (
-        <p className="text-sm text-red-500">
+        <p className="text-sm text-destructive">
           Couldn't start checkout. Please try again.
         </p>
       )}
@@ -818,7 +818,7 @@ function PlanCard({
             </span>
           </p>
           {isYearly && (
-            <p className="text-xs text-green-600">Save vs. shorter plans</p>
+            <p className="text-xs text-emerald-600">Save vs. shorter plans</p>
           )}
         </div>
       )}
@@ -1153,7 +1153,7 @@ function CancelDialog({
               </div>
 
               {errorMessage && (
-                <p className="text-center text-sm text-red-500">{errorMessage}</p>
+                <p className="text-center text-sm text-destructive">{errorMessage}</p>
               )}
             </div>
           </>
@@ -1194,7 +1194,7 @@ function CancelDialog({
             </div>
 
             {errorMessage && (
-              <p className="mt-4 text-center text-sm text-red-500">{errorMessage}</p>
+              <p className="mt-4 text-center text-sm text-destructive">{errorMessage}</p>
             )}
           </div>
         )}

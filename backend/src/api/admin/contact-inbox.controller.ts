@@ -4,6 +4,10 @@ import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 
 const listQuerySchema = z.object({
+  search: z
+    .string()
+    .optional()
+    .transform((s) => (s?.trim() ? s.trim() : undefined)),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(30),
   unread: z
@@ -11,6 +15,25 @@ const listQuerySchema = z.object({
     .optional()
     .transform((v) => v === '1' || v === 'true'),
 })
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const MAX_ID_FILTER = 200
+
+/**
+ * Escapes `%` and `_` for use inside PostgREST `ilike` patterns.
+ */
+function escapeIlikePattern(fragment: string): string {
+  return fragment.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+/**
+ * Returns true when `s` looks like a Postgres uuid (for exact user id lookup).
+ */
+function isUuid(s: string): boolean {
+  return UUID_RE.test(s)
+}
 
 /**
  * Returns the number of unread contact / feedback messages for the inbox badge.
@@ -63,7 +86,7 @@ export async function listContactMessages(
   next: NextFunction
 ) {
   try {
-    const { page, limit, unread } = listQuerySchema.parse(req.query)
+    const { search, page, limit, unread } = listQuerySchema.parse(req.query)
     const from = (page - 1) * limit
     const to = from + limit - 1
 
@@ -76,6 +99,27 @@ export async function listContactMessages(
 
     if (unread === true) {
       q = q.is('read_at', null)
+    }
+
+    if (search) {
+      if (isUuid(search)) {
+        q = q.eq('user_id', search)
+      } else {
+        const safe = escapeIlikePattern(search).replace(/,/g, '')
+        const pattern = `%${safe}%`
+        const { data: hitUsers, error: uErr } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .or(`email.ilike.${pattern},name.ilike.${pattern}`)
+        if (uErr) throw new AppError(500, uErr.message)
+        const ids = (hitUsers ?? []).map((u) => u.id).slice(0, MAX_ID_FILTER)
+        const messageFields = `subject.ilike.${pattern},message.ilike.${pattern},category.ilike.${pattern}`
+        if (ids.length === 0) {
+          q = q.or(messageFields)
+        } else {
+          q = q.or(`${messageFields},user_id.in.(${ids.join(',')})`)
+        }
+      }
     }
 
     const { data, error, count } = await q.range(from, to)

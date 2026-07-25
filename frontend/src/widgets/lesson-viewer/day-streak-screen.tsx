@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
 import { streakApi } from '@features/streak/api'
 import { cn } from '@shared/lib'
-import { Button } from '@shared/ui'
+import { Button, PlatformLoader } from '@shared/ui'
 
 type TFn = ReturnType<typeof useTranslation>['t']
 
@@ -28,18 +28,31 @@ function prefersReducedMotion(): boolean {
 }
 
 /**
- * Animates a number from 0 up to `target` once it becomes known, easing out over
- * `duration` ms. Respects reduced-motion by snapping straight to the target.
+ * Animates a number up to `target`, easing out over `duration` ms. Respects
+ * reduced-motion by snapping straight to the target. Animates FROM the previously
+ * displayed value (not always 0), so if `target` resolves or changes mid-view
+ * (e.g. a background refetch) the number transitions smoothly instead of snapping to 0.
  */
 function useCountUp(target: number, duration = 900): number {
   const [value, setValue] = useState(0)
   const rafRef = useRef<number | null>(null)
+  // Track the latest displayed value without retriggering the animation effect.
+  const valueRef = useRef(0)
+  useEffect(() => {
+    valueRef.current = value
+  }, [value])
 
+  // Intentional setState-in-effect: this hook synchronizes React state to two external
+  // systems — the rAF animation clock and the async-resolving `target` — which is the
+  // sanctioned use of an effect. Snapping/animating cannot be derived during render.
   useEffect(() => {
     if (target <= 0 || prefersReducedMotion()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValue(target)
       return
     }
+    const from = valueRef.current
+    if (from === target) return
     // Small delay so the count-up starts after the card has begun rising in.
     const startDelay = 250
     let startTime: number | null = null
@@ -47,9 +60,9 @@ function useCountUp(target: number, duration = 900): number {
       if (startTime === null) startTime = now
       const elapsed = now - startTime
       const t = Math.min(1, elapsed / duration)
-      // easeOutCubic
+      // easeOutCubic, interpolating from the prior value to the target.
       const eased = 1 - Math.pow(1 - t, 3)
-      setValue(Math.round(eased * target))
+      setValue(Math.round(from + (target - from) * eased))
       if (t < 1) rafRef.current = requestAnimationFrame(tick)
     }
     const timer = window.setTimeout(() => {
@@ -97,7 +110,7 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
 
   const todayIndex = getTodayIndex()
 
-  const { data: streak } = useQuery({
+  const { data: streak, isPending } = useQuery({
     queryKey: ['streak'],
     queryFn: () => streakApi.get(),
   })
@@ -123,6 +136,15 @@ export function DayStreakScreen({ onContinue }: DayStreakScreenProps) {
     })()
     return () => controller.abort()
   }, [])
+
+  // Gate the celebration until the streak is known — otherwise it briefly flashes "0".
+  if (isPending) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-background">
+        <PlatformLoader variant="inline" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-background">

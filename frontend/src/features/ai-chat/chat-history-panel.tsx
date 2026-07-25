@@ -58,6 +58,7 @@ export function ChatHistoryPanel({
    */
   async function handleDeleteSession(sessionId: string, ev: React.MouseEvent) {
     ev.stopPropagation()
+    if (!window.confirm('Delete this conversation?')) return
     setDeleteError(null)
     setDeletingId(sessionId)
     try {

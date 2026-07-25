@@ -189,6 +189,15 @@
     min-height: 44px;
     min-width: 44px;
   }
+
+  /* Subtle dotted canvas backdrop for the Lexi chat message area. */
+  .lexi-canvas {
+    background-image: radial-gradient(
+      hsl(var(--foreground) / 0.06) 1px,
+      transparent 1px
+    );
+    background-size: 16px 16px;
+  }
 }
 
 /* Skeleton shimmer — a soft sweep across loading placeholders. */

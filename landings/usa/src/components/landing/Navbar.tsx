@@ -9,11 +9,10 @@ const navLinks = [
   { label: "FAQ", href: "#faq" },
 ];
 
+// Mobile sidebar keeps only the essentials — Reviews & FAQ, then Login + quiz CTA below.
 const sidebarLinks = [
-  ...navLinks,
-  { label: "Privacy Policy", href: "/privacy", newTab: true },
-  { label: "Terms", href: "/terms", newTab: true },
-  { label: "Subscription Policy", href: "/subscription", newTab: true },
+  { label: "Reviews", href: "#reviews" },
+  { label: "FAQ", href: "#faq" },
 ];
 
 /** Fixed top navigation with learner-app login and quiz CTA. */
@@ -108,8 +107,19 @@ export default function Navbar() {
               </a>
             ))}
             <a
+              href={loginUrl ?? "#"}
+              onClick={(e) => {
+                handleLoginClick(e);
+                setOpen(false);
+              }}
+              className="mt-4 rounded-full border border-border py-3 text-center font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            >
+              Log in
+            </a>
+            <a
               href="/quiz"
-              className="mt-4 bg-gradient-primary text-white text-center rounded-full py-3 font-semibold hover:opacity-90 transition-opacity"
+              onClick={() => setOpen(false)}
+              className="mt-2 bg-gradient-primary text-white text-center rounded-full py-3 font-semibold hover:opacity-90 transition-opacity"
             >
               Start free quiz →
             </a>

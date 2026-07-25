@@ -198,6 +198,11 @@ export function trackLead(): void {
   track('Lead')
 }
 
+/** CompleteRegistration — submitted name (registration intent) after email. */
+export function trackCompleteRegistration(): void {
+  track('CompleteRegistration')
+}
+
 /**
  * InitiateCheckout — opened Stripe checkout from the paywall. Returns the
  * generated `event_id` so the caller can forward it to the backend, letting

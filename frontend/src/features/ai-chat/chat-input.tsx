@@ -7,8 +7,6 @@ import type { AIModel } from './types'
 import { ModelSelector } from './model-selector'
 import { chatApi } from './api'
 
-const FALLBACK_MODELS: AIModel[] = [{ id: 'chatgpt', name: 'ChatGPT' }]
-
 interface ChatInputProps {
   /** Fires when the user sends; parent may await network work. */
   onSend?: (text: string, model: AIModel) => void | Promise<void>
@@ -38,8 +36,9 @@ export function ChatInput({
     staleTime: 5 * 60_000,
   })
 
-  const models = remoteModels?.length ? remoteModels : FALLBACK_MODELS
-  const [model, setModel] = useState<AIModel>(models[0])
+  const models = remoteModels ?? []
+  const modelsReady = models.length > 0
+  const [model, setModel] = useState<AIModel | null>(null)
 
   /** Keep external chip text in sync with the controlled `initialText` prop. */
   useEffect(() => {
@@ -48,8 +47,12 @@ export function ChatInput({
 
   /** When the models list loads, ensure the selected row still exists. */
   useEffect(() => {
-    setModel((prev) => models.find((m) => m.id === prev.id) ?? models[0])
-  }, [models])
+    if (!modelsReady) {
+      setModel(null)
+      return
+    }
+    setModel((prev) => models.find((m) => m.id === prev?.id) ?? models[0])
+  }, [models, modelsReady])
 
   /** Prefer the session’s model when history is loaded or the user switches chats. */
   useEffect(() => {
@@ -63,15 +66,16 @@ export function ChatInput({
     const el = textareaRef.current
     if (!el) return
     el.style.height = '0px'
-    const max = 200
+    const max = 160
     el.style.height = `${Math.min(el.scrollHeight, max)}px`
   }, [text])
 
   /**
    * Validates input, delegates to the parent, and clears the field after submit intent.
+   * A send is refused until a real model from `GET /chat/models` is selected.
    */
   function handleSend() {
-    if (disabled || !text.trim()) return
+    if (disabled || !model || !text.trim()) return
     onSend?.(text.trim(), model)
     setText('')
   }
@@ -85,7 +89,7 @@ export function ChatInput({
     handleSend()
   }
 
-  const canSend = Boolean(text.trim()) && !disabled
+  const canSend = Boolean(text.trim()) && !disabled && Boolean(model)
 
   return (
     <div className="w-full rounded-2xl border bg-card p-2 shadow-sm">
@@ -101,12 +105,18 @@ export function ChatInput({
       />
 
       <div className="flex items-center justify-between pt-0.5">
-        <ModelSelector
-          models={models}
-          value={model}
-          onChange={setModel}
-          disabled={disabled}
-        />
+        {model ? (
+          <ModelSelector
+            models={models}
+            value={model}
+            onChange={setModel}
+            disabled={disabled}
+          />
+        ) : (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            Loading models…
+          </span>
+        )}
 
         <button
           type="button"
@@ -114,7 +124,7 @@ export function ChatInput({
           disabled={!canSend}
           aria-label="Send message"
           className={cn(
-            'flex size-8 items-center justify-center rounded-full transition-all duration-200',
+            'flex size-9 items-center justify-center rounded-full transition-all duration-200',
             canSend
               ? 'bg-primary text-primary-foreground hover:bg-primary/90 active:scale-90'
               : 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'

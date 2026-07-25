@@ -1,15 +1,16 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, Search } from 'lucide-react'
+import { Download } from 'lucide-react'
 import type { AdminBillingRow, AdminSubscriptionRow } from '@features/billing/api'
 import {
   fetchAdminBillingHistory,
   fetchAdminSubscriptions,
 } from '@features/billing/api'
+import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
-import { Input } from '@shared/ui/input'
-import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
+import { Pagination } from '@shared/ui/pagination'
+import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
 import { cn } from '@shared/lib'
@@ -17,27 +18,6 @@ import { cn } from '@shared/lib'
 const PAGE_SIZE = 25
 
 type Tab = 'subscriptions' | 'payments'
-
-/**
- * Formats a subscription or billing row as a CSV line with optional quoting.
- */
-function escCsv(v: string) {
-  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`
-  return v
-}
-
-/**
- * Triggers a browser download of CSV text.
- */
-function downloadCsvFile(csv: string, filename: string) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 /**
  * Admin view of plan subscriptions and payment history: search, pagination, CSV export.
@@ -242,82 +222,78 @@ export function BillingPage() {
         page: 1,
         limit: 500,
       })
-      const headers = [
-        'id',
-        'user_id',
-        'email',
-        'name',
-        'plan_name',
-        'status',
-        'intro_price',
-        'price',
-        'coupon_label',
-        'promo_code',
-        'renewal_date',
-        'paused_at',
-        'created_at',
-      ] as const
-      const lines = [
-        headers.join(','),
-        ...chunk.items.map((r) =>
-          [
-            escCsv(r.id),
-            escCsv(r.user_id),
-            escCsv(r.email),
-            escCsv(r.name ?? ''),
-            escCsv(r.plan_name),
-            escCsv(r.status),
-            escCsv(r.intro_price != null ? String(r.intro_price) : ''),
-            escCsv(String(r.price)),
-            escCsv(r.coupon_label ?? ''),
-            escCsv(r.promo_code ?? ''),
-            escCsv(r.renewal_date),
-            escCsv(r.paused_at ?? ''),
-            escCsv(r.created_at),
-          ].join(',')
-        ),
-      ]
-      downloadCsvFile(lines.join('\r\n'), 'appex-subscriptions.csv')
+      const csv = toCsv(
+        [
+          'id',
+          'user_id',
+          'email',
+          'name',
+          'plan_name',
+          'status',
+          'intro_price',
+          'price',
+          'coupon_label',
+          'promo_code',
+          'renewal_date',
+          'paused_at',
+          'created_at',
+        ],
+        chunk.items,
+        (r) => [
+          r.id,
+          r.user_id,
+          r.email,
+          r.name ?? '',
+          r.plan_name,
+          r.status,
+          r.intro_price != null ? String(r.intro_price) : '',
+          r.price,
+          r.coupon_label ?? '',
+          r.promo_code ?? '',
+          r.renewal_date,
+          r.paused_at ?? '',
+          r.created_at,
+        ]
+      )
+      downloadCsvFile(csv, 'appex-subscriptions.csv')
     } else {
       const chunk = await fetchAdminBillingHistory({
         search: deferredSearch || undefined,
         page: 1,
         limit: 500,
       })
-      const headers = [
-        'id',
-        'user_id',
-        'email',
-        'name',
-        'amount',
-        'subtotal',
-        'discount_amount',
-        'coupon_label',
-        'promo_code',
-        'description',
-        'paid_at',
-        'created_at',
-      ] as const
-      const lines = [
-        headers.join(','),
-        ...chunk.items.map((r) =>
-          [
-            escCsv(r.id),
-            escCsv(r.user_id),
-            escCsv(r.email),
-            escCsv(r.name ?? ''),
-            escCsv(String(r.amount)),
-            escCsv(r.subtotal != null ? String(r.subtotal) : ''),
-            escCsv(String(r.discount_amount)),
-            escCsv(r.coupon_label ?? ''),
-            escCsv(r.promo_code ?? ''),
-            escCsv(r.description),
-            escCsv(r.paid_at),
-            escCsv(r.created_at),
-          ].join(',')
-        ),
-      ]
-      downloadCsvFile(lines.join('\r\n'), 'appex-billing-history.csv')
+      const csv = toCsv(
+        [
+          'id',
+          'user_id',
+          'email',
+          'name',
+          'amount',
+          'subtotal',
+          'discount_amount',
+          'coupon_label',
+          'promo_code',
+          'description',
+          'paid_at',
+          'created_at',
+        ],
+        chunk.items,
+        (r) => [
+          r.id,
+          r.user_id,
+          r.email,
+          r.name ?? '',
+          r.amount,
+          r.subtotal != null ? String(r.subtotal) : '',
+          r.discount_amount,
+          r.coupon_label ?? '',
+          r.promo_code ?? '',
+          r.description,
+          r.paid_at,
+          r.created_at,
+        ]
+      )
+      downloadCsvFile(csv, 'appex-billing-history.csv')
     }
   }
 
@@ -348,33 +324,22 @@ export function BillingPage() {
         </Button>
       </div>
 
-      <Card className="border-border/70 shadow-sm">
-        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-md flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-10 border-border/80 pl-9 shadow-sm"
-              placeholder={
-                tab === 'subscriptions'
-                  ? 'Search plan, coupon, promo, user email, name, or user id…'
-                  : 'Search description, coupon, promo, user email, name, or user id…'
-              }
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-2"
-            onClick={exportCsv}
-          >
+      <SearchToolbar
+        value={search}
+        onChange={setSearch}
+        label="Search billing"
+        placeholder={
+          tab === 'subscriptions'
+            ? 'Search plan, coupon, promo, user email, name, or user id…'
+            : 'Search description, coupon, promo, user email, name, or user id…'
+        }
+        actions={
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={exportCsv}>
             <Download className="h-4 w-4" />
             Export CSV (up to 500)
           </Button>
-        </CardContent>
-      </Card>
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3 rounded-xl border border-border/80 bg-card p-6 shadow-sm">
@@ -388,32 +353,13 @@ export function BillingPage() {
             columns={subColumns}
             getRowKey={(r) => r.id}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {total} subscription
-              {total === 1 ? '' : 's'}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={total}
+            itemNoun="subscription"
+          />
         </>
       ) : (
         <>
@@ -422,31 +368,13 @@ export function BillingPage() {
             columns={payColumns}
             getRowKey={(r) => r.id}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-            <span>
-              Page {page} of {totalPages} · {total} payment{total === 1 ? '' : 's'}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={total}
+            itemNoun="payment"
+          />
         </>
       )}
     </div>
