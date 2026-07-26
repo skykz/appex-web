@@ -34,7 +34,7 @@ function resolveApiUrl(): string {
  */
 export const config = {
   apiUrl: resolveApiUrl(),
-  /** Public URL of the React app (e.g. https://app.appex.kz). Optional; marketing landings are separate. */
+  /** Public URL of the React app (e.g. https://app.appexme.com). Optional; marketing landings are separate. */
   appOrigin: import.meta.env.VITE_APP_ORIGIN || '',
   isDev: import.meta.env.DEV,
   isProd: import.meta.env.PROD,

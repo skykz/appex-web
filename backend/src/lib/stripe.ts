@@ -17,7 +17,7 @@ export function getStripe(): Stripe {
       // Pin to a known API version so silent upstream changes can't break us.
       apiVersion: '2026-04-22.dahlia',
       typescript: true,
-      appInfo: { name: 'AppEx', url: 'https://appex.kz' },
+      appInfo: { name: 'AppEx', url: 'https://app.appexme.com' },
     })
   }
   return cached
