@@ -202,8 +202,18 @@ export function ga4PlanView(): void {
 }
 
 /** paywall_view — paywall screen shown (spec funnel step 38). */
-export function ga4PaywallView(): void {
-  event('paywall_view')
+export function ga4PaywallView(params?: { discount_tier?: string }): void {
+  event('paywall_view', params)
+}
+
+/** paywall_exit_intent_shown — the 71% "last chance" offer was revealed. */
+export function ga4PaywallExitIntentShown(): void {
+  event('paywall_exit_intent_shown', { discount_tier: 'exit' })
+}
+
+/** paywall_timer_expired — the 10-min countdown hit 0, discount burned. */
+export function ga4PaywallTimerExpired(): void {
+  event('paywall_timer_expired', { discount_tier: 'expired' })
 }
 
 /** checkout_start — clicked a plan / opened Stripe checkout (spec step 38, value+currency). */
@@ -211,10 +221,13 @@ export function ga4CheckoutStart(params: {
   value: number
   currency: string
   plan: string
+  /** Which discount state the paywall was in: intro | exit | expired. */
+  discountTier?: string
 }): void {
   event('checkout_start', {
     value: params.value,
     currency: params.currency,
+    ...(params.discountTier ? { discount_tier: params.discountTier } : {}),
     items: [{ item_id: params.plan, item_name: `Appex ${params.plan}` }],
   })
 }
@@ -230,11 +243,14 @@ export function ga4Purchase(params: {
   value: number
   currency: string
   plan?: string
+  /** Which discount state sold: intro | exit | expired. */
+  discountTier?: string
 }): void {
   event('purchase', {
     transaction_id: params.transactionId,
     value: params.value,
     currency: params.currency,
+    ...(params.discountTier ? { discount_tier: params.discountTier } : {}),
     ...(params.plan ? { items: [{ item_id: params.plan, item_name: `Appex ${params.plan}` }] } : {}),
   })
 }

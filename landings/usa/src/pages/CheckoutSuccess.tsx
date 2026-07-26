@@ -29,7 +29,14 @@ function firePurchaseOnce(sessionId: string): void {
     // the Stripe round-trip); fall back to the legacy sessionStorage key.
     const raw =
       localStorage.getItem("appexCheckout") ?? sessionStorage.getItem("appexCheckout");
-    const c = raw ? (JSON.parse(raw) as { plan?: string; value?: number; currency?: string }) : {};
+    const c = raw
+      ? (JSON.parse(raw) as {
+          plan?: string
+          value?: number
+          currency?: string
+          discount_tier?: string
+        })
+      : {};
     // NEVER report 0 — a $0 Purchase silently poisons value-based bidding. If the
     // stored value is missing (storage cleared / different tab), fall back to the
     // default plan's price so the conversion still carries a sane value.
@@ -37,10 +44,24 @@ function firePurchaseOnce(sessionId: string): void {
     const value = stored ?? FALLBACK_PURCHASE_VALUE;
     const currency = c.currency || "USD";
     trackPurchase({ stripeSessionId: sessionId, value, currency, plan: c.plan });
-    ga4Purchase({ transactionId: sessionId, value, currency, plan: c.plan });
+    ga4Purchase({
+      transactionId: sessionId,
+      value,
+      currency,
+      plan: c.plan,
+      discountTier: c.discount_tier,
+    });
     // GTM trigger for the marketer's own tags (e.g. Google Ads purchase
     // conversion). transaction_id lets them dedup; do NOT add GA4/Pixel in GTM.
-    pushToDataLayer("purchase", { transaction_id: sessionId, value, currency, plan: c.plan });
+    pushToDataLayer("purchase", {
+      transaction_id: sessionId,
+      value,
+      currency,
+      plan: c.plan,
+      // Which discount tier actually converted (spec §6) — lets revenue be split
+      // by intro / exit / expired when reconciling.
+      ...(c.discount_tier ? { discount_tier: c.discount_tier } : {}),
+    });
   } catch {
     /* never block the success page on tracking */
   }

@@ -4,7 +4,13 @@ import CheckoutModal from "@/components/paywall/CheckoutModal";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
 import { redirectToSigninCheckout } from "@/lib/checkout-redirect";
 import { trackInitiateCheckout, getMetaBrowserIds } from "@/lib/meta-pixel";
-import { ga4CheckoutStart, ga4PaywallView, getGa4ClientId } from "@/lib/ga4";
+import {
+  ga4CheckoutStart,
+  ga4PaywallView,
+  ga4PaywallExitIntentShown,
+  ga4PaywallTimerExpired,
+  getGa4ClientId,
+} from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import {
   PAYWALL_PLANS,
@@ -29,20 +35,27 @@ const GREEN = "#16A34A";
 
 /* ── Countdown Timer ── */
 /**
- * Counts down from `minutes`, surviving reloads via sessionStorage so the offer
- * can't be reset by refreshing the page (an expired timer must stay expired).
+ * Counts down from `minutes`, persisting the absolute `deadline` in localStorage
+ * so neither a refresh NOR closing and reopening the tab can resurrect an
+ * expired offer. (sessionStorage would hand a returning visitor a fresh 10
+ * minutes, which defeats the urgency the offer is built on.)
  */
 function useCountdown(minutes: number) {
   const totalMs = minutes * 60 * 1000;
 
   const [secs, setSecs] = useState(() => {
     try {
-      const stored = sessionStorage.getItem("appexPaywallDeadline");
+      // Migrate any deadline written by the previous sessionStorage version so a
+      // visitor mid-countdown at deploy time doesn't get the clock reset.
+      const stored =
+        localStorage.getItem("appexPaywallDeadline") ??
+        sessionStorage.getItem("appexPaywallDeadline");
       const deadline = stored ? Number(stored) : NaN;
       if (Number.isFinite(deadline)) {
+        localStorage.setItem("appexPaywallDeadline", String(deadline));
         return Math.max(0, Math.round((deadline - Date.now()) / 1000));
       }
-      sessionStorage.setItem("appexPaywallDeadline", String(Date.now() + totalMs));
+      localStorage.setItem("appexPaywallDeadline", String(Date.now() + totalMs));
     } catch {
       /* storage disabled — fall back to a fresh in-memory countdown */
     }
@@ -368,7 +381,12 @@ export default function Paywall() {
       ? "exit"
       : "intro";
 
-  const handleExitIntent = useCallback(() => setExitUnlocked(true), []);
+  const handleExitIntent = useCallback(() => {
+    setExitUnlocked(true);
+    // Spec §6: report the moment the 71% offer is revealed.
+    ga4PaywallExitIntentShown();
+    pushToDataLayer("paywall_exit_intent_shown", { discount_tier: "exit" });
+  }, []);
   useExitIntent(handleExitIntent, !timer.expired && !exitUnlocked);
 
   const data = getQuizData();
@@ -379,13 +397,28 @@ export default function Paywall() {
   const planSavedRef = useRef<string | null>(null);
   const paywallViewFired = useRef(false);
 
-  // Fire paywall_view once on mount (spec funnel step 38, screen shown).
+  // Fire paywall_view once on mount (spec funnel step 38, screen shown), tagged
+  // with the discount state the visitor actually landed on (a reload after the
+  // timer burned lands straight on `expired`).
   useEffect(() => {
     if (paywallViewFired.current) return;
     paywallViewFired.current = true;
-    ga4PaywallView();
-    pushToDataLayer("paywall_view");
+    ga4PaywallView({ discount_tier: discountState });
+    pushToDataLayer("paywall_view", { discount_tier: discountState });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Spec §6: report when the countdown burns the discount. Only on a live
+  // transition — a visitor who arrives already expired is covered by
+  // paywall_view with discount_tier=expired, so we'd be double-counting.
+  const arrivedExpired = useRef(timer.expired);
+  const timerExpiredFired = useRef(false);
+  useEffect(() => {
+    if (arrivedExpired.current || !timer.expired || timerExpiredFired.current) return;
+    timerExpiredFired.current = true;
+    ga4PaywallTimerExpired();
+    pushToDataLayer("paywall_timer_expired", { discount_tier: "expired" });
+  }, [timer.expired]);
 
   useEffect(() => {
     if (!quizEmail) return;
@@ -452,14 +485,31 @@ export default function Paywall() {
       currency: "USD",
       plan: interval,
     });
-    ga4CheckoutStart({ value: conversionValue, currency: "USD", plan: interval });
-    pushToDataLayer("checkout_start", { value: conversionValue, currency: "USD", plan: interval });
+    ga4CheckoutStart({
+      value: conversionValue,
+      currency: "USD",
+      plan: interval,
+      discountTier: discountState,
+    });
+    pushToDataLayer("checkout_start", {
+      value: conversionValue,
+      currency: "USD",
+      plan: interval,
+      discount_tier: discountState,
+    });
     // Persist the chosen plan/value so the success page fires the browser Purchase
     // with the same value the server reports.
     try {
       sessionStorage.setItem(
         "appexCheckout",
-        JSON.stringify({ plan: interval, value: conversionValue, currency: "USD" })
+        JSON.stringify({
+          plan: interval,
+          value: conversionValue,
+          currency: "USD",
+          // Carried to the success page so `purchase` reports which discount
+          // tier actually sold (spec §6).
+          discount_tier: discountState,
+        })
       );
     } catch {
       /* storage disabled — success page falls back to server-only Purchase */
