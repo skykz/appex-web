@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
-import { Zap } from 'lucide-react'
 import { cn, getSafeInternalPath } from '@shared/lib'
 import { SigninForm, SignupForm } from '@features/auth'
 import { useAuthStore } from '@entities/user'
@@ -44,8 +43,11 @@ export default function AuthPage() {
             'ring-2 ring-orange-400/25',
             'transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]'
           )}
+          aria-label="AppEx"
         >
-          <Zap className="size-6" />
+          <span className="text-lg font-extrabold leading-none tracking-tight">
+            A<span className="italic text-[#111]">X</span>
+          </span>
         </div>
         <div className="text-center">
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">

@@ -1,5 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Appex">
-  <rect width="64" height="64" rx="14" fill="#111111"/>
-  <text x="9" y="42" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#ffffff">App</text>
-  <text x="43" y="42" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="22" font-weight="800" fill="#F97316">ex</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AppEx">
+  <defs>
+    <linearGradient id="appex-gradient" x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f97316" />
+      <stop offset="1" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#appex-gradient)" />
+  <text text-anchor="middle" dominant-baseline="central"
+        font-family="Arial, Helvetica, sans-serif" font-weight="800"
+        font-size="34" letter-spacing="-1.5">
+    <tspan x="32" y="33" fill="#ffffff">A<tspan font-style="italic" fill="#111111">X</tspan></tspan>
+  </text>
 </svg>

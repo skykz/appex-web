@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { ArrowLeft, KeyRound, Loader2, Mail } from 'lucide-react'
+import { ArrowLeft, Loader2, Mail } from 'lucide-react'
 import { userApi } from '@entities/user/api/user-api'
 import { Button, Input, Label } from '@shared/ui'
 import { ApiError } from '@shared/api/http-client'
@@ -53,8 +53,13 @@ export default function ForgotPasswordPage() {
   return (
     <div className="rounded-2xl border border-border/80 bg-card/80 p-6 shadow-lg ring-1 ring-border/40 backdrop-blur-sm sm:p-8 space-y-6">
       <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-md ring-1 ring-orange-200/60">
-          <KeyRound className="size-7" aria-hidden />
+        <div
+          className="flex size-14 items-center justify-center rounded-2xl bg-linear-to-br from-orange-500 to-amber-500 text-white shadow-md ring-1 ring-orange-200/60"
+          aria-label="AppEx"
+        >
+          <span className="text-xl font-extrabold leading-none tracking-tight">
+            A<span className="italic text-[#111]">X</span>
+          </span>
         </div>
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reset your password</h1>
