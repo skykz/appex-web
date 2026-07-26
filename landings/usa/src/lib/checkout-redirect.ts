@@ -1,11 +1,18 @@
 export type BillingInterval = "week_1" | "week_4" | "year";
 
+/** Live learner platform origin — the landing is appexme.com, the app is app.appexme.com. */
+const PROD_APP_URL = "https://app.appexme.com";
+
 /**
- * Returns the learner SPA origin configured at build time for auth/checkout handoff.
+ * Returns the learner SPA origin for auth/checkout handoff. Falls back to the
+ * live platform domain in production builds, so a missing VITE_APP_URL can't
+ * break the paywall's sign-in link or the post-checkout handoff. Dev builds keep
+ * returning null when unset, so local misconfiguration stays visible.
  */
 export function getLearnerAppUrl(): string | null {
   const url = import.meta.env.VITE_APP_URL?.trim();
-  return url ? url.replace(/\/$/, "") : null;
+  if (url) return url.replace(/\/$/, "");
+  return import.meta.env.DEV ? null : PROD_APP_URL;
 }
 
 /**

@@ -1,11 +1,22 @@
 import { z } from 'zod'
 
+/**
+ * Production origins, used as fallbacks so a missing env var on Vercel can't
+ * silently point production at localhost (which would strand paying customers
+ * and break conversion tracking). Env vars still win when set.
+ *
+ *   appexme.com      → USA marketing landing (quiz, paywall, thank-you page)
+ *   app.appexme.com  → learner platform (the product itself)
+ */
+const PROD_LANDING_URL = 'https://appexme.com'
+const PROD_APP_URL = 'https://app.appexme.com'
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  /** Comma-separated browser origins allowed to call the API (e.g. https://appex.kz,https://app.appex.kz). Empty = reflect any origin (dev-friendly). */
+  /** Comma-separated browser origins allowed to call the API (e.g. https://appexme.com,https://app.appexme.com). Empty = reflect any origin (dev-friendly). */
   CORS_ORIGINS: z.string().optional(),
   /** Optional extra comma-separated origins merged into CORS (e.g. admin SPA only: https://appex-web-admin.vercel.app). */
   CORS_ORIGINS_EXTRA: z.string().optional(),
@@ -48,8 +59,12 @@ const envSchema = z.object({
   LEXI_SYSTEM_PROMPT: z.string().optional(),
 
   // --- Stripe (subscription billing) ---
-  /** Public URL of the React app (used for Stripe success/cancel/return URLs). */
-  APP_URL: z.string().url().default('http://localhost:5173'),
+  /**
+   * Public URL of the learner platform (Stripe success/cancel/return URLs, email
+   * links). Resolved below: falls back to the live app domain in production and
+   * localhost in dev, so a missing env var can't send customers to localhost.
+   */
+  APP_URL: z.string().url().optional(),
   /**
    * Public URL of the USA marketing landing (Stripe success/cancel for payment-first checkout).
    * Defaults to localhost:5175 for local dev.
@@ -229,7 +244,8 @@ assertMailgunProductionReady()
  */
 function warnEmailLinksMisconfigured() {
   if (!isProductionHost || !mailgunEnabled) return
-  const appUrl = parsed.APP_URL.replace(/\/+$/, '')
+  // Mirrors the APP_URL resolution in the exported env below.
+  const appUrl = (parsed.APP_URL ?? PROD_APP_URL).replace(/\/+$/, '')
   const publicUrl = parsed.APP_PUBLIC_URL?.replace(/\/+$/, '')
   const emailBase = publicUrl ?? appUrl
   if (emailBase.includes('localhost') || emailBase.includes('127.0.0.1')) {
@@ -249,7 +265,16 @@ const ga4MpEnabled = Boolean(parsed.GA4_MEASUREMENT_ID && parsed.GA4_API_SECRET)
 
 export const env = {
   ...parsed,
-  USA_LANDING_URL: parsed.USA_LANDING_URL ?? 'http://localhost:5175',
+  /** Learner platform origin (app.appexme.com in production). */
+  APP_URL: parsed.APP_URL ?? (isProductionHost ? PROD_APP_URL : 'http://localhost:5173'),
+  /**
+   * Landing origin used for Stripe success/cancel URLs. Falls back to the live
+   * landing domain in production — a localhost fallback there would strand paying
+   * customers on an unreachable page and lose the browser Purchase event.
+   */
+  USA_LANDING_URL:
+    parsed.USA_LANDING_URL ??
+    (isProductionHost ? PROD_LANDING_URL : 'http://localhost:5175'),
   corsOrigins,
   stripeEnabled,
   mailgunEnabled,
