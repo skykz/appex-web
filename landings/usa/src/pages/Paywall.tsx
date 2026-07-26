@@ -40,6 +40,15 @@ const GREEN = "#16A34A";
  * expired offer. (sessionStorage would hand a returning visitor a fresh 10
  * minutes, which defeats the urgency the offer is built on.)
  */
+/**
+ * How long a burned offer stays burned. Within this window a refresh or a
+ * reopened tab can't resurrect the discount; after it, a returning visitor
+ * (typically from retargeting) is treated as a new funnel run and gets a fresh
+ * countdown — otherwise the cheapest cohort would be permanently stuck on full
+ * price for that device.
+ */
+const OFFER_RESET_MS = 24 * 60 * 60 * 1000;
+
 function useCountdown(minutes: number) {
   const totalMs = minutes * 60 * 1000;
 
@@ -52,8 +61,15 @@ function useCountdown(minutes: number) {
         sessionStorage.getItem("appexPaywallDeadline");
       const deadline = stored ? Number(stored) : NaN;
       if (Number.isFinite(deadline)) {
-        localStorage.setItem("appexPaywallDeadline", String(deadline));
-        return Math.max(0, Math.round((deadline - Date.now()) / 1000));
+        // A deadline from an earlier visit shouldn't brand this device "expired"
+        // forever — a retargeted lead returning days later must get a fresh
+        // offer. Only honour a deadline from the current funnel run; anything
+        // older than OFFER_RESET_MS starts over.
+        const age = Date.now() - (deadline - totalMs);
+        if (age <= OFFER_RESET_MS) {
+          localStorage.setItem("appexPaywallDeadline", String(deadline));
+          return Math.max(0, Math.round((deadline - Date.now()) / 1000));
+        }
       }
       localStorage.setItem("appexPaywallDeadline", String(Date.now() + totalMs));
     } catch {
@@ -498,9 +514,12 @@ export default function Paywall() {
       discount_tier: discountState,
     });
     // Persist the chosen plan/value so the success page fires the browser Purchase
-    // with the same value the server reports.
+    // with the same value the server reports. localStorage, NOT sessionStorage:
+    // Stripe Checkout is a cross-origin round trip and mobile/in-app browsers
+    // routinely return the user in a fresh tab, where sessionStorage is empty —
+    // the success page would then report a fallback value for a real sale.
     try {
-      sessionStorage.setItem(
+      localStorage.setItem(
         "appexCheckout",
         JSON.stringify({
           plan: interval,
