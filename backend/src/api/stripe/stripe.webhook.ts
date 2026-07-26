@@ -87,9 +87,22 @@ async function dispatch(event: Stripe.Event): Promise<void> {
     // Checkout finished. The subscription object on the session is the
     // freshly-created one; we re-retrieve to get the latest state including
     // any discounts/proration that Stripe applied server-side.
-    case 'checkout.session.completed': {
+    // `async_payment_succeeded` covers delayed payment methods, where
+    // `completed` arrives while the session is still unpaid and the money lands
+    // later. Both funnel through the same paid-only provisioning below.
+    case 'checkout.session.completed':
+    case 'checkout.session.async_payment_succeeded': {
       const session = event.data.object as Stripe.Checkout.Session
       if (session.mode !== 'subscription' || !session.subscription) return
+      // Only grant access / report a conversion once the money is actually in.
+      // Delayed methods fire `completed` with payment_status 'unpaid'; acting on
+      // that would provision a free account and send Meta a fake Purchase.
+      if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
+        console.info(
+          `[stripe] checkout session ${session.id} not paid yet (payment_status=${session.payment_status}); waiting for async_payment_succeeded`
+        )
+        return
+      }
       const stripe = getStripe()
       const sub = await stripe.subscriptions.retrieve(
         typeof session.subscription === 'string'
