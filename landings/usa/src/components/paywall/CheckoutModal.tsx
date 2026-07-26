@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DISCOUNT_LABEL,
   priceFor,
@@ -44,10 +44,23 @@ export default function CheckoutModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
 
-  const discounted = state !== "expired";
-  const today = priceFor(plan, state);
-  const saved = savingsFor(plan, state);
-  const promo = promoCodeFor(state);
+  // Snapshot the discount state when the modal opens and honour it until it
+  // closes. `state` is live, so without this a timer expiring mid-view would
+  // rewrite the total and the FTC disclosure under the user's cursor — they'd
+  // click "Subscribe · $15.19" and be charged $38.95. The offer they were shown
+  // is the offer they get; a lapse is handled on the next open.
+  const [shownState, setShownState] = useState<DiscountState>(state);
+  useEffect(() => {
+    if (open) setShownState(state);
+    // Intentionally keyed on `open` only — re-syncing on `state` would defeat
+    // the snapshot.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const discounted = shownState !== "expired";
+  const today = priceFor(plan, shownState);
+  const saved = savingsFor(plan, shownState);
+  const promo = promoCodeFor(shownState);
 
   // Close on Escape, lock background scroll, and move focus into the dialog.
   useEffect(() => {
@@ -92,7 +105,7 @@ export default function CheckoutModal({
           >
             <span aria-hidden>⏰</span>
             <span className="text-[13px] font-bold" style={{ color: RED }}>
-              {DISCOUNT_LABEL[state]} discount expires in {timerLabel} min
+              {DISCOUNT_LABEL[shownState]} discount expires in {timerLabel} min
             </span>
           </div>
         )}
@@ -132,7 +145,7 @@ export default function CheckoutModal({
 
             {discounted && (
               <div className="flex items-baseline justify-between py-2">
-                <dt style={{ color: "#475569" }}>{DISCOUNT_LABEL[state]} intro discount</dt>
+                <dt style={{ color: "#475569" }}>{DISCOUNT_LABEL[shownState]} intro discount</dt>
                 <dd className="font-semibold" style={{ color: RED }}>
                   −${saved}
                 </dd>
@@ -166,7 +179,7 @@ export default function CheckoutModal({
 
             {discounted && (
               <p className="text-right text-[12.5px] font-bold mt-1.5" style={{ color: RED }}>
-                You just saved ${saved} ({DISCOUNT_LABEL[state]} off)
+                You just saved ${saved} ({DISCOUNT_LABEL[shownState]} off)
               </p>
             )}
 
@@ -201,7 +214,7 @@ export default function CheckoutModal({
 
           {/* FTC negative-option disclosure — must appear before the paid click */}
           <p className="mt-4 text-[11px] leading-relaxed text-center" style={{ color: "#94A3B8" }}>
-            {ftcDisclosure(plan, state)}{" "}
+            {ftcDisclosure(plan, shownState)}{" "}
             <LegalLink href="/terms" className="underline" style={{ color: "#64748B" }}>
               Terms and Conditions
             </LegalLink>

@@ -12,6 +12,7 @@ import {
   getGa4ClientId,
 } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
+import { goalLabel, fearLabel, timeCommitmentLabel } from "@/lib/answer-labels";
 import {
   PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
@@ -34,12 +35,7 @@ const BLACK = "#111";
 const GREEN = "#16A34A";
 
 /* ── Countdown Timer ── */
-/**
- * Counts down from `minutes`, persisting the absolute `deadline` in localStorage
- * so neither a refresh NOR closing and reopening the tab can resurrect an
- * expired offer. (sessionStorage would hand a returning visitor a fresh 10
- * minutes, which defeats the urgency the offer is built on.)
- */
+
 /**
  * How long a burned offer stays burned. Within this window a refresh or a
  * reopened tab can't resurrect the discount; after it, a returning visitor
@@ -49,6 +45,11 @@ const GREEN = "#16A34A";
  */
 const OFFER_RESET_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Counts down from `minutes`, persisting the absolute `deadline` in localStorage
+ * so neither a refresh NOR closing and reopening the tab can resurrect an
+ * offer that burned during this funnel run.
+ */
 function useCountdown(minutes: number) {
   const totalMs = minutes * 60 * 1000;
 
@@ -456,14 +457,27 @@ export default function Paywall() {
 
   const isMale = data.gender?.toLowerCase() === "male";
   const heroImg = isMale ? paywallAfterMale : paywallAfter;
-  const goal = data.main_goal || data.goal || "Start my own business";
-  const hours = data.daily_time_commitment || data.preferredHours || data.currentHours || "30 min/day";
-  const barrier = data.primary_fear || data.stoppingYou || data.frustration || "Lack of free time";
+  // The overlay quiz stores slugs ("earn_more"), the route quiz stores readable
+  // option text — translate the former, pass the latter through, so this block
+  // never shows a raw slug right above the pricing cards.
+  const goal = goalLabel(data.main_goal) || data.goal || "Start my own business";
+  const hours =
+    timeCommitmentLabel(data.daily_time_commitment) ||
+    data.preferredHours ||
+    data.currentHours ||
+    "30 min/day";
+  const barrier =
+    fearLabel(data.primary_fear) || data.stoppingYou || data.frustration || "Lack of free time";
 
   /**
    * Opens the order-summary modal. The quiz-email guard runs here so the user
    * is redirected to the funnel before seeing a summary they can't act on.
    */
+  // The discount tier as shown when the order summary opened. The modal honours
+  // this snapshot, so the tier we charge and report matches the price the user
+  // actually agreed to even if the countdown lapses while they read it.
+  const shownTierRef = useRef<DiscountState>(discountState);
+
   const handleGetPlan = () => {
     if (checkoutLoading) return;
     if (!quizEmail) {
@@ -471,11 +485,15 @@ export default function Paywall() {
       window.location.href = "/quiz";
       return;
     }
+    shownTierRef.current = discountState;
     setCheckoutOpen(true);
   };
 
   const handleConfirmCheckout = async () => {
     if (checkoutLoading) return;
+    // Charge and report the tier the order summary displayed, not a tier that
+    // may have lapsed while the modal was open.
+    const shownTier = shownTierRef.current;
     // No quiz email means the paywall was opened directly (fresh tab / bookmark)
     // without completing the funnel. Don't fire checkout events or create an
     // orphan Stripe session with an empty email — send them to collect an email.
@@ -505,13 +523,13 @@ export default function Paywall() {
       value: conversionValue,
       currency: "USD",
       plan: interval,
-      discountTier: discountState,
+      discountTier: shownTier,
     });
     pushToDataLayer("checkout_start", {
       value: conversionValue,
       currency: "USD",
       plan: interval,
-      discount_tier: discountState,
+      discount_tier: shownTier,
     });
     // Persist the chosen plan/value so the success page fires the browser Purchase
     // with the same value the server reports. localStorage, NOT sessionStorage:
@@ -527,7 +545,7 @@ export default function Paywall() {
           currency: "USD",
           // Carried to the success page so `purchase` reports which discount
           // tier actually sold (spec §6).
-          discount_tier: discountState,
+          discount_tier: shownTier,
         })
       );
     } catch {
@@ -541,7 +559,7 @@ export default function Paywall() {
         email: quizEmail ?? "",
         name: quizName,
         interval,
-        discountTier: discountState,
+        discountTier: shownTier,
         meta: { event_id: eventId, fbp, fbc },
         ga4: { client_id: ga4ClientId },
       });
