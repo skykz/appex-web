@@ -313,10 +313,19 @@ export async function createLandingCheckoutSession(
   if (tierCoupon) discounts.push({ coupon: tierCoupon })
 
   const landing = input.landing ?? 'usa'
+  // "1 Week" is a two-phase plan: 7 days at the weekly intro price, then it
+  // converts to the 4-week price forever — exactly what the paywall advertises
+  // ("$6.93 today, then $38.95 every 4 weeks"). Checkout bills phase 1; the
+  // webhook attaches a Subscription Schedule that flips it to phase 2 at day 7.
+  const isTwoPhaseWeek = input.interval === 'week_1' && Boolean(env.STRIPE_PRICE_1WEEK_INTRO)
+  const checkoutPriceId = isTwoPhaseWeek
+    ? (env.STRIPE_PRICE_1WEEK_INTRO as string)
+    : priceId
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer_email: email,
-    line_items: [{ price: priceId, quantity: 1 }],
+    line_items: [{ price: checkoutPriceId, quantity: 1 }],
     metadata: {
       source: 'usa_landing',
       landing,
@@ -325,6 +334,9 @@ export async function createLandingCheckoutSession(
       // Which discount tier actually applied — lets you reconcile 61% vs 71% vs
       // full-price sales in Stripe without re-deriving it from the coupon id.
       discount_tier: tier,
+      // Tells provisioning to convert this subscription to the 4-week price
+      // after the single intro week (see scheduleWeek1Conversion).
+      ...(isTwoPhaseWeek ? { two_phase: 'week_1_to_4week' } : {}),
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
       // Meta attribution for the server-side Purchase event (read in provisioning).
       ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),
@@ -353,6 +365,76 @@ export async function createLandingCheckoutSession(
 
   if (!session.url) throw new AppError(500, 'Stripe did not return a session URL')
   return session.url
+}
+
+/**
+ * Converts a paid "1 Week" subscription into its two-phase schedule:
+ *   phase 1 — the intro week already paid for at checkout ($17.77/week, minus
+ *             the tier coupon), exactly 1 iteration;
+ *   phase 2 — the 4-week price ($38.95), renewing indefinitely.
+ *
+ * Checkout can only create a single-price subscription, so the conversion is
+ * attached here, after payment. Without it the customer would keep renewing
+ * weekly at $17.77 — contradicting the disclosure they agreed to.
+ *
+ * Safe to call more than once: a subscription that already has a schedule is
+ * left alone. Never throws — a failed conversion must not break provisioning,
+ * it just leaves the subscription on the weekly price for support to fix.
+ */
+export async function scheduleWeek1Conversion(
+  subscription: Stripe.Subscription
+): Promise<void> {
+  const fourWeekPrice = env.STRIPE_PRICE_4WEEK
+  if (!fourWeekPrice) {
+    console.error('[stripe] cannot convert week_1: STRIPE_PRICE_4WEEK is not configured')
+    return
+  }
+  // Already scheduled (webhook replay, or converted on an earlier attempt).
+  if (subscription.schedule) return
+
+  try {
+    const stripe = getStripe()
+    const introPriceId = subscription.items.data[0]?.price?.id
+    if (!introPriceId) {
+      console.error(`[stripe] subscription ${subscription.id} has no price to convert`)
+      return
+    }
+
+    // Adopt the live subscription into a schedule, then describe both phases.
+    const schedule = await stripe.subscriptionSchedules.create({
+      from_subscription: subscription.id,
+    })
+
+    // `from_subscription` seeds phase 1 from the current subscription; keep its
+    // dates and discount, cap it at one iteration, then append the 4-week phase.
+    const current = schedule.phases[0]
+    // Carry over the checkout coupon by id — the read-back discount objects
+    // aren't accepted verbatim as update params.
+    const introCoupons = (current.discounts ?? [])
+      .map((d) => (typeof d.coupon === 'string' ? d.coupon : d.coupon?.id))
+      .filter((id): id is string => Boolean(id))
+      .map((coupon) => ({ coupon }))
+
+    await stripe.subscriptionSchedules.update(schedule.id, {
+      end_behavior: 'release',
+      phases: [
+        {
+          items: [{ price: introPriceId, quantity: 1 }],
+          start_date: current.start_date,
+          end_date: current.end_date,
+          // Preserve the intro coupon that was applied at checkout.
+          ...(introCoupons.length ? { discounts: introCoupons } : {}),
+        },
+        {
+          items: [{ price: fourWeekPrice, quantity: 1 }],
+          // No iterations/end_date → renews at $38.95 every 4 weeks until cancelled.
+        },
+      ],
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.error(`[stripe] week_1 conversion failed for ${subscription.id}: ${msg}`)
+  }
 }
 
 /** Creates a hosted Customer Portal session for the user, returns its URL. */

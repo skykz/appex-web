@@ -78,6 +78,14 @@ const envSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe price IDs for billing cadences. */
   STRIPE_PRICE_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * Phase-1 price for the "1 Week" plan ($17.77/week). The plan is sold as a
+   * two-phase Subscription Schedule: one week at this price (discounted by the
+   * tier coupon), then it converts to STRIPE_PRICE_4WEEK forever. A single
+   * subscription can't express "7 days then a different cadence", which is what
+   * the paywall advertises.
+   */
+  STRIPE_PRICE_1WEEK_INTRO: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe coupon for the first-cycle intro price on the 4-week plan (legacy single-coupon fallback). */

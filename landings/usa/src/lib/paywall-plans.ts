@@ -59,12 +59,9 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     renewalPrice: "38.95",
     renewalCadence: "every 4 weeks",
     renewUnit: "4 weeks",
-    // Withheld from sale: there is no live Stripe price for a 1-week cycle, and
-    // the advertised "then $38.95 every 4 weeks" can't be expressed as a single
-    // Stripe subscription. Decide the renewal model (weekly at $17.77, like
-    // competitors, vs. converting to a 4-week cycle), create the live price and
-    // matching coupons, then set hidden: false.
-    hidden: true,
+    // Sold as a two-phase Stripe Subscription Schedule: 7 days at the weekly
+    // intro price (STRIPE_PRICE_1WEEK_INTRO, minus the tier coupon), then it
+    // converts to the 4-week price below. See scheduleWeek1Conversion.
   },
   {
     id: "week_4",
@@ -171,6 +168,18 @@ export function promoCodeFor(state: DiscountState): string | null {
  */
 export function ftcDisclosure(plan: PaywallPlan, state: DiscountState): string {
   const today = priceFor(plan, state);
+
+  // The 1-week plan is the only one whose intro cycle and renewal cycle differ
+  // (7 days, then a 4-week cadence), so it states the term in days and names the
+  // first renewal explicitly — a customer must not be surprised by a larger
+  // charge on a different schedule than the one they bought.
+  if (plan.id === "week_1") {
+    return (
+      `By continuing, I'll be charged $${today} today for ${plan.days} days of full access. ` +
+      `After ${plan.days} days my plan automatically renews at $${plan.renewalPrice} ` +
+      `${plan.renewalCadence} until I cancel. I can cancel anytime in one click in my account.`
+    );
+  }
   // Adjectival form: "1-week" / "4-week" / "1-year" (never "4 weeks introductory plan").
   const introLabel =
     plan.id === "year" ? "1-year" : plan.label.toLowerCase().replace(/s$/, "").replace(/\s+/, "-");

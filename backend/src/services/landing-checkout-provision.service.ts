@@ -8,6 +8,7 @@ import {
   provisionPasswordlessUser,
 } from './provision-user.service.js'
 import {
+  scheduleWeek1Conversion,
   syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
 } from './stripe.service.js'
@@ -268,6 +269,14 @@ export async function provisionFromLandingCheckoutSession(
 
   subscription.metadata = { ...subscription.metadata, user_id: userId }
   await ensureStripeCustomerMapping(userId, customerId)
+
+  // "1 Week" is sold as one intro week that converts to the 4-week price. The
+  // conversion can only be attached after checkout creates the subscription.
+  // Runs before the upsert so the stored subscription reflects the schedule.
+  if (session.metadata?.two_phase === 'week_1_to_4week') {
+    await scheduleWeek1Conversion(subscription)
+  }
+
   await upsertSubscriptionFromStripe(subscription)
   await syncCreditsForSubscription(subscription)
 
