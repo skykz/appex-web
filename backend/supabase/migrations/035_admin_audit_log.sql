@@ -85,6 +85,14 @@ create trigger trg_admin_actions_no_delete
   before delete on public.admin_actions
   for each row execute function public.admin_actions_block_mutations();
 
+-- Row-level triggers never fire for TRUNCATE, so without this a single
+-- `truncate admin_actions` would empty the whole trail despite the guards above.
+-- TRUNCATE triggers must be statement-level.
+drop trigger if exists trg_admin_actions_no_truncate on public.admin_actions;
+create trigger trg_admin_actions_no_truncate
+  before truncate on public.admin_actions
+  for each statement execute function public.admin_actions_block_mutations();
+
 -- Service-role only: written by admin controllers, read by admin tooling.
 -- No policies are defined, so RLS denies all anon/authenticated access.
 alter table public.admin_actions enable row level security;

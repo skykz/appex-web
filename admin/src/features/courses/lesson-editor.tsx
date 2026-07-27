@@ -23,6 +23,7 @@ import {
   type LessonBlock,
   type LessonStep,
 } from './api'
+import { cn } from '@shared/lib'
 import { Button } from '@shared/ui/button'
 import { Checkbox } from '@shared/ui/checkbox'
 import { Input } from '@shared/ui/input'
@@ -491,7 +492,12 @@ function QuizOptionsEditor({
 
   /** Removes option `idx` and remaps correct-answer indices so they still point at the same text. */
   function removeOption(idx: number) {
-    if (options.length <= 2) {
+    // Guard on rows that would actually survive validation, not raw row count —
+    // otherwise two filled options plus a blank row reads as "3 options" and the
+    // last real one becomes deletable, leaving an unsavable quiz.
+    const filledCount = options.filter((o) => o.trim()).length
+    const removingFilled = Boolean(options[idx]?.trim())
+    if (removingFilled && filledCount <= 2) {
       toast.error('A quiz needs at least 2 options.')
       return
     }
@@ -571,10 +577,16 @@ function QuizOptionsEditor({
             />
           )}
           <Input
-            className="flex-1"
+            className={cn(
+              'flex-1',
+              // A blank option can't be saved: dropping it server-side would shift
+              // every correct-answer index after it, so flag it here at the row.
+              !opt.trim() && 'border-destructive/60 focus-visible:ring-destructive'
+            )}
             placeholder={`Option ${idx + 1}`}
             value={opt}
             onChange={(e) => updateOption(idx, e.target.value)}
+            aria-invalid={!opt.trim()}
           />
           <Button
             type="button"
@@ -607,6 +619,12 @@ function QuizOptionsEditor({
           </Button>
         </div>
       ))}
+      {options.some((o) => !o.trim()) ? (
+        <p role="alert" className="text-xs text-destructive">
+          Every option needs text. Fill the highlighted rows in or delete them — a blank option
+          can&apos;t be saved, because removing it would shift which option is marked correct.
+        </p>
+      ) : null}
       <Button type="button" variant="outline" size="sm" className="w-fit gap-2" onClick={addOption}>
         <Plus className="h-3.5 w-3.5" />
         Add option

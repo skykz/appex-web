@@ -27,6 +27,28 @@ export const cleanedStringArray = z.preprocess(
   z.array(z.string().min(1))
 )
 
+/**
+ * Quiz options: trims but deliberately does NOT drop blank entries.
+ *
+ * `cleanedStringArray` filters empties, which is fine for `list` items but
+ * corrupts quizzes: `correctIndex` / `correctIndices` are positional, so
+ * removing a blank row silently renumbers every option after it. An index that
+ * shifts but stays in range then passes the bounds check and saves, and learners
+ * are graded against the wrong option with no signal to the author. Keeping the
+ * blanks means `z.string().min(1)` rejects them by position instead.
+ */
+const quizOptionArray = z.preprocess(
+  (val) =>
+    Array.isArray(val)
+      ? val.map((x) => String(x).trim())
+      : typeof val === 'string'
+        ? String(val)
+            .split('\n')
+            .map((s) => s.trim())
+        : [],
+  z.array(z.string().min(1, 'Option text is required — remove the row instead of leaving it blank'))
+)
+
 /** Unified quiz block validated on lesson save (admin + API). */
 export const quizBlockSchema = z.union([
   z
@@ -34,7 +56,7 @@ export const quizBlockSchema = z.union([
       type: z.literal('quiz'),
       mode: z.literal('single'),
       question: z.string().trim().min(1).max(500),
-      options: cleanedStringArray.pipe(z.array(z.string().min(1)).min(2).max(12)),
+      options: quizOptionArray.pipe(z.array(z.string().min(1)).min(2).max(12)),
       correctIndex: z.preprocess(
         (v) => {
           const n = Number(v)
@@ -58,7 +80,7 @@ export const quizBlockSchema = z.union([
       type: z.literal('quiz'),
       mode: z.literal('multi'),
       question: z.string().trim().min(1).max(500),
-      options: cleanedStringArray.pipe(z.array(z.string().min(1)).min(2).max(12)),
+      options: quizOptionArray.pipe(z.array(z.string().min(1)).min(2).max(12)),
       correctIndices: z.preprocess(
         (v) =>
           Array.isArray(v)
