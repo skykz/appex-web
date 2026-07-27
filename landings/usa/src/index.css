@@ -146,3 +146,102 @@ body {
   0% { transform: translateX(-120%) skewX(-12deg); }
   60%, 100% { transform: translateX(420%) skewX(-12deg); }
 }
+
+/* Quiz "AI profile" readiness bar — scales up from empty to its own width so
+   the score reads as calculated, not pre-filled. Uses transform (not width) so
+   it animates on the compositor and can't be skipped by a late layout pass. */
+@keyframes quiz-readiness-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+/* Roadmap path draws itself top-to-bottom. `stroke-dashoffset` is set inline
+   to the path length so the dash starts fully hidden. */
+@keyframes quiz-path-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Roadmap nodes pop in one after another as the path reaches them. */
+@keyframes quiz-node-pop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  70%  { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* "You are here" badge pops up above its node. translateX(-50%) is part of the
+   keyframe because animating `transform` overrides the centering utility. */
+@keyframes quiz-badge-pop {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.9); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* Soft halo pulsing around the current node — draws the eye to "you are here"
+   without moving the node itself (movement would shift the labels). */
+@keyframes quiz-node-halo {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(1.7); opacity: 0; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+
+/* ── Loading-flow phase completion ("magic" moment) ──────────────────────────
+   When a phase hits 100% its card flips from white to the brand-dark fill. A
+   flat instant swap reads as a glitch, so the card lands with a soft gradient,
+   a one-shot light sweep, and a ring pulse — the answer feels *accepted*. */
+
+/* Card settles in: slight lift + scale as the dark fill takes over. */
+@keyframes quiz-phase-land {
+  0%   { transform: scale(0.985); }
+  55%  { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+
+/* One-shot specular sweep across the freshly completed card. */
+@keyframes quiz-phase-sweep {
+  0%   { transform: translateX(-120%) skewX(-14deg); opacity: 0; }
+  12%  { opacity: 1; }
+  85%, 100% { transform: translateX(320%) skewX(-14deg); opacity: 0; }
+}
+
+/* Expanding ring that fires once when the phase completes. */
+@keyframes quiz-phase-ring {
+  0%   { transform: scale(0.9); opacity: 0.5; }
+  100% { transform: scale(1.06); opacity: 0; }
+}
+
+/* The check badge pops, then settles. */
+@keyframes quiz-phase-check {
+  0%   { transform: scale(0);   opacity: 0; }
+  60%  { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* Sparks flung outward from the check badge. Each spark sets its own
+   --spark-x / --spark-y so one keyframe serves every direction. */
+@keyframes quiz-phase-spark {
+  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--spark-x), var(--spark-y)) scale(0.2); opacity: 0; }
+}
+
+/* Progress bar keeps a travelling sheen while it fills, so the bar reads as
+   actively working rather than a static block of colour. */
+@keyframes quiz-bar-shine {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+
+/* Respect reduced-motion: keep the final states, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .quiz-phase-land,
+  .quiz-phase-sweep,
+  .quiz-phase-ring,
+  .quiz-phase-check,
+  .quiz-phase-spark,
+  .quiz-bar-shine {
+    animation: none !important;
+  }
+  .quiz-phase-sweep,
+  .quiz-phase-ring,
+  .quiz-phase-spark {
+    display: none !important;
+  }
+}

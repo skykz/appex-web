@@ -925,19 +925,63 @@ function S17() {
     const cy = (y1 + y2) / 2;
     pathD += ` C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`;
   }
+  // The path draws itself, then each node pops in as the line reaches it.
+  // Timings are derived from one constant so the rhythm stays in sync if the
+  // node count changes.
+  const DRAW_MS = 1500;
+  const nodeDelay = (i: number) => 120 + (i * DRAW_MS) / nodes.length;
+
+  // Measured on mount so stroke-dasharray matches the real curve length —
+  // hardcoding it would leave a gap or a jump on other viewport widths.
+  const pathRef = useRef<SVGPathElement>(null);
+  const [pathLen, setPathLen] = useState(0);
+  useEffect(() => {
+    if (pathRef.current) setPathLen(pathRef.current.getTotalLength());
+  }, []);
+
   return (
     <StepShell>
       <Heading>Your guided step-by-step plan is almost ready!</Heading>
+      <p className="text-[14px] text-center -mt-2 mb-1" style={{ color: C.muted }}>
+        You're <span className="font-bold" style={{ color: C.text }}>4 steps</span> from your certification
+      </p>
       <div className="relative mx-auto my-4" style={{ width: W, height: H }}>
         <svg width={W} height={H} className="absolute inset-0" style={{ overflow: "visible" }}>
-          <path d={pathD} fill="none" stroke="#E5E7EB" strokeWidth={6} strokeLinecap="round" />
+          <path
+            ref={pathRef}
+            d={pathD}
+            fill="none"
+            stroke="#E5E7EB"
+            strokeWidth={6}
+            strokeLinecap="round"
+            className="motion-reduce:animate-none"
+            style={
+              pathLen
+                ? {
+                    strokeDasharray: pathLen,
+                    strokeDashoffset: pathLen,
+                    animation: `quiz-path-draw ${DRAW_MS}ms ease-out forwards`,
+                  }
+                : undefined
+            }
+          />
         </svg>
         {nodes.map((n, i) => {
           const cx = xFor(n.side);
           const cy = yFor(i);
           const labelLeft = n.side === "right";
           return (
-            <div key={n.label} className="absolute" style={{ left: cx, top: cy, transform: "translate(-50%, -50%)" }}>
+            <div
+              key={n.label}
+              className="absolute motion-reduce:animate-none"
+              style={{
+                left: cx,
+                top: cy,
+                transform: "translate(-50%, -50%)",
+                opacity: 0,
+                animation: `quiz-node-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) ${nodeDelay(i)}ms both`,
+              }}
+            >
               <div
                 className="relative w-12 h-12 rounded-full flex items-center justify-center"
                 style={{
@@ -945,13 +989,34 @@ function S17() {
                   border: n.active ? `2px solid ${C.primary}` : "none",
                 }}
               >
+                {/* Pulsing halo marks the current position without nudging layout */}
+                {n.active && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full motion-reduce:hidden"
+                    style={{
+                      border: `2px solid ${C.primary}`,
+                      animation: "quiz-node-halo 2s ease-out 1.6s infinite",
+                    }}
+                  />
+                )}
                 {n.icon === "flag" && <Flag size={18} color={C.primary} fill={C.primary} />}
                 {n.icon === "lock" && <Lock size={16} color="#9CA3AF" />}
                 {n.icon === "trophy" && <Trophy size={18} color="#9CA3AF" />}
+                {/* Sits above the node, not beside it: the active node's own
+                    label already occupies the horizontal slot. */}
                 {n.active && (
                   <div
-                    className="absolute left-full ml-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg text-white text-[11px] font-medium max-w-[80px] truncate"
-                    style={{ background: "#111" }}
+                    className="absolute left-1/2 bottom-full mb-2 px-2.5 py-1 rounded-lg text-white text-[11px] font-semibold whitespace-nowrap motion-reduce:animate-none"
+                    style={{
+                      background: "#111",
+                      opacity: 0,
+                      // The node is only 48px wide; without an explicit
+                      // max-content width the absolute badge is squeezed to it
+                      // and the label wraps to one character per line.
+                      width: "max-content",
+                      animation: "quiz-badge-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) 700ms both",
+                    }}
                   >
                     You are here
                   </div>
@@ -1160,6 +1225,13 @@ function S22() {
   const pct = readinessPct(answers);
   const oneLiner = personalizedOneLiner(answers.work_status, answers.career_goal);
 
+  // Readiness bar fills from 0 to `pct` via a CSS keyframe animation rather
+  // than a JS-driven transition: the step mounts inside the overlay before it
+  // is laid out, and a requestAnimationFrame flip can land in the same paint
+  // (or fire while the container is still collapsed), skipping the transition.
+  // A keyframe animation always runs once the element is rendered.
+  // `motion-reduce:animate-none` below pins it to the final width instead.
+
   return (
     <StepShell>
       <Heading>Here's your AI profile</Heading>
@@ -1178,8 +1250,26 @@ function S22() {
         <div className="flex justify-between text-[12px] font-semibold mb-1.5" style={{ color: C.muted }}>
           <span>Beginner</span><span>Intermediate</span><span>Advanced</span>
         </div>
-        <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "#E5E7EB" }}>
-          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "linear-gradient(90deg, #EF4444, #F97316, #EAB308, #22C55E)" }} />
+        <div
+          className="h-2.5 rounded-full overflow-hidden"
+          style={{ background: "#E5E7EB" }}
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Your AI starting point"
+        >
+          <div
+            className="h-full rounded-full motion-reduce:animate-none"
+            style={{
+              width: `${pct}%`,
+              background: "linear-gradient(90deg, #EF4444, #F97316, #EAB308, #22C55E)",
+              // Grows from 0 to its own width; long ease-out so it decelerates
+              // into the final score. `both` holds the end state after it runs.
+              transformOrigin: "left center",
+              animation: "quiz-readiness-fill 1400ms cubic-bezier(0.16, 1, 0.3, 1) both",
+            }}
+          />
         </div>
         <p className="text-[11px] mt-1 mb-4" style={{ color: C.muted }}>Your AI starting point</p>
       </div>
@@ -1325,23 +1415,50 @@ function S25() {
       <h2 className="text-[28px] font-extrabold leading-tight mb-5" style={{ color: C.text }}>
         Your Personal Plan to Master Claude
       </h2>
-      <div className="rounded-2xl px-5 py-4 mb-6 text-center text-white text-[15px] font-medium" style={{ background: C.primary }}>
-        AI-skilled professionals earn 25-50% more. You're about to become one of them.
+      {/* Earnings hook — tinted card instead of a solid orange slab: the big
+          number carries the emphasis, so the block stops competing with the
+          heading and the body copy stays high-contrast (dark on light). */}
+      <div
+        className="rounded-2xl px-5 py-4 mb-6 flex items-center gap-4"
+        style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}
+      >
+        <div className="shrink-0 text-center">
+          <div className="text-[26px] font-extrabold leading-none" style={{ color: C.primary }}>
+            25–50%
+          </div>
+          <div className="text-[10px] font-bold uppercase tracking-wide mt-1" style={{ color: C.primary }}>
+            more pay
+          </div>
+        </div>
+        <div className="w-px self-stretch" style={{ background: "#FED7AA" }} />
+        <p className="text-[14px] leading-snug" style={{ color: C.text }}>
+          That's what AI-skilled professionals earn.{" "}
+          <span className="font-bold">You're about to become one of them.</span>
+        </p>
       </div>
       <div className="rounded-2xl p-5 mb-6" style={{ background: "#FFF7ED" }}>
         <h3 className="text-[18px] font-bold mb-1" style={{ color: C.text }}>Become the Master of Claude</h3>
         <p className="text-[14px] mb-4" style={{ color: C.muted }}>4-week guided course + official certification</p>
         <div className="flex flex-col">
           {weeks.map((w, i) => (
-            <div key={w.label} className="flex gap-4 py-3" style={{ borderTop: i === 0 ? "none" : "1px solid #D9DEF7" }}>
+            <div key={w.label} className="flex gap-4 py-3" style={{ borderTop: i === 0 ? "none" : "1px solid #FED7AA" }}>
               <div className="text-[14px] font-semibold shrink-0 w-[64px]" style={{ color: C.primary }}>{w.label}</div>
               <div className="text-[14px] leading-snug" style={{ color: C.text }}>{w.text}</div>
             </div>
           ))}
-          <div className="flex gap-3 pt-3" style={{ borderTop: "1px solid #D9DEF7" }}>
+          <div className="flex gap-3 pt-3" style={{ borderTop: "1px solid #FED7AA" }}>
             <span className="text-[18px]">🎓</span>
             <div className="text-[14px] leading-snug" style={{ color: C.text }}>
               Certification exam — prove your skills, get certified
+            </div>
+          </div>
+          {/* Outcome step: what the certificate + portfolio are FOR. Deliberately
+              worded as a result of the course, not as a job board feature —
+              Appex has no listings, and promising one would be unfulfillable. */}
+          <div className="flex gap-3 pt-3" style={{ borderTop: "1px solid #FED7AA" }}>
+            <span className="text-[18px]">🎯</span>
+            <div className="text-[14px] leading-snug" style={{ color: C.text }}>
+              Land the work — use your certificate and portfolio to apply for AI roles and win freelance clients
             </div>
           </div>
         </div>
@@ -1390,6 +1507,12 @@ function SLoadingFlow() {
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewExiting, setReviewExiting] = useState(false);
   const rafRef = useRef<number>(0);
+  /**
+   * Index of the phase that just hit 100%, or null. Distinguishes "completed a
+   * moment ago" (play the sweep/sparks once) from "was already done" (steady
+   * dark card) — without it every re-render would replay the celebration.
+   */
+  const [justDone, setJustDone] = useState<number | null>(null);
 
   // Run bar from 0→50, pause for popup, then 50→100 after answer
   const runBar = (from: number, to: number, dur: number, onDone: () => void) => {
@@ -1409,6 +1532,9 @@ function SLoadingFlow() {
     setPct(0);
     setShowPopup(false);
     setPaused(false);
+    // The previous phase's celebration is over once we advance; clearing it lets
+    // that card settle into its plain completed state.
+    setJustDone(null);
     cancelAnimationFrame(rafRef.current);
     const half = phases[phaseIdx].duration / 2;
     // Run 0→50, then show popup
@@ -1434,11 +1560,16 @@ function SLoadingFlow() {
     setPaused(false);
     // Resume 50→100
     const half = phases[phaseIdx].duration / 2;
+    const completing = phaseIdx;
     runBar(50, 100, half, () => {
+      // Celebrate the completed phase, then advance. The delay is longer than
+      // the old 300ms so the sweep/sparks are actually seen before the card
+      // becomes a plain "done" row.
+      setJustDone(completing);
       setTimeout(() => {
         if (phaseIdx < phases.length - 1) setPhaseIdx((i) => i + 1);
         else next();
-      }, 300);
+      }, 900);
     });
   };
 
@@ -1450,17 +1581,85 @@ function SLoadingFlow() {
       {/* 3 blocks always visible */}
       <div className="flex flex-col gap-3 mb-5">
         {phases.map((ph, i) => {
-          const isDone = i < phaseIdx;
-          const isActive = i === phaseIdx;
+          // A phase counts as done once it's behind us, or the instant its bar
+          // fills — `justDone` keeps the card dark through the celebration
+          // instead of snapping back to white before the index advances.
+          const isDone = i < phaseIdx || justDone === i;
+          const celebrating = justDone === i;
+          const isActive = i === phaseIdx && !celebrating;
           return (
             <div
               key={ph.label}
-              className="rounded-xl border px-4 py-3 transition-all duration-300"
-              style={{ borderColor: isDone ? '#111' : '#E5E5E5', background: isDone ? '#111' : '#fff', opacity: i > phaseIdx ? 0.45 : 1 }}
+              className={`relative overflow-hidden rounded-xl border px-4 py-3 transition-all duration-500${celebrating ? ' quiz-phase-land' : ''}`}
+              style={{
+                borderColor: isDone ? '#111' : '#E5E5E5',
+                // Gradient rather than flat #111 — the completed card gets depth
+                // and a faint brand-warm cast instead of reading as a dead block.
+                background: isDone
+                  ? 'linear-gradient(135deg, #1C1917 0%, #111 45%, #201A16 100%)'
+                  : '#fff',
+                opacity: i > phaseIdx ? 0.45 : 1,
+                boxShadow: celebrating ? '0 8px 24px -8px rgba(249,115,22,0.45)' : 'none',
+                animationDuration: celebrating ? '620ms' : undefined,
+                animationTimingFunction: 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+              }}
             >
+              {/* One-shot light sweep + ring, only on the phase that just landed. */}
+              {celebrating && (
+                <>
+                  <span
+                    aria-hidden
+                    className="quiz-phase-sweep pointer-events-none absolute inset-y-0 left-0 w-1/3"
+                    style={{
+                      background: 'linear-gradient(90deg, transparent, rgba(249,115,22,0.35), rgba(255,255,255,0.25), transparent)',
+                      animation: 'quiz-phase-sweep 900ms ease-out',
+                    }}
+                  />
+                  <span
+                    aria-hidden
+                    className="quiz-phase-ring pointer-events-none absolute inset-0 rounded-xl"
+                    style={{
+                      border: `1.5px solid ${ORANGE}`,
+                      animation: 'quiz-phase-ring 700ms ease-out forwards',
+                    }}
+                  />
+                </>
+              )}
+
               {isDone ? (
-                <div className="flex items-center gap-3">
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] flex-shrink-0" style={{ background: '#fff', color: '#111' }}>✓</span>
+                <div className="relative flex items-center gap-3">
+                  <span
+                    className={`relative w-5 h-5 rounded-full flex items-center justify-center text-[11px] flex-shrink-0${celebrating ? ' quiz-phase-check' : ''}`}
+                    style={{
+                      background: '#fff',
+                      color: '#111',
+                      animation: celebrating ? 'quiz-phase-check 520ms cubic-bezier(0.34, 1.56, 0.64, 1)' : undefined,
+                      boxShadow: celebrating ? `0 0 0 4px rgba(249,115,22,0.28)` : 'none',
+                    }}
+                  >
+                    ✓
+                    {/* Sparks flung out of the badge — pure decoration. */}
+                    {celebrating &&
+                      [
+                        { x: '-14px', y: '-11px' }, { x: '13px', y: '-12px' },
+                        { x: '-15px', y: '10px' },  { x: '15px', y: '9px' },
+                        { x: '0px', y: '-16px' },   { x: '1px', y: '15px' },
+                      ].map((s, si) => (
+                        <span
+                          key={si}
+                          aria-hidden
+                          className="quiz-phase-spark pointer-events-none absolute rounded-full"
+                          style={{
+                            width: 3,
+                            height: 3,
+                            background: si % 2 ? '#FDBA74' : ORANGE,
+                            ['--spark-x' as string]: s.x,
+                            ['--spark-y' as string]: s.y,
+                            animation: `quiz-phase-spark 620ms ease-out ${si * 22}ms forwards`,
+                          }}
+                        />
+                      ))}
+                  </span>
                   <span className="text-[14px] font-semibold" style={{ color: '#fff' }}>{ph.label}</span>
                 </div>
               ) : isActive ? (
@@ -1470,7 +1669,27 @@ function SLoadingFlow() {
                     <p className="text-[13px] font-semibold tabular-nums" style={{ color: '#111' }}>{pct}%</p>
                   </div>
                   <div className="h-[6px] rounded-full overflow-hidden" style={{ background: '#E5E5E5' }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: ORANGE, transition: 'width 80ms linear' }} />
+                    <div
+                      className="relative h-full rounded-full overflow-hidden"
+                      style={{
+                        width: `${pct}%`,
+                        // Warm gradient + glow so the fill looks energised rather
+                        // than like a flat progress block.
+                        background: `linear-gradient(90deg, #FB923C 0%, ${ORANGE} 60%, #EA580C 100%)`,
+                        boxShadow: '0 0 8px rgba(249,115,22,0.55)',
+                        transition: 'width 80ms linear',
+                      }}
+                    >
+                      {/* Sheen travelling along the filled portion while it grows. */}
+                      <span
+                        aria-hidden
+                        className="quiz-bar-shine absolute inset-y-0 w-1/2"
+                        style={{
+                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent)',
+                          animation: 'quiz-bar-shine 1.1s linear infinite',
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -1583,6 +1802,11 @@ function chartTargetDate(timeHorizon?: string): { label: string; monthsOut: numb
   return { label: fmt(90), monthsOut: 3 };
 }
 
+/** The growth curve path, shared by the render and the dot's motion track. */
+const GROWTH_CURVE = "M 40 140 Q 96 135 152 115 Q 208 75 264 40 Q 292 25 320 15";
+/** How long the curve takes to draw itself, in ms. */
+const GROWTH_DRAW_MS = 1600;
+
 function SGoalCard() {
   const { answers, next } = useQuiz();
   const { label: targetDate, monthsOut } = chartTargetDate(answers.time_horizon);
@@ -1592,7 +1816,76 @@ function SGoalCard() {
     new Date(now.getFullYear(), now.getMonth() + i, 1).toLocaleDateString("en-US", { month: "short" })
   );
   const goalX = 40 + Math.min(monthsOut, 5) * 56;
+  // The 76-wide label pill is centred on the line but clamped to the 340-wide
+  // canvas: at the longest horizon goalX is 320, which would push the pill
+  // off-canvas and on top of the "Your Potential" badge.
+  const goalLabelX = Math.min(goalX, 340 - 38 - 2);
   const MILESTONES = ["First Claude workflow", "3 workflows built", "Portfolio ready", "Certification earned", "Job-ready"];
+
+  // Animate the chart on entry: the curve draws itself, milestones light up as it
+  // climbs past them, and the payoff labels land last. Honours reduced-motion.
+  const curveRef = useRef<SVGPathElement>(null);
+  const [curveLen, setCurveLen] = useState<number | null>(null);
+  const [drawn, setDrawn] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const path = curveRef.current;
+    if (!path) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setReduceMotion(true);
+      return;
+    }
+    // Measured from the real path so the dash sweep matches its true length —
+    // a hardcoded value would leave a gap or overshoot if the curve is edited.
+    const len = path.getTotalLength();
+    setCurveLen(len);
+
+    // Hold the curve undrawn until the step is actually on screen. The step
+    // mounts behind its own fade-in (opacity: 0), so starting the reveal at mount
+    // would play it while invisible and the learner would only ever see the
+    // finished chart — the whole animation would be wasted.
+    path.style.strokeDasharray = String(len);
+    path.style.strokeDashoffset = String(len);
+
+    let anim: Animation | null = null;
+    const start = () => {
+      if (anim) return;
+      anim = path.animate(
+        [{ strokeDashoffset: len }, { strokeDashoffset: 0 }],
+        { duration: GROWTH_DRAW_MS, easing: "cubic-bezier(0.33, 0.9, 0.3, 1)", fill: "forwards" }
+      );
+      // Start the staged label reveals on the same clock as the curve, so
+      // milestones light up mid-climb instead of bunching up at the end.
+      setDrawn(true);
+    };
+
+    // IntersectionObserver reports visibility, which covers both the fade-in and
+    // the case where the chart sits below the fold on a short viewport.
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          start();
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    io.observe(path);
+    // Safety net: if the observer never fires (odd layout, zero-size SVG), draw
+    // the chart anyway rather than leaving an invisible curve on screen forever.
+    const fallback = window.setTimeout(start, 1200);
+
+    return () => {
+      io.disconnect();
+      window.clearTimeout(fallback);
+      anim?.cancel();
+    };
+  }, []);
+
+  // Until measured (or when reduced motion is on) render the finished chart.
+  const animate = !reduceMotion && curveLen !== null;
+  const shown = !animate || drawn;
 
   return (
     <StepShell>
@@ -1620,8 +1913,16 @@ function SGoalCard() {
           {MILESTONES.map((_, i) => (
             <line key={i} x1="92" y1={140 - i * 27} x2="328" y2={140 - i * 27} stroke="#F0F0F0" strokeWidth="0.8" />
           ))}
+          {/* Milestones brighten bottom-up in step with the climb, so each one
+              reads as "unlocked" the moment the curve passes it. */}
           {MILESTONES.map((label, i) => (
-            <text key={label} x="88" y={143 - i * 27} fill="#AAA" fontSize="7.5" textAnchor="end">{label}</text>
+            <text
+              key={label} x="88" y={143 - i * 27} fill="#AAA" fontSize="7.5" textAnchor="end"
+              style={animate ? {
+                opacity: shown ? 1 : 0.25,
+                transition: `opacity 400ms ease ${(i / MILESTONES.length) * GROWTH_DRAW_MS}ms`,
+              } : undefined}
+            >{label}</text>
           ))}
           {months.map((label, i) => (
             <text key={label} x={40 + i * 56} y="178" fill="#AAA" fontSize="8" textAnchor="middle">{label}</text>
@@ -1629,12 +1930,48 @@ function SGoalCard() {
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <line key={i} x1={40 + i * 56} y1="10" x2={40 + i * 56} y2="148" stroke="#F0F0F0" strokeWidth="0.5" />
           ))}
-          <path d="M 40 140 Q 96 135 152 115 Q 208 75 264 40 Q 292 25 320 15" fill="none" stroke="url(#growthGradO)" strokeWidth="3" strokeLinecap="round" />
-          <line x1={goalX} y1="10" x2={goalX} y2="148" stroke="#111" strokeWidth="1" strokeDasharray="4 3" />
-          <rect x={goalX - 38} y="0" width="76" height="16" rx="4" fill="#111" />
-          <text x={goalX} y="11" fill="#fff" fontSize="7" textAnchor="middle">Achieving your goal</text>
-          <rect x="276" y="8" width="52" height="14" rx="4" fill="#F97316" />
-          <text x="302" y="18" fill="#fff" fontSize="7" textAnchor="middle">Your Potential</text>
+          {/* The curve draws itself left to right via a dash-offset sweep.
+              Its dash styles are driven imperatively from the effect above (see
+              the batching note there) — deliberately NOT set here, so a later
+              re-render can't overwrite the in-flight transition. */}
+          <path
+            ref={curveRef}
+            d={GROWTH_CURVE}
+            fill="none" stroke="url(#growthGradO)" strokeWidth="3" strokeLinecap="round"
+          />
+
+          {/* A dot rides the head of the curve, then fades as it arrives. */}
+          {animate && (
+            <circle r="4" fill="#22C55E" stroke="#fff" strokeWidth="1.5"
+              opacity={shown ? 0 : 1}
+              style={{ transition: `opacity 300ms ease ${GROWTH_DRAW_MS - 250}ms` }}>
+              <animateMotion dur={`${GROWTH_DRAW_MS}ms`} fill="freeze" path={GROWTH_CURVE}
+                calcMode="spline" keyPoints="0;1" keyTimes="0;1" keySplines="0.33 0.9 0.3 1" />
+            </circle>
+          )}
+
+          {/* Goal marker fades in as the curve reaches it. */}
+          <g style={animate ? {
+            opacity: shown ? 1 : 0,
+            transition: `opacity 400ms ease ${GROWTH_DRAW_MS * 0.45}ms`,
+          } : undefined}>
+            <line x1={goalX} y1="38" x2={goalX} y2="148" stroke="#111" strokeWidth="1" strokeDasharray="4 3" />
+            <rect x={goalLabelX - 38} y="0" width="76" height="16" rx="4" fill="#111" />
+            <text x={goalLabelX} y="11" fill="#fff" fontSize="7" textAnchor="middle">Achieving your goal</text>
+          </g>
+
+          {/* "Your Potential" lands last — the payoff of the climb. */}
+          <g style={animate ? {
+            opacity: shown ? 1 : 0,
+            transform: shown ? 'scale(1)' : 'scale(0.8)',
+            transformOrigin: '302px 27px',
+            transition: `opacity 350ms ease ${GROWTH_DRAW_MS - 150}ms, transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1) ${GROWTH_DRAW_MS - 150}ms`,
+          } : undefined}>
+            {/* Own row below the goal pill — both crowd the top-right corner
+                at long time horizons. */}
+            <rect x="276" y="20" width="52" height="14" rx="4" fill="#F97316" />
+            <text x="302" y="30" fill="#fff" fontSize="7" textAnchor="middle">Your Potential</text>
+          </g>
         </svg>
       </div>
 

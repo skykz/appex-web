@@ -178,6 +178,55 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
 }
 */
 
+/**
+ * The "Certificate of Mastery" artwork, matching the quiz's certification step
+ * (QuizOverlay S19) so the paywall shows the same credential the learner was
+ * already sold on rather than a different mock.
+ *
+ * Scaled down from the quiz version to fit the "Why Appex" card: the quiz
+ * renders it as a full-width step, here it sits in a 160px-tall tile.
+ *
+ * Deliberately shows a placeholder name, not the learner's: this is a sample of
+ * the credential in a "why Appex" feature grid, so a real name would read as an
+ * already-issued certificate rather than an illustration of what they'd earn.
+ */
+function CertificatePreview() {
+  return (
+    <div className="rounded-lg bg-white px-3 py-3 text-center w-full" style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+      <div className="text-[10px] font-extrabold tracking-wide mb-2" style={{ color: BLACK }}>
+        CERTIFICATE OF MASTERY
+      </div>
+      <div className="text-[7px] mb-1" style={{ color: '#94A3B8' }}>The certificate was awarded to</div>
+      <div
+        className="text-[9px] font-semibold tracking-wider pb-1 mx-auto"
+        style={{ color: BLACK, borderBottom: '1px solid #E5E7EB', maxWidth: 150 }}
+      >
+        YOUR NAME
+      </div>
+      <div className="text-[6px] leading-snug mt-1.5 px-2" style={{ color: '#94A3B8' }}>
+        Has successfully completed the advanced learning path <b>'Claude Master Certification'</b> and
+        demonstrated deep expertise in effectively utilizing and integrating Claude.
+      </div>
+      <div className="flex justify-center my-1.5">
+        <div
+          className="w-7 h-7 flex items-center justify-center text-white text-[8px] font-bold leading-none"
+          style={{
+            background: ORANGE,
+            clipPath:
+              'polygon(50% 0%, 61% 8%, 73% 4%, 79% 15%, 91% 17%, 92% 30%, 100% 38%, 95% 50%, 100% 62%, 92% 70%, 91% 83%, 79% 85%, 73% 96%, 61% 92%, 50% 100%, 39% 92%, 27% 96%, 21% 85%, 9% 83%, 8% 70%, 0% 62%, 5% 50%, 0% 38%, 8% 30%, 9% 17%, 21% 15%, 27% 4%, 39% 8%)',
+          }}
+        >
+          ✓
+        </div>
+      </div>
+      <div className="flex justify-between items-end text-[6px]" style={{ color: '#94A3B8' }}>
+        <span>7 November 2025</span>
+        <span>ID: 342428523</span>
+      </div>
+    </div>
+  );
+}
+
 /** Learner count badge (laurels) shown beneath subscription plan cards. */
 function PaywallTrustBadges() {
   return (
@@ -354,7 +403,7 @@ function PricingBlock({
       </p>
 
       {/* FTC-required pre-checkout disclosure (dynamic per plan) */}
-      <p className="text-center mb-5 leading-relaxed font-body text-[11px] md:text-[12.5px]" style={{ color: '#888888' }}>
+      <p className="text-center mb-5 leading-relaxed font-body text-[8px] md:text-[9px]" style={{ color: '#888888' }}>
         {ftcDisclosure(plan, state)}
       </p>
     </div>
@@ -834,29 +883,12 @@ export default function Paywall() {
                 <p className="text-[13px] font-semibold leading-snug mt-4" style={{ color: BLACK }}>Hands-on with the real tool — every lesson uses Claude live</p>
               </div>
 
-              {/* Card 4 — Certificate */}
+              {/* Card 4 — Certificate. Same artwork as the quiz's certification
+                  step (QuizOverlay S19) so the paywall shows the learner the
+                  exact credential they were already sold on. */}
               <div className="rounded-2xl p-5 bg-white border" style={{ borderColor: '#F3F4F6' }}>
-                <div className="h-[160px] rounded-xl flex items-center justify-center p-4" style={{ background: '#FFF7ED' }}>
-                  <div className="bg-white rounded-xl shadow-sm p-3 w-full relative">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="text-[10px] font-extrabold tracking-wide" style={{ color: BLACK }}>APPEX CERTIFICATE</p>
-                      <div className="w-7 h-7 -mt-2 -mr-1 flex items-center justify-center" style={{ background: ORANGE, clipPath: 'polygon(50% 0%, 61% 18%, 79% 13%, 81% 33%, 100% 39%, 89% 56%, 100% 73%, 81% 75%, 79% 95%, 61% 87%, 50% 100%, 39% 87%, 21% 95%, 19% 75%, 0% 73%, 11% 56%, 0% 39%, 19% 33%, 21% 13%, 39% 18%)' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
-                      </div>
-                    </div>
-                    <p className="text-[10px]" style={{ color: '#94A3B8' }}>Awarded to</p>
-                    <p className="text-[11px] font-extrabold mb-1.5" style={{ color: BLACK }}>JAMES SMITH</p>
-                    <div className="space-y-1 mb-3">
-                      <div className="h-1 rounded-full w-full" style={{ background: '#E2E8F0' }} />
-                      <div className="h-1 rounded-full w-[95%]" style={{ background: '#E2E8F0' }} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] font-semibold" style={{ color: '#94A3B8' }}>ID · 342428</span>
-                      <p className="text-[9px] font-extrabold">
-                        <span style={{ color: BLACK }}>App</span><span style={{ color: ORANGE }}>ex</span>
-                      </p>
-                    </div>
-                  </div>
+                <div className="h-[160px] rounded-xl flex items-center justify-center p-3" style={{ background: '#FFF7ED' }}>
+                  <CertificatePreview />
                 </div>
                 <p className="text-[13px] font-semibold leading-snug mt-4" style={{ color: BLACK }}>A verifiable credential that holds weight on your CV and LinkedIn</p>
               </div>
