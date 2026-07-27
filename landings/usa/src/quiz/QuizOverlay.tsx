@@ -19,7 +19,6 @@ import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
 import womanIncomeImg from "@/assets/quiz-woman-income.jpg";
-import editorImproveImg from "@/assets/quiz-editor-improve.jpg";
 import expenseAppImg from "@/assets/quiz-expense-app.jpg";
 
 /* -------------------------------------------------------------------------- */
@@ -691,11 +690,129 @@ function S10() {
   );
 }
 
+/**
+ * Illustration for the "polished content" step: a Claude reply that arrives as a
+ * finished, formatted document (heading, table, chart) rather than raw text.
+ *
+ * Drawn in markup instead of shipping a screenshot. The previous asset was an
+ * AI-generated mockup whose UI text was garbled ("Extredtent", "Fomnertions",
+ * a duplicated "Fix grammar") and used an unrelated purple product chrome — on
+ * paid traffic that reads as a fake of someone else's app. This renders real
+ * words in the Appex/Claude palette, stays crisp at any density, and costs no
+ * image bytes.
+ */
+function PolishedDocPreview() {
+  const CLAUDE_CLAY = "#CC785C";
+  const bars = [38, 62, 48, 82, 70];
+
+  return (
+    <div
+      className="w-full rounded-2xl overflow-hidden mb-6 border"
+      style={{ borderColor: C.border, background: "#FFFFFF", maxHeight: 220 }}
+      role="img"
+      aria-label="Claude turning a prompt into a formatted report with a table and chart"
+    >
+      {/* Window chrome */}
+      <div
+        className="flex items-center gap-2 px-3 py-2 border-b"
+        style={{ background: "#FAFAFA", borderColor: C.border }}
+      >
+        <span className="flex gap-1.5">
+          {["#FF5F57", "#FEBC2E", "#28C840"].map((c) => (
+            <span key={c} className="w-2 h-2 rounded-full" style={{ background: c }} />
+          ))}
+        </span>
+        <span className="ml-1 text-[9px] font-semibold" style={{ color: C.muted }}>
+          Claude
+        </span>
+      </div>
+
+      <div className="flex" style={{ height: 176 }}>
+        {/* Left: the ask */}
+        <div className="w-[38%] p-2.5 border-r flex flex-col gap-2" style={{ borderColor: C.border }}>
+          <div
+            className="self-end max-w-[92%] rounded-lg rounded-tr-sm px-2 py-1.5 text-[8px] leading-snug"
+            style={{ background: C.primary, color: "#fff" }}
+          >
+            Turn last quarter's numbers into a client-ready report
+          </div>
+          <div className="flex items-start gap-1.5">
+            <span
+              className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "rgba(204,120,92,0.15)" }}
+            >
+              <svg viewBox="0 0 100 100" className="w-2.5 h-2.5">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <rect key={i} x="46" y="10" width="8" height="34" rx="4" fill={CLAUDE_CLAY}
+                    transform={`rotate(${i * 36} 50 50)`} />
+                ))}
+              </svg>
+            </span>
+            <div
+              className="rounded-lg rounded-tl-sm border px-2 py-1.5 text-[8px] leading-snug"
+              style={{ borderColor: C.border, color: C.text }}
+            >
+              Done — formatted and ready to export.
+            </div>
+          </div>
+          <div className="mt-auto flex items-center gap-1">
+            <span className="text-[7px] font-semibold px-1.5 py-0.5 rounded"
+              style={{ background: "#ECFDF5", color: C.success }}>
+              ✓ No reformatting
+            </span>
+          </div>
+        </div>
+
+        {/* Right: the finished artifact */}
+        <div className="flex-1 p-2.5" style={{ background: "#FCFCFD" }}>
+          <p className="text-[10px] font-extrabold mb-0.5" style={{ color: C.text }}>
+            Q3 Performance Report
+          </p>
+          <p className="text-[7px] mb-2" style={{ color: C.muted }}>
+            Revenue up 18% quarter over quarter
+          </p>
+
+          {/* Table */}
+          <div className="rounded border overflow-hidden mb-2" style={{ borderColor: C.border }}>
+            <div className="flex text-[7px] font-bold px-1.5 py-1" style={{ background: "#F3F4F6", color: C.muted }}>
+              <span className="flex-1">Channel</span>
+              <span className="w-10 text-right">Rev.</span>
+              <span className="w-8 text-right">Δ</span>
+            </div>
+            {[
+              ["Organic", "$42.8k", "+12%"],
+              ["Paid", "$31.2k", "+24%"],
+            ].map(([a, b, c], i) => (
+              <div key={a} className="flex text-[7px] px-1.5 py-1"
+                style={{ background: i ? "#fff" : "#FDFDFD", color: C.text }}>
+                <span className="flex-1">{a}</span>
+                <span className="w-10 text-right font-semibold">{b}</span>
+                <span className="w-8 text-right font-semibold" style={{ color: C.success }}>{c}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart */}
+          <div className="flex items-end gap-1.5" style={{ height: 44 }}>
+            {bars.map((h, i) => (
+              <div key={i} className="flex-1 rounded-t"
+                style={{
+                  height: `${h}%`,
+                  background: i === bars.length - 1 ? C.primary : "#FED7AA",
+                }} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function S11() {
   const { next } = useQuiz();
   return (
     <StepShell>
-      <img src={editorImproveImg} alt="Editor with Improve text menu" width={896} height={640} loading="lazy" className="w-full rounded-2xl mb-6 object-cover" style={{ maxHeight: 220 }} />
+      <PolishedDocPreview />
       <Heading>Create polished content <span style={{ color: C.primary }}>4x faster</span></Heading>
       <Sub>Once you learn how to use Claude, it gives you more than drafts. It creates polished, formatted, ready-to-use documents — right in the conversation. No copy-pasting. No reformatting. Done.</Sub>
       <GreenCheckList items={[

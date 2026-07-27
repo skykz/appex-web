@@ -268,7 +268,7 @@ function PricingRow({
     <button
       type="button"
       onClick={onClick}
-      className="relative w-full rounded-2xl px-4 py-3 text-left cursor-pointer transition-all flex items-center justify-between gap-3"
+      className="relative w-full rounded-2xl px-4 py-2.5 md:py-3 text-left cursor-pointer transition-all flex items-center justify-between gap-3"
       style={{
         background: isDark ? BLACK : selected ? '#FFF7ED' : 'white',
         // The black card keeps its brand fill whether or not it's chosen, so the
@@ -350,7 +350,7 @@ function PricingBlock({
   return (
     <div>
       {/* Features checklist */}
-      <ul className="space-y-2 mb-3">
+      <ul className="space-y-1.5 md:space-y-2 mb-3">
         {PAYWALL_FEATURES.map((t) => (
           <li key={t} className="flex items-start gap-3 text-[13px]" style={{ color: BLACK }}>
             <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5" style={{ background: '#FFF7ED' }}>
@@ -624,17 +624,34 @@ export default function Paywall() {
     }
   };
 
+  // Show the sticky CTA whenever the real button is off-screen — in either
+  // direction. Two earlier attempts failed here:
+  //   1. requiring `top < 0` (scrolled past) left short mobile viewports with no
+  //      visible CTA at all, since the button starts *below* the fold;
+  //   2. IntersectionObserver never fired its initial callback on this page, so
+  //      the state stayed false until an unrelated re-render.
+  // A direct rect check on scroll/resize is boring but always correct.
   useEffect(() => {
-    const el = document.getElementById("get-my-plan-btn");
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        setShowStickyCta(!entry.isIntersecting && entry.boundingClientRect.top < 0);
-      },
-      { threshold: 0 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
+    const update = () => {
+      const el = document.getElementById("get-my-plan-btn");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const visible = r.bottom > 0 && r.top < window.innerHeight;
+      setShowStickyCta(!visible);
+    };
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    // The button mounts with the rest of the page; re-check on the next frame in
+    // case layout (fonts, images) shifts it after the first measurement.
+    const raf = requestAnimationFrame(update);
+
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
@@ -656,10 +673,16 @@ export default function Paywall() {
       <div className="mx-auto px-4 pb-20" style={{ maxWidth: 600 }}>
 
         {/* Section 1 — Headline + Pricing */}
-        <section id="plan-block" className="pt-8 mb-6">
-          <h1 className="text-[32px] md:text-[42px] font-extrabold text-center mb-7 leading-[1.1] tracking-tight" style={{ color: BLACK }}>
+        {/* Tighter heading + spacing so the plan cards clear the fold on short
+            mobile viewports — the offer should be visible without scrolling. */}
+        <section id="plan-block" className="pt-5 md:pt-8 mb-4 md:mb-6">
+          <h1 className="text-[24px] md:text-[36px] font-extrabold text-center mb-4 md:mb-6 leading-[1.15] tracking-tight" style={{ color: BLACK }}>
             {discountState === "expired" ? (
-              <>Start mastering AI today</>
+              <>
+                Start mastering AI
+                <br />
+                today
+              </>
             ) : (
               <>
                 Start mastering AI today with{" "}
@@ -922,16 +945,27 @@ export default function Paywall() {
         onConfirm={handleConfirmCheckout}
       />
 
-      {/* Sticky CTA */}
+      {/* Sticky CTA — mirrors the primary button (same label, colour and action)
+          so the offer is always one tap away. `pb-[env(safe-area-inset-bottom)]`
+          keeps it clear of the iOS home indicator. */}
       {showStickyCta && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 px-4 py-3 border-t" style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(8px)', borderColor: '#E5E5E5' }}>
+        <div
+          className="fixed bottom-0 left-0 right-0 z-40 px-4 pt-3 border-t"
+          style={{
+            background: 'rgba(255,255,255,0.97)',
+            backdropFilter: 'blur(8px)',
+            borderColor: '#E5E5E5',
+            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+          }}
+        >
           <button
             type="button"
-            onClick={() => document.getElementById("plan-block")?.scrollIntoView({ behavior: "smooth" })}
-            className="mx-auto block w-full max-w-[440px] py-3.5 rounded-2xl text-white font-bold text-[15px] border-none cursor-pointer tracking-wide"
-            style={{ background: BLACK }}
+            onClick={handleGetPlan}
+            disabled={checkoutLoading}
+            className="mx-auto flex items-center justify-center w-full max-w-[440px] py-3.5 rounded-2xl text-white font-bold text-[15px] border-none cursor-pointer tracking-wide shadow-lg shadow-[#16A34A]/30 transition-transform active:scale-[0.99] disabled:opacity-60"
+            style={{ background: `linear-gradient(180deg, #22C55E 0%, ${GREEN} 100%)` }}
           >
-            Get Started
+            {checkoutLoading ? 'Redirecting…' : 'GET MY PLAN'}
           </button>
         </div>
       )}
