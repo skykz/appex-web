@@ -20,6 +20,7 @@ import cronRoutes from './api/cron/cron.route.js'
 import adminRoutes from './api/admin/admin.route.js'
 import lexiRoutes from './api/lexi/lexi.route.js'
 import { stripeWebhookHandler } from './api/stripe/stripe.webhook.js'
+import { requestLogger } from './middleware/request-log.middleware.js'
 
 /**
  * Express application (shared by local `index.ts` and Vercel serverless `api/index.ts`).
@@ -42,6 +43,10 @@ app.use(
       })
     : cors()
 )
+
+// Request logging runs before every route (including the Stripe webhook) so
+// each one gets a correlation id that later log lines can be joined on.
+app.use(requestLogger)
 
 // Stripe webhook MUST be mounted BEFORE express.json() so the raw body is
 // preserved for signature verification. `stripe.webhooks.constructEvent`

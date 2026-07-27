@@ -15,6 +15,7 @@ import {
   provisionFromLandingCheckoutSession,
 } from '../../services/landing-checkout-provision.service.js'
 import { sendPaymentConfirmedAsync } from '../../services/lifecycle-email.service.js'
+import { paymentLog } from '../../lib/logger.js'
 
 /**
  * Stripe webhook entry point.
@@ -48,7 +49,10 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
     )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
-    console.error('Stripe webhook signature verification failed:', msg)
+    // Almost always a STRIPE_WEBHOOK_SECRET mismatch after a deploy or a
+    // test/live mode mix-up — worth spotting immediately, since every payment
+    // silently stops provisioning while it lasts.
+    paymentLog.error('webhook.signature_invalid', { message: msg })
     res.status(400).send(`Webhook signature verification failed: ${msg}`)
     return
   }
@@ -66,17 +70,31 @@ export async function stripeWebhookHandler(req: Request, res: Response) {
   }
 
   if (!claimed) {
+    paymentLog.info('webhook.duplicate', { eventId: event.id, type: event.type })
     res.json({ received: true, duplicate: true })
     return
   }
 
+  const started = Date.now()
   try {
     await dispatch(event)
+    // Confirms the event was not just received but fully handled — this is what
+    // proves account provisioning ran after a payment.
+    paymentLog.info('webhook.handled', {
+      eventId: event.id,
+      type: event.type,
+      ms: Date.now() - started,
+    })
     res.json({ received: true })
   } catch (err) {
     // Release the claim so a future Stripe retry can re-attempt the handler;
     // otherwise the event id would be permanently marked done with no work done.
-    console.error(`Stripe webhook handler error (${event.type})`, err)
+    paymentLog.error('webhook.failed', {
+      eventId: event.id,
+      type: event.type,
+      ms: Date.now() - started,
+      err,
+    })
     await releaseEventClaim(event.id)
     res.status(500).send('Webhook handler error')
   }

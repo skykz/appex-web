@@ -3,6 +3,7 @@ import { env } from '../config/env.js'
 import { supabaseAdmin } from '../db/supabase.js'
 import { AppError } from '../utils/error-handler.js'
 import { getStripe } from '../lib/stripe.js'
+import { paymentLog } from '../lib/logger.js'
 import { findUserByEmail, normalizeEmail } from './provision-user.service.js'
 import { hasAccess } from './access.service.js'
 import {
@@ -242,6 +243,11 @@ export interface LandingCheckoutInput {
   interval: BillingInterval
   landing?: string
   /**
+   * Correlation id from the HTTP request, threaded through so the pricing and
+   * session logs join to the originating `checkout.requested` line.
+   */
+  reqId?: string
+  /**
    * Discount tier the paywall was showing. Defaults to `intro` so an older
    * client that doesn't send the field still gets the standard 61% offer.
    */
@@ -313,6 +319,34 @@ export async function createLandingCheckoutSession(
   const tierCoupon = couponIdForTier(input.interval, tier)
   if (tierCoupon) discounts.push({ coupon: tierCoupon })
 
+  // The pricing decision, recorded before Stripe is called. This is what you
+  // check when a customer says they were charged the wrong amount: it shows the
+  // tier the paywall claimed, the tier actually granted, and the coupon used.
+  paymentLog.info('checkout.pricing_resolved', {
+    reqId: input.reqId,
+    email,
+    interval: input.interval,
+    requestedTier: input.tier ?? 'intro',
+    grantedTier: tier,
+    couponId: tierCoupon ?? null,
+    isReturningUser: Boolean(existingUser),
+    introEligible: applyIntro,
+    landing: input.landing ?? 'usa',
+  })
+
+  // A promised discount that resolves to no coupon means the customer sees a
+  // sale price and gets billed full price — the one failure mode here that is
+  // worse than an outage, so it is flagged loudly rather than logged as info.
+  if (tier !== 'expired' && !tierCoupon) {
+    paymentLog.error('checkout.coupon_missing', {
+      reqId: input.reqId,
+      email,
+      interval: input.interval,
+      tier,
+      hint: `No Stripe coupon configured for ${input.interval}/${tier}; customer will be charged full price.`,
+    })
+  }
+
   const landing = input.landing ?? 'usa'
   // "1 Week" is a two-phase plan: 7 days at the weekly intro price, then it
   // converts to the 4-week price forever — exactly what the paywall advertises
@@ -365,6 +399,20 @@ export async function createLandingCheckoutSession(
   })
 
   if (!session.url) throw new AppError(500, 'Stripe did not return a session URL')
+
+  // Links our request to the Stripe object: given a session id from the Stripe
+  // dashboard you can find the tier and price that produced it, and vice versa.
+  paymentLog.info('checkout.session_created', {
+    reqId: input.reqId,
+    sessionId: session.id,
+    email,
+    interval: input.interval,
+    tier,
+    couponId: tierCoupon ?? null,
+    amountTotal: session.amount_total,
+    currency: session.currency,
+  })
+
   return session.url
 }
 
@@ -750,8 +798,18 @@ export async function markPaymentFailedFromInvoice(
       .eq('user_id', userId)
 
     if (error) {
-      console.error('Failed to mark payment_failed_at', userId, error.message)
+      paymentLog.error('payment.mark_failed_error', { userId, message: error.message })
     }
+
+    // Leading indicator of involuntary churn — a rising count here means cards
+    // are failing before people actively cancel.
+    paymentLog.warn('payment.failed', {
+      userId,
+      invoiceId: invoice.id,
+      failedCount: newCount,
+      inGracePeriod: true,
+      amountDue: (invoice.amount_due ?? 0) / 100,
+    })
 
     await syncCreditsForUser(userId)
     sendPaymentFailedNoticeAsync(userId, periodEnd)
@@ -843,9 +901,27 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
   )
 
   if (error) {
-    console.error('Failed to upsert billing_history', invoice.id, error)
+    paymentLog.error('invoice.record_failed', {
+      invoiceId: invoice.id,
+      userId: mapping.user_id,
+      message: error.message,
+    })
     throw error
   }
+
+  // Money actually received. Renewals are the revenue signal that first-time
+  // checkouts don't show: counting these per user over time is how you see
+  // whether people stay past the intro cycle.
+  paymentLog.info('invoice.paid', {
+    invoiceId: invoice.id,
+    userId: mapping.user_id,
+    amount: (invoice.amount_paid ?? 0) / 100,
+    discountAmount: discountCents / 100,
+    couponLabel,
+    currency: invoice.currency ?? 'usd',
+    interval: intervalFromPriceId(linePriceId),
+    status: invoice.status ?? null,
+  })
 
   // Clear the payment-failure grace flags ONLY when the subscription is actually
   // back in a paying state. Previously this cleared unconditionally on any paid

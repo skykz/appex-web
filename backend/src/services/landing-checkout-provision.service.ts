@@ -16,6 +16,7 @@ import { sendPostPaymentEmailsAsync } from './lifecycle-email.service.js'
 import { sendPurchaseEventAsync as sendMetaPurchaseAsync } from './meta-capi.service.js'
 import { sendPurchaseEventAsync as sendGa4PurchaseAsync } from './ga4-mp.service.js'
 import { env } from '../config/env.js'
+import { paymentLog } from '../lib/logger.js'
 
 export type LandingProvisionResult = {
   userId: string
@@ -261,6 +262,16 @@ export async function provisionFromLandingCheckoutSession(
     source: 'usa_checkout',
   })
 
+  // Account exists. If a customer reports "paid but can't log in", the presence
+  // or absence of this line splits the problem in half: no line means the
+  // webhook never ran; a line means the failure is downstream (email/login).
+  paymentLog.info('provision.user_created', {
+    sessionId,
+    userId,
+    email,
+    subscriptionId: subscription.id,
+  })
+
   await attachUserIdToStripeResources({
     userId,
     customerId,
@@ -294,8 +305,24 @@ export async function provisionFromLandingCheckoutSession(
     })
 
   if (logError) {
-    console.error('[landing-provision] failed to log provision', sessionId, logError.message)
+    paymentLog.error('provision.audit_row_failed', {
+      sessionId,
+      userId,
+      message: logError.message,
+      hint: 'Provisioning succeeded but the audit row was not written; replay detection may re-run this session.',
+    })
   }
+
+  // Provisioning finished end-to-end: account, Stripe linkage, subscription row
+  // and credits are all in place. This is the line that proves a payment fully
+  // converted into access.
+  paymentLog.info('provision.completed', {
+    sessionId,
+    userId,
+    email,
+    subscriptionId: subscription.id,
+    twoPhase: session.metadata?.two_phase ?? null,
+  })
 
   sendPostPaymentEmailsAsync({ userId, email, name })
   // Fire the Meta Purchase ONLY when the dedup row persisted. The row (unique on

@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { paymentLog, quizLog } from '../../lib/logger.js'
 import {
   createLandingCheckoutSession,
   type BillingInterval,
@@ -187,6 +188,17 @@ export async function submitLandingQuiz(
 
       if (error) throw new AppError(500, error.message)
 
+      // `answerCount` is the funnel-depth signal: the quiz saves on every step,
+      // so the distribution across leads shows where people drop off.
+      quizLog.info('quiz.submitted', {
+        reqId: req.reqId,
+        email,
+        landing: body.landing,
+        created: false,
+        answerCount: Object.keys(answersWithAttribution ?? {}).length,
+        selectedPlan: body.selected_plan ?? null,
+      })
+
       res.json({ ...data, created: false })
       return
     }
@@ -202,6 +214,15 @@ export async function submitLandingQuiz(
       .single()
 
     if (error) throw new AppError(500, error.message)
+
+    quizLog.info('quiz.submitted', {
+      reqId: req.reqId,
+      email,
+      landing: body.landing,
+      created: true,
+      answerCount: Object.keys(answersWithAttribution ?? {}).length,
+      selectedPlan: body.selected_plan ?? null,
+    })
 
     res.status(201).json({ ...data, created: true })
   } catch (err) {
@@ -314,12 +335,25 @@ export async function createLandingCheckout(
       gclid = gclid || stored.gclid
     }
 
+    // The quiz→payment handoff. Logged under `payment` (not `quiz`) so the whole
+    // checkout.* sequence stays in one file and reads in order.
+    paymentLog.info('checkout.requested', {
+      reqId: req.reqId,
+      email,
+      interval,
+      discountTier: body.discount_tier,
+      landing: body.landing,
+      utmSource: utmSource ?? null,
+      utmCampaign: utmCampaign ?? null,
+    })
+
     const url = await createLandingCheckoutSession({
       email,
       name: body.name,
       interval,
       landing: body.landing,
       tier: body.discount_tier,
+      reqId: req.reqId,
       meta: {
         eventId: body.meta_event_id,
         fbp: body.fbp,

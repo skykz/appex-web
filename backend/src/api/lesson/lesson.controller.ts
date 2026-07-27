@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { dashboardLog } from '../../lib/logger.js'
 import { stripQuizAnswersFromSteps } from '@appex/lesson-schema'
 import { canAccessSkill } from '../../services/access.service.js'
 import { recordLessonOpen } from '../../services/lesson-open.service.js'
@@ -204,6 +205,15 @@ export async function completeLesson(
     if (error) throw new AppError(500, error.message)
 
     await recalculateSkillProgress(userId, visible.module.skill_id)
+
+    // The core engagement event — counting these per user over time is how you
+    // tell an active learner from one who paid and never came back.
+    dashboardLog.info('lesson.completed', {
+      reqId: req.reqId,
+      userId,
+      lessonId,
+      skillId: visible.module.skill_id,
+    })
 
     res.json(data)
   } catch (err) {

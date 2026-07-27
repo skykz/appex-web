@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { getFreeSkillId, hasAccess } from '../../services/access.service.js'
 import { getCertificate, mintCertificate } from '../../services/certificate.service.js'
+import { dashboardLog } from '../../lib/logger.js'
 
 export async function listSkills(
   req: Request,
@@ -69,6 +70,19 @@ export async function listSkills(
         // show a paywall modal instead of routing into the skill.
         premium_locked: requiresPremium && !userHasAccess,
       }
+    })
+
+    // Home dashboard load. `lockedCount` vs `hasAccess` is the retention signal:
+    // a paying user seeing locked cards means entitlement sync broke.
+    dashboardLog.info('dashboard.skills_listed', {
+      reqId: req.reqId,
+      userId,
+      total: result.length,
+      inProgress: result.filter((s) => s.status === 'in_progress').length,
+      completed: result.filter((s) => s.status === 'completed').length,
+      lockedCount: result.filter((s) => s.premium_locked).length,
+      hasAccess: userHasAccess,
+      category: (category as string) ?? null,
     })
 
     res.json(result)
