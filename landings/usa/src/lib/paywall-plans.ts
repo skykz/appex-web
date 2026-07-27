@@ -26,6 +26,12 @@ export type PaywallPlan = {
   /** Short unit shown in "renews at $X/<unit>" copy. */
   renewUnit: string;
   popular?: boolean;
+  /**
+   * Temporarily withheld from sale. The row stays in PAYWALL_PLANS so the
+   * index→id mapping in landing-api.planIndexToId keeps working; only the
+   * rendered list is filtered. Flip back to false to re-list the plan.
+   */
+  hidden?: boolean;
 };
 
 /** Discount percentage label per state (drives badges + headline copy). */
@@ -53,6 +59,12 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     renewalPrice: "38.95",
     renewalCadence: "every 4 weeks",
     renewUnit: "4 weeks",
+    // Withheld from sale: there is no live Stripe price for a 1-week cycle, and
+    // the advertised "then $38.95 every 4 weeks" can't be expressed as a single
+    // Stripe subscription. Decide the renewal model (weekly at $17.77, like
+    // competitors, vs. converting to a 4-week cycle), create the live price and
+    // matching coupons, then set hidden: false.
+    hidden: true,
   },
   {
     id: "week_4",
@@ -80,6 +92,17 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
 ];
 
 export const PAYWALL_DEFAULT_INDEX = 1;
+
+/**
+ * Plans actually offered for sale, paired with their index in PAYWALL_PLANS.
+ *
+ * Render from this — never from PAYWALL_PLANS directly — but keep using the
+ * paired `index` for selection, because landing-api.planIndexToId maps a plan's
+ * position in the FULL array to its billing id. Filtering the array in place
+ * would shift those positions and silently sell the wrong plan.
+ */
+export const VISIBLE_PAYWALL_PLANS: { plan: PaywallPlan; index: number }[] =
+  PAYWALL_PLANS.map((plan, index) => ({ plan, index })).filter(({ plan }) => !plan.hidden);
 
 export const PAYWALL_FEATURES = [
   "Build real projects — websites, apps, and more",

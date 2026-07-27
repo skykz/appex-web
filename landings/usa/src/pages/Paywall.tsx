@@ -15,6 +15,7 @@ import { pushToDataLayer } from "@/lib/gtm";
 import { goalLabel, fearLabel, timeCommitmentLabel } from "@/lib/answer-labels";
 import {
   PAYWALL_PLANS,
+  VISIBLE_PAYWALL_PLANS,
   PAYWALL_DEFAULT_INDEX,
   PAYWALL_FEATURES,
   DISCOUNT_LABEL,
@@ -334,7 +335,7 @@ function PricingBlock({
 
       {/* Pricing cards */}
       <div className="space-y-2 mb-3">
-        {PAYWALL_PLANS.map((p, i) => (
+        {VISIBLE_PAYWALL_PLANS.map(({ plan: p, index: i }) => (
           <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => setSelected(i)} state={state} />
         ))}
       </div>
@@ -383,7 +384,13 @@ function PricingBlock({
 
 export default function Paywall() {
   const [showStickyCta, setShowStickyCta] = useState(false);
-  const [selected, setSelected] = useState(PAYWALL_DEFAULT_INDEX);
+  // Never start on a withheld plan — if the default is hidden, fall back to the
+  // first plan actually on sale so checkout can't be opened for it.
+  const [selected, setSelected] = useState(() =>
+    PAYWALL_PLANS[PAYWALL_DEFAULT_INDEX]?.hidden
+      ? (VISIBLE_PAYWALL_PLANS[0]?.index ?? PAYWALL_DEFAULT_INDEX)
+      : PAYWALL_DEFAULT_INDEX
+  );
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const timer = useCountdown(10);
