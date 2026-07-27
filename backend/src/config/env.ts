@@ -103,6 +103,14 @@ const envSchema = z.object({
   STRIPE_EXIT_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_EXIT_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
 
+  /**
+   * Where billing alerts that need a human are emailed (e.g. a "1 Week" plan
+   * whose 4-week conversion failed and is now renewing weekly at full price).
+   * Unset → alerts are still persisted to billing_alerts and logged, just not
+   * emailed, so a missing var degrades visibility instead of losing the alert.
+   */
+  BILLING_ALERT_EMAIL: z.string().email().optional().transform((v) => (v ? v : undefined)),
+
   // --- Mailgun (transactional + marketing email) ---
   /** Mailgun private API key (Dashboard → Settings → API keys). */
   MAILGUN_API_KEY: z.string().optional().transform((v) => (v ? v : undefined)),

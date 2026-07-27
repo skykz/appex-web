@@ -274,7 +274,11 @@ export async function provisionFromLandingCheckoutSession(
   // conversion can only be attached after checkout creates the subscription.
   // Runs before the upsert so the stored subscription reflects the schedule.
   if (session.metadata?.two_phase === 'week_1_to_4week') {
-    await scheduleWeek1Conversion(subscription)
+    await scheduleWeek1Conversion(subscription, {
+      email,
+      userId,
+      checkoutSessionId: sessionId,
+    })
   }
 
   await upsertSubscriptionFromStripe(subscription)

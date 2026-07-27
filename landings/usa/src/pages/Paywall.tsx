@@ -178,36 +178,15 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
 }
 */
 
-/** Learner count badge shown beneath subscription plan cards. */
+/** Learner count badge (laurels) shown beneath subscription plan cards. */
 function PaywallTrustBadges() {
   return (
     <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4 flex-wrap">
-      {/* Trustpilot rating badge — temporarily hidden (kept in code)
-      <div className="flex items-center gap-2">
-        <Laurel side="left" />
-        <div className="text-center">
-          <p className="text-[13px] font-bold leading-tight" style={{ color: BLACK }}>
-            4.5 excellent
-          </p>
-          <div className="flex gap-0.5 my-1 justify-center">
-            {[1, 2, 3, 4].map((i) => (
-              <TrustpilotStar key={i} clipId={`${halfStarClipId}-${i}`} />
-            ))}
-            <TrustpilotStar half clipId={halfStarClipId} />
-          </div>
-          <p className="text-[11px]" style={{ color: "#475569" }}>
-            on Trustpilot
-          </p>
-        </div>
-        <Laurel side="right" />
-      </div>
-      */}
-
       <div className="flex items-center gap-2">
         <Laurel side="left" />
         <div className="text-center">
           <p className="text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
-            5K+ learners
+            3000+ learners
           </p>
           <p className="text-[11px] mt-1" style={{ color: "#475569" }}>
             Learned new skills

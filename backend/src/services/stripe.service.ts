@@ -11,6 +11,7 @@ import {
   sendSubscriptionExpiredAsync,
 } from './lifecycle-email.service.js'
 import { PAYMENT_GRACE_PERIOD_MS } from './subscription-access.js'
+import { raiseBillingAlert } from './billing-alert.service.js'
 
 /**
  * Returns the Stripe customer id for `userId`, creating one in Stripe and
@@ -368,6 +369,17 @@ export async function createLandingCheckoutSession(
 }
 
 /**
+ * Who to name in a failed-conversion alert. The subscription's own metadata is
+ * used as a fallback, but the caller usually knows the resolved user and the
+ * checkout session, which makes the alert directly actionable.
+ */
+export interface Week1AlertContext {
+  email?: string | null
+  userId?: string | null
+  checkoutSessionId?: string | null
+}
+
+/**
  * Converts a paid "1 Week" subscription into its two-phase schedule:
  *   phase 1 — the intro week already paid for at checkout ($17.77/week, minus
  *             the tier coupon), exactly 1 iteration;
@@ -378,15 +390,38 @@ export async function createLandingCheckoutSession(
  * weekly at $17.77 — contradicting the disclosure they agreed to.
  *
  * Safe to call more than once: a subscription that already has a schedule is
- * left alone. Never throws — a failed conversion must not break provisioning,
- * it just leaves the subscription on the weekly price for support to fix.
+ * left alone. Never throws — a failed conversion must not break provisioning.
+ * Instead every failure path raises a `week1_conversion_failed` billing alert,
+ * because the fallback state (renewing weekly at full price) overcharges the
+ * customer relative to the disclosure and needs a manual fix in Stripe.
  */
 export async function scheduleWeek1Conversion(
-  subscription: Stripe.Subscription
+  subscription: Stripe.Subscription,
+  alertContext?: Week1AlertContext
 ): Promise<void> {
+  /** Reports a failed conversion to ops — see raiseBillingAlert. */
+  const alert = (detail: string, context?: Record<string, unknown>) =>
+    raiseBillingAlert({
+      type: 'week1_conversion_failed',
+      detail,
+      email: alertContext?.email ?? subscription.metadata?.email ?? null,
+      userId: alertContext?.userId ?? subscription.metadata?.user_id ?? null,
+      stripeSubscriptionId: subscription.id,
+      stripeCustomerId:
+        typeof subscription.customer === 'string'
+          ? subscription.customer
+          : subscription.customer?.id ?? null,
+      stripeCheckoutSessionId: alertContext?.checkoutSessionId ?? null,
+      context: {
+        target_4week_price: env.STRIPE_PRICE_4WEEK ?? null,
+        current_price: subscription.items.data[0]?.price?.id ?? null,
+        ...context,
+      },
+    })
+
   const fourWeekPrice = env.STRIPE_PRICE_4WEEK
   if (!fourWeekPrice) {
-    console.error('[stripe] cannot convert week_1: STRIPE_PRICE_4WEEK is not configured')
+    await alert('STRIPE_PRICE_4WEEK is not configured, so there is no price to convert to.')
     return
   }
   // Already scheduled (webhook replay, or converted on an earlier attempt).
@@ -396,7 +431,7 @@ export async function scheduleWeek1Conversion(
     const stripe = getStripe()
     const introPriceId = subscription.items.data[0]?.price?.id
     if (!introPriceId) {
-      console.error(`[stripe] subscription ${subscription.id} has no price to convert`)
+      await alert('Subscription has no line-item price to convert from.')
       return
     }
 
@@ -415,7 +450,7 @@ export async function scheduleWeek1Conversion(
       .filter((id): id is string => Boolean(id))
       .map((coupon) => ({ coupon }))
 
-    await stripe.subscriptionSchedules.update(schedule.id, {
+    const updated = await stripe.subscriptionSchedules.update(schedule.id, {
       end_behavior: 'release',
       phases: [
         {
@@ -431,9 +466,26 @@ export async function scheduleWeek1Conversion(
         },
       ],
     })
+
+    // Don't trust the call returning 200 — confirm the schedule actually ends on
+    // the 4-week price. A schedule that silently kept only the weekly phase is
+    // the exact failure this alert exists to catch, and it would otherwise look
+    // like success right up until the customer is billed weekly.
+    const finalPhase = updated.phases[updated.phases.length - 1]
+    const finalPrices = (finalPhase?.items ?? []).map((i) =>
+      typeof i.price === 'string' ? i.price : i.price?.id
+    )
+    if (updated.phases.length < 2 || !finalPrices.includes(fourWeekPrice)) {
+      await alert(
+        'Schedule was updated but its final phase is not the 4-week price — ' +
+          'the subscription may still renew weekly.',
+        { schedule_id: updated.id, phase_count: updated.phases.length, final_prices: finalPrices }
+      )
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'unknown'
     console.error(`[stripe] week_1 conversion failed for ${subscription.id}: ${msg}`)
+    await alert(msg)
   }
 }
 
