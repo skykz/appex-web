@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { ilikeOrCondition, inCondition, isUuid, joinOrConditions, MAX_ID_FILTER } from '../../utils/admin-search.js'
 
 const listQuerySchema = z.object({
   search: z
@@ -12,25 +13,7 @@ const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 })
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-const MAX_ID_FILTER = 200
 const NULL_USER = '00000000-0000-0000-0000-000000000000'
-
-/**
- * Escapes `%` and `_` for use inside PostgREST `ilike` patterns.
- */
-function escapeIlikePattern(fragment: string): string {
-  return fragment.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
-/**
- * Returns true when `s` looks like a Postgres uuid (for exact user id lookup).
- */
-function isUuid(s: string): boolean {
-  return UUID_RE.test(s)
-}
 
 /**
  * Coerces Supabase numeric / string values to a JS number for JSON output.
@@ -69,24 +52,22 @@ export async function listAdminSubscriptions(
       if (isUuid(search)) {
         listQuery = listQuery.eq('user_id', search)
       } else {
-        const safe = escapeIlikePattern(search).replace(/,/g, '')
-        const pattern = `%${safe}%`
         const { data: hitUsers, error: uErr } = await supabaseAdmin
           .from('users')
           .select('id')
-          .or(`email.ilike.${pattern},name.ilike.${pattern}`)
+          .or(joinOrConditions([ilikeOrCondition('email', search), ilikeOrCondition('name', search)]))
+          .order('id')
+          .limit(MAX_ID_FILTER)
         if (uErr) throw new AppError(500, uErr.message)
-        const ids = (hitUsers ?? []).map((u) => u.id).slice(0, MAX_ID_FILTER)
-        if (ids.length === 0) {
-          listQuery = listQuery.or(
-            `plan_name.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern}`
-          )
-        } else {
-          const inList = ids.join(',')
-          listQuery = listQuery.or(
-            `plan_name.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern},user_id.in.(${inList})`
-          )
-        }
+        const ids = (hitUsers ?? []).map((u) => u.id)
+        const fieldConditions = [
+          ilikeOrCondition('plan_name', search),
+          ilikeOrCondition('coupon_label', search),
+          ilikeOrCondition('promo_code', search),
+        ]
+        listQuery = listQuery.or(
+          joinOrConditions(ids.length ? [...fieldConditions, inCondition('user_id', ids)] : fieldConditions)
+        )
       }
     }
 
@@ -152,24 +133,22 @@ export async function listAdminBillingHistory(
       if (isUuid(search)) {
         listQuery = listQuery.eq('user_id', search)
       } else {
-        const safe = escapeIlikePattern(search).replace(/,/g, '')
-        const pattern = `%${safe}%`
         const { data: hitUsers, error: uErr } = await supabaseAdmin
           .from('users')
           .select('id')
-          .or(`email.ilike.${pattern},name.ilike.${pattern}`)
+          .or(joinOrConditions([ilikeOrCondition('email', search), ilikeOrCondition('name', search)]))
+          .order('id')
+          .limit(MAX_ID_FILTER)
         if (uErr) throw new AppError(500, uErr.message)
-        const ids = (hitUsers ?? []).map((u) => u.id).slice(0, MAX_ID_FILTER)
-        if (ids.length === 0) {
-          listQuery = listQuery.or(
-            `description.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern}`
-          )
-        } else {
-          const inList = ids.join(',')
-          listQuery = listQuery.or(
-            `description.ilike.${pattern},coupon_label.ilike.${pattern},promo_code.ilike.${pattern},user_id.in.(${inList})`
-          )
-        }
+        const ids = (hitUsers ?? []).map((u) => u.id)
+        const fieldConditions = [
+          ilikeOrCondition('description', search),
+          ilikeOrCondition('coupon_label', search),
+          ilikeOrCondition('promo_code', search),
+        ]
+        listQuery = listQuery.or(
+          joinOrConditions(ids.length ? [...fieldConditions, inCondition('user_id', ids)] : fieldConditions)
+        )
       }
     }
 

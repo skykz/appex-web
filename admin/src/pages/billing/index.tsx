@@ -10,6 +10,7 @@ import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
 import { PageHeader } from '@shared/ui/page-header'
 import { Pagination } from '@shared/ui/pagination'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
@@ -54,9 +55,12 @@ export function BillingPage() {
     enabled: tab === 'payments',
   })
 
-  const isLoading = tab === 'subscriptions' ? subsQuery.isLoading : billQuery.isLoading
-  const total =
-    tab === 'subscriptions' ? (subsQuery.data?.total ?? 0) : (billQuery.data?.total ?? 0)
+  // Read every derived value off the SAME query object for the active tab, so a
+  // stray render can't mix `total` from one tab with `isLoading`/rows from the other.
+  const active = tab === 'subscriptions' ? subsQuery : billQuery
+  const isLoading = active.isLoading
+  const isError = active.isError
+  const total = active.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const subColumns: Column<AdminSubscriptionRow>[] = useMemo(
@@ -346,6 +350,12 @@ export function BillingPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : isError ? (
+        <QueryErrorPanel
+          error={active.error}
+          what={tab === 'subscriptions' ? 'subscriptions' : 'payment history'}
+          onRetry={() => active.refetch()}
+        />
       ) : tab === 'subscriptions' ? (
         <>
           <DataTable

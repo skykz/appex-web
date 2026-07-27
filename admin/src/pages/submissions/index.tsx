@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText } from 'lucide-react'
@@ -19,6 +19,7 @@ import { Card, CardContent } from '@shared/ui/card'
 import { ExpandableInboxCard } from '@shared/ui/expandable-inbox-card'
 import { PageHeader } from '@shared/ui/page-header'
 import { Pagination } from '@shared/ui/pagination'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { Skeleton } from '@shared/ui/skeleton'
 import { Select } from '@shared/ui/select'
 import { ApiError } from '@shared/api/http-client'
@@ -62,7 +63,7 @@ export function SubmissionsPage() {
     queryFn: fetchSubmissionsUnreadCount,
   })
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [...SUBMISSIONS_QUERY_KEY, page, lessonIdFilter, statusParam, unreadOnly],
     queryFn: () =>
       fetchLessonSubmissions({
@@ -128,13 +129,13 @@ export function SubmissionsPage() {
       />
 
       <Card className="border-border/70 shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="min-w-[200px] flex-1">
+        <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="w-full sm:w-40">
             <label className="text-xs font-medium text-muted-foreground">
               Filter by lesson id (optional)
             </label>
             <Input
-              className="mt-1 max-w-xs font-mono text-sm"
+              className="mt-1 h-10 font-mono text-sm"
               placeholder="e.g. 42"
               value={lessonFilter}
               onChange={(e) => {
@@ -158,31 +159,34 @@ export function SubmissionsPage() {
               <option value="reviewed">Reviewed</option>
             </Select>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm sm:mb-2">
-            <Checkbox
-              checked={unreadOnly}
-              onChange={(e) => {
-                setUnreadOnly(e.target.checked)
-                setPage(1)
-              }}
-            />
-            Unread only
-          </label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="sm:mb-2 sm:ml-auto"
-            disabled={unreadCount <= 0 || readAll.isPending}
-            onClick={() => readAll.mutate()}
-          >
-            Read all
-          </Button>
+          <div className="flex h-10 items-center gap-3 sm:ml-auto">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <Checkbox
+                checked={unreadOnly}
+                onChange={(e) => {
+                  setUnreadOnly(e.target.checked)
+                  setPage(1)
+                }}
+              />
+              Unread only
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={unreadCount <= 0 || readAll.isPending}
+              onClick={() => readAll.mutate()}
+            >
+              Read all
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       {isLoading ? (
         <Skeleton className="h-40 w-full" />
+      ) : isError ? (
+        <QueryErrorPanel error={error} what="submissions" onRetry={() => refetch()} />
       ) : rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">No submissions yet.</p>
       ) : (
@@ -230,6 +234,16 @@ function SubmissionCard({
 }) {
   const [feedback, setFeedback] = useState(s.admin_feedback ?? '')
   const [grade, setGrade] = useState(s.grade ?? '')
+
+  // Re-sync local drafts when the SERVER's values change (e.g. after this card's own
+  // save invalidates the list query, or another admin updated the row) — the card
+  // isn't remounted on refetch since `key={s.id}` is stable, so without this the
+  // fields would silently drift from what's actually persisted.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional prop->state resync after a confirmed server change, not derived-on-every-render state
+    setFeedback(s.admin_feedback ?? '')
+    setGrade(s.grade ?? '')
+  }, [s.admin_feedback, s.grade])
 
   return (
     <ExpandableInboxCard

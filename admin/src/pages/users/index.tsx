@@ -8,6 +8,7 @@ import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
 import { PageHeader } from '@shared/ui/page-header'
 import { Pagination } from '@shared/ui/pagination'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
@@ -43,7 +44,7 @@ export function UsersPage() {
     setPage(1)
   }, [deferredSearch])
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'users', deferredSearch, page, PAGE_SIZE],
     queryFn: () =>
       fetchAdminUsers({ search: deferredSearch || undefined, page, limit: PAGE_SIZE }),
@@ -139,6 +140,8 @@ export function UsersPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : isError ? (
+        <QueryErrorPanel error={error} what="users" onRetry={() => refetch()} />
       ) : (
         <>
           <DataTable rows={rows} columns={columns} getRowKey={(u) => u.id} />

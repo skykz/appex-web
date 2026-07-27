@@ -460,6 +460,161 @@ function InlineMarkdownHint() {
   )
 }
 
+/**
+ * Per-row editor for quiz options. Unlike a single textarea that replaces the whole
+ * array on every keystroke, each option is a discrete row with its own add/remove/move
+ * actions — so correctIndex/correctIndices can be remapped in lockstep with the edit
+ * instead of silently pointing at the wrong option afterwards.
+ */
+function QuizOptionsEditor({
+  form,
+  base,
+  mode,
+}: {
+  form: UseFormReturn<LessonEditorFormValues>
+  base: `steps.${number}.blocks.${number}`
+  mode: 'single' | 'multi'
+}) {
+  const options = (form.watch(`${base}.options` as const) as string[] | undefined) ?? []
+
+  /** Updates one option's text in place without touching any indices. */
+  function updateOption(idx: number, value: string) {
+    const next = [...options]
+    next[idx] = value
+    form.setValue(`${base}.options` as const, next, { shouldDirty: true })
+  }
+
+  /** Appends a blank option row; existing correct-answer indices are unaffected. */
+  function addOption() {
+    form.setValue(`${base}.options` as const, [...options, ''], { shouldDirty: true })
+  }
+
+  /** Removes option `idx` and remaps correct-answer indices so they still point at the same text. */
+  function removeOption(idx: number) {
+    if (options.length <= 2) {
+      toast.error('A quiz needs at least 2 options.')
+      return
+    }
+    const next = options.filter((_, i) => i !== idx)
+    form.setValue(`${base}.options` as const, next, { shouldDirty: true })
+
+    if (mode === 'single') {
+      const current = Number(form.getValues(`${base}.correctIndex` as const))
+      const remapped = current === idx ? 0 : current > idx ? current - 1 : current
+      form.setValue(`${base}.correctIndex` as const, remapped, { shouldDirty: true })
+    } else {
+      const current = (form.getValues(`${base}.correctIndices` as const) as number[]) ?? []
+      const remapped = current
+        .filter((i) => i !== idx)
+        .map((i) => (i > idx ? i - 1 : i))
+      form.setValue(`${base}.correctIndices` as const, remapped, { shouldDirty: true })
+    }
+  }
+
+  /** Swaps option `idx` with its neighbor at `idx + delta` and moves correct-answer indices with it. */
+  function moveOption(idx: number, delta: -1 | 1) {
+    const target = idx + delta
+    if (target < 0 || target >= options.length) return
+    const next = [...options]
+    ;[next[idx], next[target]] = [next[target], next[idx]]
+    form.setValue(`${base}.options` as const, next, { shouldDirty: true })
+
+    const remapIndex = (i: number) => (i === idx ? target : i === target ? idx : i)
+    if (mode === 'single') {
+      const current = Number(form.getValues(`${base}.correctIndex` as const))
+      form.setValue(`${base}.correctIndex` as const, remapIndex(current), { shouldDirty: true })
+    } else {
+      const current = (form.getValues(`${base}.correctIndices` as const) as number[]) ?? []
+      form.setValue(
+        `${base}.correctIndices` as const,
+        current.map(remapIndex).sort((a, b) => a - b),
+        { shouldDirty: true }
+      )
+    }
+  }
+
+  const correctIndex = Number(form.watch(`${base}.correctIndex` as const))
+  const correctIndices = new Set(
+    (form.watch(`${base}.correctIndices` as const) as number[] | undefined) ?? []
+  )
+
+  return (
+    <div className="grid gap-2">
+      <Label className="text-xs text-muted-foreground">
+        Options ({mode === 'single' ? 'select the correct one' : 'check all correct ones'}, min 2)
+      </Label>
+      {options.map((opt, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          {mode === 'single' ? (
+            <input
+              type="radio"
+              name={`quiz-correct-${base}`}
+              className="shrink-0 accent-primary"
+              checked={correctIndex === idx}
+              onChange={() => form.setValue(`${base}.correctIndex` as const, idx, { shouldDirty: true })}
+              aria-label={`Mark option ${idx + 1} as correct`}
+            />
+          ) : (
+            <Checkbox
+              checked={correctIndices.has(idx)}
+              onChange={() => {
+                const next = new Set(correctIndices)
+                if (next.has(idx)) next.delete(idx)
+                else next.add(idx)
+                form.setValue(
+                  `${base}.correctIndices` as const,
+                  [...next].sort((a, b) => a - b),
+                  { shouldDirty: true }
+                )
+              }}
+              aria-label={`Mark option ${idx + 1} as correct`}
+            />
+          )}
+          <Input
+            className="flex-1"
+            placeholder={`Option ${idx + 1}`}
+            value={opt}
+            onChange={(e) => updateOption(idx, e.target.value)}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={idx === 0}
+            onClick={() => moveOption(idx, -1)}
+            aria-label={`Move option ${idx + 1} up`}
+          >
+            <ArrowUp className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            disabled={idx === options.length - 1}
+            onClick={() => moveOption(idx, 1)}
+            aria-label={`Move option ${idx + 1} down`}
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeOption(idx)}
+            aria-label={`Delete option ${idx + 1}`}
+          >
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="w-fit gap-2" onClick={addOption}>
+        <Plus className="h-3.5 w-3.5" />
+        Add option
+      </Button>
+    </div>
+  )
+}
+
 function BlockFields({
   form,
   stepIdx,
@@ -574,7 +729,6 @@ function BlockFields({
   }
   if (type === 'quiz') {
     const mode = form.watch(`${base}.mode`) as 'single' | 'multi' | 'open'
-    const optionsVal = (form.watch(`${base}.options` as const) as string[] | undefined) ?? []
 
     return (
       <div className="grid gap-3 rounded-md border border-primary/15 bg-muted/25 p-3">
@@ -632,77 +786,7 @@ function BlockFields({
             explanation below can be shown after they submit.
           </p>
         ) : (
-          <>
-            <Controller
-              control={form.control}
-              name={`${base}.options` as const}
-              render={({ field }) => {
-                const items = Array.isArray(field.value) ? field.value : []
-                return (
-                  <div className="grid gap-1">
-                    <Label className="text-xs text-muted-foreground">Options (one per line, min 2)</Label>
-                    <Textarea
-                      rows={5}
-                      placeholder={'Option A\nOption B\nOption C'}
-                      value={items.join('\n')}
-                      onChange={(e) =>
-                        field.onChange(e.target.value.split('\n').map((s) => s.trimEnd()))
-                      }
-                    />
-                  </div>
-                )
-              }}
-            />
-            {mode === 'single' ? (
-              <div className="grid gap-2">
-                <Label className="text-xs text-muted-foreground">Correct answer</Label>
-                {optionsVal.map((opt: string, idx: number) => (
-                  <label
-                    key={idx}
-                    className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
-                  >
-                    <input
-                      type="radio"
-                      name={`quiz-correct-${stepIdx}-${blockIdx}`}
-                      checked={Number(form.watch(`${base}.correctIndex`)) === idx}
-                      onChange={() => form.setValue(`${base}.correctIndex`, idx)}
-                    />
-                    <span className="min-w-0 truncate">{opt.trim() || `Row ${idx + 1} (empty)`}</span>
-                  </label>
-                ))}
-              </div>
-            ) : (
-              <Controller
-                control={form.control}
-                name={`${base}.correctIndices` as const}
-                render={({ field }) => {
-                  const correct = new Set(Array.isArray(field.value) ? field.value : [])
-                  return (
-                    <div className="grid gap-2">
-                      <Label className="text-xs text-muted-foreground">Mark all correct options</Label>
-                      {optionsVal.map((opt: string, idx: number) => (
-                        <label
-                          key={idx}
-                          className="flex cursor-pointer items-center gap-2 rounded-md border border-border/60 bg-background px-2 py-1.5 text-sm"
-                        >
-                          <Checkbox
-                            checked={correct.has(idx)}
-                            onChange={() => {
-                              const next = new Set(correct)
-                              if (next.has(idx)) next.delete(idx)
-                              else next.add(idx)
-                              field.onChange([...next].sort((a, b) => a - b))
-                            }}
-                          />
-                          <span className="min-w-0 truncate">{opt.trim() || `Row ${idx + 1}`}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )
-                }}
-              />
-            )}
-          </>
+          <QuizOptionsEditor form={form} base={base} mode={mode} />
         )}
         <div className="grid gap-1">
           <Label className="text-xs text-muted-foreground">After submit (optional)</Label>

@@ -16,6 +16,7 @@ import {
 } from '@shared/ui/dialog'
 import { DataTable, type Column } from '@shared/ui/data-table'
 import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { ApiError } from '@shared/api/http-client'
 
 /**
@@ -23,7 +24,7 @@ import { ApiError } from '@shared/api/http-client'
  */
 export function CategoriesPage() {
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'categories'],
     queryFn: categoriesApi.list,
   })
@@ -137,6 +138,8 @@ export function CategoriesPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : isError ? (
+        <QueryErrorPanel error={error} what="categories" onRetry={() => refetch()} />
       ) : (
         <DataTable
           rows={data ?? []}
@@ -167,7 +170,9 @@ export function CategoriesPage() {
             <DialogDescription>Update label, slug, or sort order.</DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            {editing ? <CategoryForm initial={editing} onDone={() => setEditing(null)} /> : null}
+            {editing ? (
+              <CategoryForm key={editing.id} initial={editing} onDone={() => setEditing(null)} />
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

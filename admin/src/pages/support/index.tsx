@@ -15,6 +15,7 @@ import { Checkbox } from '@shared/ui/checkbox'
 import { ExpandableInboxCard } from '@shared/ui/expandable-inbox-card'
 import { PageHeader } from '@shared/ui/page-header'
 import { Pagination } from '@shared/ui/pagination'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { ApiError } from '@shared/api/http-client'
@@ -45,7 +46,7 @@ export function SupportInboxPage() {
     queryFn: fetchContactUnreadCount,
   })
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [...INBOX_QUERY_KEY, page, unreadOnly, deferredSearch],
     queryFn: () =>
       fetchContactMessages({
@@ -132,6 +133,8 @@ export function SupportInboxPage() {
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
         </div>
+      ) : isError ? (
+        <QueryErrorPanel error={error} what="inbox messages" onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No messages.</p>
       ) : (

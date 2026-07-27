@@ -34,6 +34,7 @@ import {
 import { DataTable, type Column } from '@shared/ui/data-table'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
+import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { ApiError } from '@shared/api/http-client'
 import { swapAdjacentIds } from '@shared/lib/reorder-payloads'
 
@@ -45,14 +46,21 @@ type SortKey = 'order' | 'title' | 'created'
 export function CoursesPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
-  const { data: courses, isLoading } = useQuery({
+  const {
+    data: courses,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['admin', 'courses'],
     queryFn: coursesApi.list,
   })
-  const { data: categories } = useQuery({
+  const { data: categories, isSuccess: categoriesLoaded } = useQuery({
     queryKey: ['admin', 'categories'],
     queryFn: categoriesApi.list,
   })
+  const categoriesEmpty = categoriesLoaded && (categories?.length ?? 0) === 0
 
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Course | null>(null)
@@ -280,12 +288,8 @@ export function CoursesPage() {
         actions={
           <Button
             onClick={() => setCreating(true)}
-            disabled={!categories || categories.length === 0}
-            title={
-              categories && categories.length === 0
-                ? 'Create at least one category first'
-                : undefined
-            }
+            disabled={categoriesEmpty}
+            title={categoriesEmpty ? 'Create at least one category first' : undefined}
           >
             <Plus className="h-4 w-4" />
             New course
@@ -335,7 +339,7 @@ export function CoursesPage() {
         </div>
       ) : null}
 
-      {categories && categories.length === 0 ? (
+      {categoriesEmpty ? (
         <Card className="border-dashed border-primary/30 bg-primary/[0.03]">
           <CardContent className="flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex gap-3">
@@ -411,6 +415,8 @@ export function CoursesPage() {
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
+      ) : isError ? (
+        <QueryErrorPanel error={error} what="courses" onRetry={() => refetch()} />
       ) : (
         <DataTable
           rows={sorted}
@@ -477,7 +483,9 @@ export function CoursesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            {editing ? <CourseForm initial={editing} onDone={() => setEditing(null)} /> : null}
+            {editing ? (
+              <CourseForm key={editing.id} initial={editing} onDone={() => setEditing(null)} />
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

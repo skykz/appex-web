@@ -458,6 +458,7 @@ export function CourseDetailPage() {
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             {editingModule ? (
               <ModuleForm
+                key={editingModule.id}
                 courseId={courseId}
                 initial={editingModule}
                 onDone={() => setEditingModule(null)}
@@ -512,6 +513,7 @@ export function CourseDetailPage() {
         <DialogContent className="flex max-h-[92vh] w-[calc(100vw-1.5rem)] max-w-5xl flex-col gap-0 overflow-hidden border-border/80 p-0 sm:max-w-5xl lg:max-w-6xl">
           {lessonEditor ? (
             <LessonEditor
+              key={lessonEditor.lesson ? `lesson-${lessonEditor.lesson.id}` : `new-${lessonEditor.moduleId}`}
               moduleId={lessonEditor.moduleId}
               initial={lessonEditor.lesson}
               onDone={() => setLessonEditor(null)}

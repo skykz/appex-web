@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
+import { ilikeOrCondition, isUuid, joinOrConditions } from '../../utils/admin-search.js'
 
 const listQuerySchema = z.object({
   search: z
@@ -11,23 +12,6 @@ const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 })
-
-/**
- * Escapes `%` and `_` for use inside PostgREST `ilike` patterns.
- */
-function escapeIlikePattern(fragment: string): string {
-  return fragment.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-
-/**
- * Returns true when `s` looks like a Postgres uuid string (for exact user id lookup).
- */
-function isUuid(s: string): boolean {
-  return UUID_RE.test(s)
-}
 
 /**
  * Lists admin users with optional `search` (email/name ilike) and cursor-style pagination.
@@ -47,9 +31,9 @@ export async function listAdminUsers(req: Request, res: Response, next: NextFunc
       if (isUuid(search)) {
         listQuery = listQuery.eq('id', search)
       } else {
-        const safe = escapeIlikePattern(search).replace(/,/g, '')
-        const pattern = `%${safe}%`
-        listQuery = listQuery.or(`email.ilike.${pattern},name.ilike.${pattern}`)
+        listQuery = listQuery.or(
+          joinOrConditions([ilikeOrCondition('email', search), ilikeOrCondition('name', search)])
+        )
       }
     }
 

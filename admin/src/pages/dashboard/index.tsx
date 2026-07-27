@@ -153,8 +153,8 @@ export function DashboardPage() {
               </div>
             ) : (
               <ul className="divide-y">
-                {data.recentLessonsCompleted.map((l, i) => (
-                  <li key={i}>
+                {data.recentLessonsCompleted.map((l) => (
+                  <li key={`${l.user_id}-${l.lesson_title}-${l.completed_at}`}>
                     <Link
                       to={`/users?q=${encodeURIComponent(l.user_id || l.user_email)}`}
                       className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-sky-50/50"
