@@ -38,6 +38,13 @@ import {
   listAdminBillingHistory,
 } from './billing.controller.js'
 import { evaluateAdminRefund, processAdminRefund } from '../billing/refund.controller.js'
+import { listAdminRefunds } from './refunds.controller.js'
+import { getAdminUserDetail } from './user-detail.controller.js'
+import {
+  getBillingAlertsOpenCount,
+  listBillingAlerts,
+  patchBillingAlert,
+} from './billing-alerts.controller.js'
 import { getLessonEngagement } from './lesson-engagement.controller.js'
 import { uploadLessonAsset } from './uploads.controller.js'
 
@@ -75,9 +82,14 @@ router.delete('/lessons/:id', ...guard, deleteLesson)
 router.get('/lessons/:id/engagement', ...guard, getLessonEngagement)
 
 router.get('/users', ...guard, listAdminUsers)
+router.get('/users/:id', ...guard, getAdminUserDetail)
 
 router.get('/subscriptions', ...guard, listAdminSubscriptions)
 router.get('/billing-history', ...guard, listAdminBillingHistory)
+router.get('/refunds', ...guard, listAdminRefunds)
+router.get('/billing-alerts/open-count', ...guard, getBillingAlertsOpenCount)
+router.get('/billing-alerts', ...guard, listBillingAlerts)
+router.patch('/billing-alerts/:id', ...guard, patchBillingAlert)
 router.post('/users/:userId/refund/evaluate', ...guard, evaluateAdminRefund)
 router.post('/users/:userId/refund/process', ...guard, processAdminRefund)
 

@@ -49,10 +49,22 @@ export function DataTable<T>({ rows, columns, getRowKey, empty, onRowClick }: Da
               <tr
                 key={getRowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                // Clickable rows must also be reachable and activatable by keyboard.
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onRowClick(row)
+                        }
+                      }
+                    : undefined
+                }
                 className={cn(
                   'transition-colors',
                   onRowClick
-                    ? 'cursor-pointer hover:bg-muted/50'
+                    ? 'cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring'
                     : 'hover:bg-muted/30'
                 )}
               >

@@ -14,10 +14,13 @@ import {
   CreditCard,
   Menu,
   X,
+  Undo2,
+  AlertTriangle,
 } from 'lucide-react'
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
 import { CommandPalette } from '@features/command-palette/command-palette'
+import { BillingAlertsBadge } from '@features/billing-alerts/billing-alerts-badge'
 import { InboxUnreadBadge } from '@features/inbox/inbox-unread-badge'
 import { SubmissionsUnreadBadge } from '@features/submissions-admin/submissions-unread-badge'
 import { setSessionExpiredHandler } from '@shared/session/session-expired'
@@ -29,6 +32,8 @@ const nav = [
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/users', label: 'Users', icon: Users },
   { to: '/billing', label: 'Billing', icon: CreditCard },
+  { to: '/refunds', label: 'Refunds', icon: Undo2 },
+  { to: '/billing-alerts', label: 'Billing alerts', icon: AlertTriangle },
   { to: '/support', label: 'Inbox', icon: Inbox },
   { to: '/submissions', label: 'Submissions', icon: Upload },
 ]
@@ -132,6 +137,7 @@ export function AdminLayout() {
             >
               <n.icon className="h-4 w-4 shrink-0" />
               {n.label}
+              {n.to === '/billing-alerts' ? <BillingAlertsBadge /> : null}
               {n.to === '/support' ? <InboxUnreadBadge /> : null}
               {n.to === '/submissions' ? <SubmissionsUnreadBadge /> : null}
             </NavLink>

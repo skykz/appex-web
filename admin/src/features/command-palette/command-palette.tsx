@@ -9,6 +9,8 @@ import {
   Upload,
   Users,
   CreditCard,
+  Undo2,
+  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@shared/ui/button'
 import { Input } from '@shared/ui/input'
@@ -63,6 +65,20 @@ const STATIC_COMMANDS: CommandItem[] = [
     to: '/billing',
     icon: CreditCard,
     keywords: 'subscriptions plans payments revenue stripe',
+  },
+  {
+    id: 'refunds',
+    label: 'Refunds',
+    to: '/refunds',
+    icon: Undo2,
+    keywords: 'refund chargeback money back stripe policy',
+  },
+  {
+    id: 'billing-alerts',
+    label: 'Billing alerts',
+    to: '/billing-alerts',
+    icon: AlertTriangle,
+    keywords: 'alerts stuck weekly conversion failed stripe broken subscription',
   },
   {
     id: 'inbox',

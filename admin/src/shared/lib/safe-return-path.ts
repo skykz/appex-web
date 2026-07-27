@@ -8,6 +8,8 @@ const ALLOWED_PREFIXES = [
   '/courses',
   '/users',
   '/billing',
+  '/refunds',
+  '/billing-alerts',
   '/support',
   '/submissions',
 ] as const

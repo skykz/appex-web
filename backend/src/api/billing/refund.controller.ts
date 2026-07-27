@@ -6,6 +6,7 @@ import {
   evaluateRefundEligibility,
   processRefundRequest,
 } from '../../services/refund.service.js'
+import { recordAdminAction } from '../../services/admin-audit.service.js'
 
 const eligibilityQuerySchema = z.object({
   billingHistoryId: z.string().uuid().optional(),
@@ -79,14 +80,42 @@ export async function processAdminRefund(
 
     const { billingHistoryId, executeStripeRefund } = adminRefundBodySchema.parse(req.body ?? {})
 
-    const result = await processRefundRequest({
-      userId,
-      billingHistoryId,
-      processedBy: admin.userId,
-      executeStripeRefund,
-    })
+    try {
+      const result = await processRefundRequest({
+        userId,
+        billingHistoryId,
+        processedBy: admin.userId,
+        executeStripeRefund,
+      })
 
-    res.json(result)
+      await recordAdminAction(req, {
+        action: executeStripeRefund ? 'refund.processed_stripe' : 'refund.recorded',
+        targetType: 'user',
+        targetId: userId,
+        metadata: {
+          decision: result.decision,
+          reasonCode: result.reasonCode,
+          amount: result.amount,
+          billingHistoryId: result.billingHistoryId,
+          refundRequestId: result.refundRequestId,
+          stripeRefundId: result.stripeRefundId,
+          executeStripeRefund,
+        },
+      })
+
+      res.json(result)
+    } catch (err) {
+      // Record the attempt before rethrowing — a failed refund that touched Stripe
+      // is exactly the case an operator needs to be able to reconstruct later.
+      await recordAdminAction(req, {
+        action: executeStripeRefund ? 'refund.processed_stripe' : 'refund.recorded',
+        targetType: 'user',
+        targetId: userId,
+        metadata: { billingHistoryId, executeStripeRefund },
+        error: err instanceof Error ? err.message : String(err),
+      })
+      throw err
+    }
   } catch (err) {
     next(err)
   }

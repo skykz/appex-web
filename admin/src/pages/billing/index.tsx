@@ -1,11 +1,12 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download } from 'lucide-react'
+import { Download, Undo2 } from 'lucide-react'
 import type { AdminBillingRow, AdminSubscriptionRow } from '@features/billing/api'
 import {
   fetchAdminBillingHistory,
   fetchAdminSubscriptions,
 } from '@features/billing/api'
+import { RefundDialog } from '@features/refunds/refund-dialog'
 import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
 import { PageHeader } from '@shared/ui/page-header'
@@ -28,6 +29,11 @@ export function BillingPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const deferredSearch = useDeferredValue(search.trim())
+  const [refundTarget, setRefundTarget] = useState<{
+    userId: string
+    userEmail: string
+    billingHistoryId: string
+  } | null>(null)
 
   useEffect(() => {
     setPage(1)
@@ -212,6 +218,29 @@ export function BillingPage() {
           </span>
         ),
       },
+      {
+        key: 'actions',
+        header: '',
+        className: 'w-28 text-right',
+        render: (r) => (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 border-border/80 bg-background shadow-none"
+            onClick={() =>
+              setRefundTarget({
+                userId: r.user_id,
+                userEmail: r.email,
+                billingHistoryId: r.id,
+              })
+            }
+          >
+            <Undo2 className="h-3.5 w-3.5" />
+            Refund
+          </Button>
+        ),
+      },
     ],
     []
   )
@@ -387,6 +416,17 @@ export function BillingPage() {
           />
         </>
       )}
+
+      {refundTarget ? (
+        <RefundDialog
+          key={refundTarget.billingHistoryId}
+          open
+          onOpenChange={(o) => !o && setRefundTarget(null)}
+          userId={refundTarget.userId}
+          userEmail={refundTarget.userEmail}
+          billingHistoryId={refundTarget.billingHistoryId}
+        />
+      ) : null}
     </div>
   )
 }

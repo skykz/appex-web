@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
-import { Download } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ChevronRight, Download } from 'lucide-react'
 import type { AdminUserRow } from '@features/users/api'
 import { fetchAdminUsers } from '@features/users/api'
 import { downloadCsvFile, toCsv } from '@shared/lib/csv'
@@ -30,6 +30,7 @@ function buildUsersCsv(rows: AdminUserRow[]): string {
  * Searchable, paginated user directory backed by server-side filters; supports deep-link ?q= and CSV export.
  */
 export function UsersPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const qFromUrl = searchParams.get('q') ?? ''
   const [search, setSearch] = useState('')
@@ -100,6 +101,14 @@ export function UsersPage() {
           </span>
         ),
       },
+      {
+        key: 'open',
+        header: '',
+        className: 'w-10 text-right',
+        render: () => (
+          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" aria-hidden />
+        ),
+      },
     ],
     []
   )
@@ -144,7 +153,15 @@ export function UsersPage() {
         <QueryErrorPanel error={error} what="users" onRetry={() => refetch()} />
       ) : (
         <>
-          <DataTable rows={rows} columns={columns} getRowKey={(u) => u.id} />
+          <DataTable
+            rows={rows}
+            columns={columns}
+            getRowKey={(u) => u.id}
+            onRowClick={(u) => navigate(`/users/${u.id}`)}
+            empty={
+              deferredSearch ? `No users match “${deferredSearch}”.` : 'No users yet.'
+            }
+          />
           <Pagination
             page={page}
             totalPages={totalPages}

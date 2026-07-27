@@ -9,9 +9,12 @@ import { CategoriesPage } from '@pages/categories'
 import { CoursesPage } from '@pages/courses'
 import { CourseDetailPage } from '@pages/courses/detail'
 import { UsersPage } from '@pages/users'
+import { UserDetailPage } from '@pages/users/detail'
 import { SupportInboxPage } from '@pages/support'
 import { SubmissionsPage } from '@pages/submissions'
 import { BillingPage } from '@pages/billing'
+import { RefundsPage } from '@pages/refunds'
+import { BillingAlertsPage } from '@pages/billing-alerts'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -29,7 +32,10 @@ export const router = createBrowserRouter([
           { path: '/courses', element: <CoursesPage /> },
           { path: '/courses/:id', element: <CourseDetailPage /> },
           { path: '/users', element: <UsersPage /> },
+          { path: '/users/:id', element: <UserDetailPage /> },
           { path: '/billing', element: <BillingPage /> },
+          { path: '/refunds', element: <RefundsPage /> },
+          { path: '/billing-alerts', element: <BillingAlertsPage /> },
           { path: '/support', element: <SupportInboxPage /> },
           { path: '/submissions', element: <SubmissionsPage /> },
         ],
