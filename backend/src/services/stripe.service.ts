@@ -566,6 +566,67 @@ function toIso(seconds: number | null | undefined): string | null {
   return new Date(seconds * 1000).toISOString()
 }
 
+/** Renders a Stripe recurring interval as the cadence copy the UI shows. */
+function cadenceLabel(interval: string, count: number): string {
+  if (interval === 'year') return count === 1 ? 'every year' : `every ${count} years`
+  if (interval === 'month') return count === 1 ? 'every month' : `every ${count} months`
+  if (interval === 'week') return count === 1 ? 'every week' : `every ${count} weeks`
+  if (interval === 'day') return count === 1 ? 'every day' : `every ${count} days`
+  return `every ${count} ${interval}`
+}
+
+/**
+ * Resolves the upcoming price change for a scheduled subscription (today only the
+ * "1 Week" plan, which converts to the 4-week price after its intro week).
+ *
+ * Returns null when there is no schedule, or when the schedule has no phase after
+ * the current one — i.e. the price shown to the customer is already the final one.
+ *
+ * Never throws: this only enriches what Plan management displays, so a failed
+ * lookup must not break subscription syncing on the webhook path.
+ */
+async function resolveNextPhase(
+  sub: Stripe.Subscription
+): Promise<{ price: number; startsAt: string; cadence: string } | null> {
+  if (!sub.schedule) return null
+
+  try {
+    const stripe = getStripe()
+    const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : sub.schedule.id
+    const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId)
+
+    // The phase that starts after the current one ends. Compare against the
+    // subscription's own period end rather than "now": a webhook can arrive
+    // mid-phase, and we always want the NEXT change, not the current phase.
+    const currentEnd = sub.items.data[0]?.current_period_end ?? 0
+    const upcoming = schedule.phases.find((p) => (p.start_date ?? 0) >= currentEnd)
+    if (!upcoming) return null
+
+    const item = upcoming.items?.[0]
+    const priceRef = item?.price
+    if (!priceRef) return null
+
+    const priceId = typeof priceRef === 'string' ? priceRef : priceRef.id
+    const priceObj = await stripe.prices.retrieve(priceId)
+    if (priceObj.unit_amount == null) return null
+
+    // A phase priced the same as the current one is not worth announcing.
+    const currentAmount = sub.items.data[0]?.price?.unit_amount
+    if (currentAmount != null && priceObj.unit_amount === currentAmount) return null
+
+    const rec = priceObj.recurring
+    return {
+      price: priceObj.unit_amount / 100,
+      startsAt: new Date((upcoming.start_date ?? 0) * 1000).toISOString(),
+      cadence: rec ? cadenceLabel(rec.interval, rec.interval_count ?? 1) : '',
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    console.error(`[stripe] could not resolve next phase for ${sub.id}: ${msg}`)
+    return null
+  }
+}
+
 /** Human-readable coupon and promotion-code labels from Stripe discount objects. */
 export function discountLabelsFromStripe(
   discounts: Stripe.Discount[] | null | undefined
@@ -686,6 +747,8 @@ export async function upsertSubscriptionFromStripe(
     if (introCents != null) introPrice = introCents / 100
   }
 
+  const nextPhase = await resolveNextPhase(sub)
+
   const { data: existingSub } = await supabaseAdmin
     .from('subscriptions')
     .select('status, cancel_at_period_end, payment_failed_at, payment_failed_count')
@@ -730,6 +793,9 @@ export async function upsertSubscriptionFromStripe(
         : null,
     payment_failed_at: paymentFailedAt,
     payment_failed_count: paymentFailedCount,
+    next_phase_price: nextPhase?.price ?? null,
+    next_phase_starts_at: nextPhase?.startsAt ?? null,
+    next_phase_cadence: nextPhase?.cadence ?? null,
   }
 
   const { error } = await supabaseAdmin

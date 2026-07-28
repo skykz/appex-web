@@ -935,7 +935,30 @@ function ActiveSubView({
               </span>
             </Row>
           )}
+          {/* Two-phase plans (the "1 Week" intro) change price partway through.
+              Spell the next charge out here: the row above shows the CURRENT
+              phase, so without this the customer cannot see what they'll
+              actually be billed — the surprise the FTC disclosure rules out. */}
+          {!subscription.cancel_at_period_end && subscription.next_phase_price != null && (
+            <Row label="Then">
+              <span className="text-sm font-medium">
+                {formatMoney(subscription.next_phase_price, subscription.currency)}
+                {subscription.next_phase_cadence ? ` ${subscription.next_phase_cadence}` : ''}
+                {subscription.next_phase_starts_at
+                  ? ` from ${formatDate(subscription.next_phase_starts_at)}`
+                  : ''}
+              </span>
+            </Row>
+          )}
         </div>
+        {!subscription.cancel_at_period_end && subscription.next_phase_price != null && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Your intro period ends{' '}
+            {formatDate(subscription.next_phase_starts_at)} — after that you'll be charged{' '}
+            {formatMoney(subscription.next_phase_price, subscription.currency)}{' '}
+            {subscription.next_phase_cadence || ''} until you cancel.
+          </p>
+        )}
       </div>
 
       {/* Quick actions row */}

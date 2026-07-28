@@ -30,6 +30,14 @@ export interface Subscription {
   trial_end: string | null
   /** Set when a renewal payment fails; starts the 24h content-access grace window. */
   payment_failed_at: string | null
+  /**
+   * Upcoming price change for two-phase plans (the "1 Week" intro converts to the
+   * 4-week price). Null when the current price is already the final one.
+   */
+  next_phase_price: number | null
+  next_phase_starts_at: string | null
+  /** e.g. "every 4 weeks" — cadence of the upcoming phase. */
+  next_phase_cadence: string | null
 }
 
 /** Mirror of the backend `billing_history` row. */
