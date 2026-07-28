@@ -169,18 +169,11 @@ export function promoCodeFor(state: DiscountState): string | null {
 export function ftcDisclosure(plan: PaywallPlan, state: DiscountState): string {
   const today = priceFor(plan, state);
 
-  // The 1-week plan is the only one whose intro cycle and renewal cycle differ
-  // (7 days, then a 4-week cadence), so it states the term in days and names the
-  // first renewal explicitly — a customer must not be surprised by a larger
-  // charge on a different schedule than the one they bought.
-  if (plan.id === "week_1") {
-    return (
-      `By continuing, I'll be charged $${today} today for ${plan.days} days of full access. ` +
-      `After ${plan.days} days my plan automatically renews at $${plan.renewalPrice} ` +
-      `${plan.renewalCadence} until I cancel. I can cancel anytime in one click in my account.`
-    );
-  }
-  // Adjectival form: "1-week" / "4-week" / "1-year" (never "4 weeks introductory plan").
+  // Same template for every plan, including week_1 — it converts to a 4-week
+  // cadence rather than renewing on its own cycle, so it needs to name the
+  // intro term ("1-week") separately from the cycle it converts into
+  // ("a 4-week subscription"). Adjectival form throughout: "1-week" / "4-week" /
+  // "1-year" (never "4 weeks introductory plan").
   const introLabel =
     plan.id === "year" ? "1-year" : plan.label.toLowerCase().replace(/s$/, "").replace(/\s+/, "-");
   // "an annual" / "a 4-week" — article included so the sentence reads correctly.

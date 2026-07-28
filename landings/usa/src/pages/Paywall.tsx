@@ -381,6 +381,13 @@ function PricingBlock({
 
       <PaywallTrustBadges />
 
+      {/* FTC-required negative-option disclosure (dynamic per plan). Sits ABOVE
+          the CTA so the terms are read before the click that agrees to them —
+          the disclosure has to precede consent, not follow it. */}
+      <p className="text-center mb-3 leading-relaxed font-body text-[8px] md:text-[9px]" style={{ color: '#888888' }}>
+        {ftcDisclosure(plan, state)}
+      </p>
+
       {/* GET MY PLAN button — green (matches the top counter) with an iOS-style shimmer sweep */}
       <button
         id="get-my-plan-btn"
@@ -402,7 +409,7 @@ function PricingBlock({
         </span>
       </button>
 
-      <p className="text-[13px] text-center mb-3">
+      <p className="text-[13px] text-center mb-5">
         <button
           type="button"
           onClick={onSignIn}
@@ -411,11 +418,6 @@ function PricingBlock({
         >
           I already have an account
         </button>
-      </p>
-
-      {/* FTC-required pre-checkout disclosure (dynamic per plan) */}
-      <p className="text-center mb-5 leading-relaxed font-body text-[8px] md:text-[9px]" style={{ color: '#888888' }}>
-        {ftcDisclosure(plan, state)}
       </p>
     </div>
   );
