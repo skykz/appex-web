@@ -1,14 +1,17 @@
 /**
- * Lexi AI service — streams Claude responses for the in-course mentor widget.
+ * Lexi AI service — streams mentor responses for the in-course chat widget.
  *
  * Key design choices:
- *  - Always uses claude-sonnet-4-6 (fast, cost-effective for high-volume course chat).
- *  - Prompt caching: stable persona block gets cache_control=ephemeral → ~10× cheaper reads.
+ *  - Runs on OpenAI (OPENAI_API_KEY); Anthropic is no longer used anywhere in
+ *    this project, so there is a single provider key to configure.
+ *  - Persona + lesson context are sent as system messages; OpenAI caches long
+ *    prefixes automatically, so no explicit cache_control block is needed.
  *  - Stateless streaming via async generator; caller owns SSE/DB writes.
- *  - Mock mode: when ANTHROPIC_API_KEY is absent, streams a canned reply word-by-word.
+ *  - Mock mode (non-production only): when OPENAI_API_KEY is absent, streams a
+ *    canned reply word-by-word so local dev works without a key.
  */
 
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { env } from '../config/env.js'
 import { AppError } from '../utils/error-handler.js'
 
@@ -28,7 +31,11 @@ export interface LexiLessonContext {
   learnerBackground?: string
 }
 
-export const LEXI_MODEL = 'claude-sonnet-4-6'
+/**
+ * Chat model for Lexi. Overridable via OPENAI_CHAT_MODEL so the model can be
+ * changed without a deploy of this file.
+ */
+export const LEXI_MODEL = env.OPENAI_CHAT_MODEL?.trim() || 'gpt-4o'
 export const LEXI_MAX_TOKENS = 1024
 /** Keep the last N turns to bound token spend; keeps enough context for coherent help. */
 export const LEXI_MAX_HISTORY = 20
@@ -95,12 +102,13 @@ function trimHistory(turns: LexiTurn[]): LexiTurn[] {
 }
 
 /**
- * Mock streaming reply used in local dev when ANTHROPIC_API_KEY is absent.
+ * Mock streaming reply used in local dev when OPENAI_API_KEY is absent.
  * Emits individual words with a short delay to simulate typing.
+ * Never reached in production — see the guard in streamLexiResponse.
  */
 async function* mockStream(): AsyncGenerator<string> {
   const reply =
-    "Hi! I'm Lexi, your AI learning mentor. I'm running in demo mode right now (no API key configured). " +
+    "Hi! I'm Lexi, your AI learning mentor. I'm running in local demo mode right now. " +
     "In the real course I help you understand each lesson, sharpen your prompts, and connect what you learn to a service you could actually sell. Ask me anything about this lesson!"
   for (const word of reply.split(' ')) {
     yield word + ' '
@@ -112,81 +120,71 @@ async function* mockStream(): AsyncGenerator<string> {
  * Streams a Lexi reply for the given conversation history and lesson context.
  * Yields text deltas; throws AppError on API/config failures.
  *
- * @yields string — incremental text chunks from Claude
- * @returns Anthropic final message (usage, stop_reason, etc.) via stream.get_final_message()
+ * The caller only consumes the yielded text, so nothing is returned — the old
+ * Anthropic final-message return value was never read.
+ *
+ * @yields string — incremental text chunks from the model
  */
 export async function* streamLexiResponse(
   turns: LexiTurn[],
   ctx: LexiLessonContext
-): AsyncGenerator<string, Anthropic.Message, undefined> {
-  const key = env.ANTHROPIC_API_KEY?.trim()
+): AsyncGenerator<string, void, undefined> {
+  const key = env.OPENAI_API_KEY?.trim()
 
   if (!key) {
+    // In production a missing key is a misconfiguration, not a demo: never tell
+    // a paying learner "no API key configured". Fail loudly for us instead.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[lexi] OPENAI_API_KEY is not configured — refusing to serve mock replies')
+      throw new AppError(503, 'Lexi is temporarily unavailable. Please try again shortly.')
+    }
     yield* mockStream()
-    // Mock final message shape — only used for usage logging
-    return {
-      id: 'mock',
-      type: 'message',
-      role: 'assistant',
-      content: [],
-      model: LEXI_MODEL,
-      stop_reason: 'end_turn',
-      stop_sequence: null,
-      usage: { input_tokens: 0, output_tokens: 0 },
-    } as unknown as Anthropic.Message
+    return
   }
 
-  const client = new Anthropic({ apiKey: key })
+  const client = new OpenAI({ apiKey: key })
   const history = trimHistory(turns)
   if (!history.length) throw new AppError(400, 'Conversation must have at least one user message.')
 
-  const systemBlocks: Anthropic.TextBlockParam[] = [
-    {
-      type: 'text',
-      text: LEXI_SYSTEM_PROMPT,
-      // Stable block → cached after the first request; ~10× cheaper on re-reads
-      cache_control: { type: 'ephemeral' },
-    },
-    {
-      type: 'text',
-      text: buildLessonContextBlock(ctx),
-    },
+  // Persona first, then the volatile per-lesson context. Keeping the stable
+  // persona at the head of the prefix is what lets OpenAI's automatic prompt
+  // caching kick in across requests.
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: 'system', content: LEXI_SYSTEM_PROMPT },
+    { role: 'system', content: buildLessonContextBlock(ctx) },
+    ...history.map((t) => ({ role: t.role, content: t.content }) as const),
   ]
 
-  let stream: ReturnType<typeof client.messages.stream>
   try {
-    stream = client.messages.stream({
+    const stream = await client.chat.completions.create({
       model: LEXI_MODEL,
-      max_tokens: LEXI_MAX_TOKENS,
-      system: systemBlocks,
-      messages: history.map((t) => ({ role: t.role, content: t.content })),
+      // `max_completion_tokens`, not `max_tokens`: newer OpenAI models reject the
+      // legacy field outright (400 Unsupported parameter), and it is accepted by
+      // the older ones too — so this works across the whole model range.
+      max_completion_tokens: LEXI_MAX_TOKENS,
+      messages,
+      stream: true,
     })
-  } catch (e) {
-    throw mapAnthropicError(e)
-  }
 
-  try {
-    for await (const chunk of stream.text_stream) {
-      yield chunk
+    for await (const part of stream) {
+      const delta = part.choices[0]?.delta?.content
+      if (delta) yield delta
     }
   } catch (e) {
-    throw mapAnthropicError(e)
+    throw mapLexiError(e)
   }
-
-  return stream.get_final_message()
 }
 
 /**
- * Maps Anthropic SDK errors to AppError with a safe client-facing message.
+ * Maps OpenAI SDK errors to AppError with a safe client-facing message.
  */
-function mapAnthropicError(err: unknown): AppError {
+function mapLexiError(err: unknown): AppError {
   if (err instanceof AppError) return err
-  const AnthropicAPIError = Anthropic.APIError
-  if (err instanceof AnthropicAPIError) {
+  if (err instanceof OpenAI.APIError) {
     const s = err.status
     const status = typeof s === 'number' && s >= 400 && s < 600 ? s : 502
-    return new AppError(status, `Lexi (Claude): ${err.message}`)
+    return new AppError(status, `Lexi: ${err.message}`)
   }
   const msg = err instanceof Error ? err.message : 'Unknown error'
-  return new AppError(502, `Lexi (Claude): ${msg}`)
+  return new AppError(502, `Lexi: ${msg}`)
 }

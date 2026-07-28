@@ -37,10 +37,14 @@ const envSchema = z.object({
   /** Fast / cheap OpenAI model for `nano-banana` (default gpt-4o-mini). */
   OPENAI_FAST_MODEL: z.string().optional(),
 
-  /** Anthropic API key — powers Claude. */
-  ANTHROPIC_API_KEY: z.string().optional(),
-  /** Messages model for `claude` (default Claude 3.5 Sonnet). */
-  ANTHROPIC_MODEL: z.string().optional(),
+  /*
+   * Anthropic — DISABLED project-wide; everything runs on OPENAI_API_KEY.
+   * Lexi (services/lexi.service.ts) and the chat model catalog both use OpenAI.
+   * Restore these two lines to bring Claude back.
+   *
+   * ANTHROPIC_API_KEY: z.string().optional(),
+   * ANTHROPIC_MODEL: z.string().optional(),
+   */
 
   /** DeepSeek API key — OpenAI-compatible chat at api.deepseek.com. */
   DEEPSEEK_API_KEY: z.string().optional(),

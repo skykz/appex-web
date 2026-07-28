@@ -316,11 +316,22 @@ function PricingRow({
   );
 
   if (plan.popular) {
+    // The wrapper only carries the orange highlight while this plan is actually
+    // selected. Tinting it unconditionally made two cards look chosen at once
+    // whenever the user picked a different plan.
     return (
-      <div className="rounded-2xl p-2 pt-3" style={{ background: '#FFF7ED', border: `1.5px solid #FED7AA` }}>
+      <div
+        className="rounded-2xl p-2 pt-3 transition-colors"
+        style={{
+          background: selected ? '#FFF7ED' : 'transparent',
+          border: `1.5px solid ${selected ? '#FED7AA' : '#E5E5E5'}`,
+        }}
+      >
         <div className="flex items-center justify-center gap-1.5 mb-2">
           <span className="text-[13px]">⭐</span>
-          <span className="text-[13px] font-bold" style={{ color: ORANGE }}>Most popular</span>
+          <span className="text-[13px] font-bold" style={{ color: selected ? ORANGE : '#6B7280' }}>
+            Most popular
+          </span>
         </div>
         {inner}
       </div>

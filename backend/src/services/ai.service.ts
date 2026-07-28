@@ -1,10 +1,12 @@
 /**
- * AI service — routes chat turns to OpenAI, Anthropic, DeepSeek, or Perplexity when keys exist;
+ * AI service — routes chat turns to OpenAI, DeepSeek, or Perplexity when keys exist;
  * otherwise returns the built-in mock replies for local development.
+ *
+ * Anthropic/Claude is disabled project-wide — see the commented anthropicChat below.
  */
 
 import OpenAI, { APIError as OpenAIAPIError } from 'openai'
-import Anthropic, { APIError as AnthropicAPIError } from '@anthropic-ai/sdk'
+// import Anthropic, { APIError as AnthropicAPIError } from '@anthropic-ai/sdk'
 import { env } from '../config/env.js'
 import { AppError } from '../utils/error-handler.js'
 
@@ -50,7 +52,7 @@ const MAX_MESSAGES = 48
 function hasAnyProviderKey(): boolean {
   return Boolean(
     env.OPENAI_API_KEY?.trim() ||
-      env.ANTHROPIC_API_KEY?.trim() ||
+      // ANTHROPIC_API_KEY intentionally omitted — Anthropic is disabled project-wide.
       env.DEEPSEEK_API_KEY?.trim() ||
       env.PERPLEXITY_API_KEY?.trim()
   )
@@ -65,8 +67,11 @@ function isModelConfigured(modelId: string): boolean {
     case 'chatgpt-image':
     case 'nano-banana':
       return Boolean(env.OPENAI_API_KEY?.trim())
+    // Anthropic is disabled project-wide, so "Claude" is never callable. It is
+    // deliberately NOT re-pointed at OpenAI: showing GPT output under the Claude
+    // label would misrepresent which model the learner is talking to.
     case 'claude':
-      return Boolean(env.ANTHROPIC_API_KEY?.trim())
+      return false
     case 'deepseek':
       return Boolean(env.DEEPSEEK_API_KEY?.trim())
     case 'perplexity':
@@ -176,40 +181,43 @@ async function openaiImage(turns: ChatTurn[]): Promise<string> {
   }
 }
 
-/**
- * Calls Anthropic Messages API for Claude.
+/*
+ * Anthropic / Claude support — DISABLED project-wide (OpenAI only).
+ *
+ * Kept commented rather than deleted so the integration can be restored by
+ * uncommenting this function, re-adding the `claude` cases in
+ * isModelConfigured() and runModel(), and restoring the `@anthropic-ai/sdk`
+ * import plus ANTHROPIC_API_KEY / ANTHROPIC_MODEL in config/env.ts.
+ *
+ * async function anthropicChat(turns: ChatTurn[]): Promise<string> {
+ *   const key = env.ANTHROPIC_API_KEY?.trim()
+ *   if (!key) throw new AppError(503, 'Anthropic is not configured (missing ANTHROPIC_API_KEY).')
+ *
+ *   let slice = [...turns]
+ *   while (slice.length && slice[0].role === 'assistant') slice.shift()
+ *   if (!slice.length) throw new AppError(400, 'Conversation must include a user message.')
+ *
+ *   const client = new Anthropic({ apiKey: key })
+ *   const model = env.ANTHROPIC_MODEL?.trim() || 'claude-3-5-sonnet-20241022'
+ *
+ *   try {
+ *     const msg = await client.messages.create({
+ *       model,
+ *       max_tokens: 8192,
+ *       messages: slice.map((m) => ({ role: m.role, content: m.content })),
+ *     })
+ *     const block = msg.content.find((b) => b.type === 'text')
+ *     if (!block || block.type !== 'text') {
+ *       throw new AppError(502, 'Claude returned no text content.')
+ *     }
+ *     const text = block.text.trim()
+ *     if (!text) throw new AppError(502, 'Claude returned an empty reply.')
+ *     return text
+ *   } catch (e) {
+ *     throw mapProviderError(e, 'Anthropic')
+ *   }
+ * }
  */
-async function anthropicChat(turns: ChatTurn[]): Promise<string> {
-  const key = env.ANTHROPIC_API_KEY?.trim()
-  if (!key) throw new AppError(503, 'Anthropic is not configured (missing ANTHROPIC_API_KEY).')
-
-  let slice = [...turns]
-  while (slice.length && slice[0].role === 'assistant') slice.shift()
-  if (!slice.length) throw new AppError(400, 'Conversation must include a user message.')
-
-  const client = new Anthropic({ apiKey: key })
-  const model = env.ANTHROPIC_MODEL?.trim() || 'claude-3-5-sonnet-20241022'
-
-  try {
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 8192,
-      messages: slice.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    })
-    const block = msg.content.find((b) => b.type === 'text')
-    if (!block || block.type !== 'text') {
-      throw new AppError(502, 'Claude returned no text content.')
-    }
-    const text = block.text.trim()
-    if (!text) throw new AppError(502, 'Claude returned an empty reply.')
-    return text
-  } catch (e) {
-    throw mapProviderError(e, 'Anthropic')
-  }
-}
 
 /**
  * Calls DeepSeek via the OpenAI-compatible HTTP API.
@@ -274,12 +282,8 @@ function mapProviderError(err: unknown, label: string): AppError {
       typeof s === 'number' && s >= 400 && s < 600 ? s : 502
     return new AppError(status, `${label}: ${err.message}`)
   }
-  if (err instanceof AnthropicAPIError) {
-    const s = err.status
-    const status =
-      typeof s === 'number' && s >= 400 && s < 600 ? s : 502
-    return new AppError(status, `${label}: ${err.message}`)
-  }
+  // Anthropic branch removed with the provider; DeepSeek/Perplexity are plain
+  // fetch calls, so they fall through to the generic Error handling below.
   const msg = err instanceof Error ? err.message : 'Unknown error'
   return new AppError(502, `${label}: ${msg}`)
 }
@@ -312,8 +316,8 @@ export async function getAIResponse(
       return openaiFastChat(turns)
     case 'chatgpt-image':
       return openaiImage(turns)
-    case 'claude':
-      return anthropicChat(turns)
+    // case 'claude': disabled — see the commented anthropicChat above.
+    //   Unreachable anyway: isModelConfigured('claude') returns false.
     case 'deepseek':
       return deepseekChat(turns)
     case 'perplexity':
