@@ -902,7 +902,19 @@ function ActiveSubView({
       )}
 
       <div>
-        <h3 className="mb-3 text-base font-bold">Your subscription plan</h3>
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h3 className="text-base font-bold">Your subscription plan</h3>
+          {/* The next charge is what people open this page to check, so it is
+              surfaced next to the heading instead of only inside the table. */}
+          {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
+            <span className="text-xs text-muted-foreground">
+              Next charge{' '}
+              <span className="font-medium text-foreground">
+                {formatDate(subscription.renewal_date ?? subscription.current_period_end)}
+              </span>
+            </span>
+          )}
+        </div>
         <div className="divide-y rounded-xl border">
           <Row label="Status">
             <span
@@ -1006,21 +1018,35 @@ function ActiveSubView({
         )}
       </div>
 
-      {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
-        <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3.5">
-          <p className="mb-3 text-sm leading-relaxed text-muted-foreground">
-            Need to cancel? You must cancel at least 24 hours before your renewal
-            date. Your access stays active until the end of the current billing period.
+      {/* Pausing is the retention-friendly alternative to cancelling, but the
+          button alone doesn't say what it does — spell out that billing stops
+          and nothing is lost. */}
+      {!subscription.cancel_at_period_end &&
+        subscription.status !== 'canceled' &&
+        subscription.status !== 'paused' && (
+          <p className="-mt-1 text-xs leading-relaxed text-muted-foreground">
+            Pausing stops billing and keeps your progress — resume any time.
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setCancelOpen(true)}
-            className="border-border/70 bg-background/60 font-medium text-foreground/80 shadow-none hover:border-border hover:bg-background hover:text-foreground"
-          >
-            Cancel subscription
-          </Button>
+        )}
+
+      {/* Cancelling is deliberately the quietest thing on the page: it sits
+          below a divider, in muted text, so it stays findable without competing
+          with pause/manage. Hiding it outright would be a dark pattern. */}
+      {!subscription.cancel_at_period_end && subscription.status !== 'canceled' && (
+        <div className="border-t pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Cancel at least 24 hours before your renewal date. You keep access
+              until the end of the current billing period.
+            </p>
+            <button
+              type="button"
+              onClick={() => setCancelOpen(true)}
+              className="shrink-0 text-xs font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+            >
+              Cancel subscription
+            </button>
+          </div>
         </div>
       )}
 
