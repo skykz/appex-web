@@ -843,6 +843,12 @@ function ActiveSubView({
   const [cancelOpen, setCancelOpen] = useState(false)
   const status = statusLabel(subscription)
   const periodLabel = billingPeriodLabel(subscription.billing_interval)
+  // "every 4 weeks" → "4 weeks", so the price row reads "$38.95 / 4 weeks" in the
+  // same shape as the single-phase case. Falls back to the raw cadence if the
+  // backend ever sends a phrasing without the leading "every".
+  const nextPhaseUnit = subscription.next_phase_cadence
+    ? subscription.next_phase_cadence.replace(/^every\s+/i, '')
+    : ''
 
   const pause = useMutation({
     mutationFn: () => settingsApi.pauseSubscription(),
@@ -929,9 +935,17 @@ function ActiveSubView({
               {status.text}
             </span>
           </Row>
+          {/* On a two-phase plan (the "1 Week" intro) the headline price is the
+              RECURRING one, not the intro week already paid for — that is the
+              number the customer needs to plan around. The intro charge stays
+              visible in Billing history below. */}
           <Row label="Subscription price">
             <span className="text-sm font-medium">
-              {formatMoney(subscription.price, subscription.currency)} / {periodLabel}
+              {subscription.next_phase_price != null
+                ? `${formatMoney(subscription.next_phase_price, subscription.currency)}${
+                    nextPhaseUnit ? ` / ${nextPhaseUnit}` : ''
+                  }`
+                : `${formatMoney(subscription.price, subscription.currency)} / ${periodLabel}`}
             </span>
           </Row>
           {subscription.cancel_at_period_end ? (
@@ -947,26 +961,21 @@ function ActiveSubView({
               </span>
             </Row>
           )}
-          {/* Two-phase plans (the "1 Week" intro) change price partway through.
-              Spell the next charge out here: the row above shows the CURRENT
-              phase, so without this the customer cannot see what they'll
-              actually be billed — the surprise the FTC disclosure rules out. */}
-          {!subscription.cancel_at_period_end && subscription.next_phase_price != null && (
-            <Row label="Then">
+          {/* On a two-phase plan the row above now shows the recurring price, so
+              name what was actually paid for the intro term here — otherwise the
+              headline ($38.95) would contradict Billing history ($6.93). */}
+          {subscription.next_phase_price != null && (
+            <Row label="Intro period">
               <span className="text-sm font-medium">
-                {formatMoney(subscription.next_phase_price, subscription.currency)}
-                {subscription.next_phase_cadence ? ` ${subscription.next_phase_cadence}` : ''}
-                {subscription.next_phase_starts_at
-                  ? ` from ${formatDate(subscription.next_phase_starts_at)}`
-                  : ''}
+                {formatMoney(subscription.price, subscription.currency)} / {periodLabel}
               </span>
             </Row>
           )}
         </div>
         {!subscription.cancel_at_period_end && subscription.next_phase_price != null && (
           <p className="mt-2 text-xs text-muted-foreground">
-            Your intro period ends{' '}
-            {formatDate(subscription.next_phase_starts_at)} — after that you'll be charged{' '}
+            Your intro period ends {formatDate(subscription.next_phase_starts_at)} — after that
+            you'll be charged{' '}
             {formatMoney(subscription.next_phase_price, subscription.currency)}{' '}
             {subscription.next_phase_cadence || ''} until you cancel.
           </p>
