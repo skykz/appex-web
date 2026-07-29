@@ -447,6 +447,18 @@ export async function scheduleWeek1Conversion(
   subscription: Stripe.Subscription,
   alertContext?: Week1AlertContext
 ): Promise<void> {
+  /**
+   * Stamps the new schedule id onto the caller's subscription object.
+   *
+   * The caller passes this same object straight to upsertSubscriptionFromStripe,
+   * which reads `sub.schedule` to look up the upcoming phase. Creating the
+   * schedule in Stripe does NOT mutate our in-memory copy, so without this the
+   * stored row would have null next_phase_* and the UI would keep showing the
+   * intro weekly price as if it never converts.
+   */
+  const stampSchedule = (scheduleId: string) => {
+    subscription.schedule = scheduleId as unknown as Stripe.Subscription['schedule']
+  }
   /** Reports a failed conversion to ops — see raiseBillingAlert. */
   const alert = (detail: string, context?: Record<string, unknown>) =>
     raiseBillingAlert({
@@ -523,6 +535,10 @@ export async function scheduleWeek1Conversion(
     const finalPrices = (finalPhase?.items ?? []).map((i) =>
       typeof i.price === 'string' ? i.price : i.price?.id
     )
+    // Make the schedule visible to the caller's copy of the subscription, so the
+    // upsert that follows can resolve the upcoming $38.95 phase.
+    stampSchedule(updated.id)
+
     if (updated.phases.length < 2 || !finalPrices.includes(fourWeekPrice)) {
       await alert(
         'Schedule was updated but its final phase is not the 4-week price — ' +
