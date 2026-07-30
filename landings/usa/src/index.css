@@ -172,13 +172,28 @@ body {
   94% { transform: scale(1.035); }
 }
 
-/* Bubbles drift up and outward from behind the button, then fade. Each bubble
-   sets its own --bx / --by / --rot so one keyframe serves every direction. */
+/* Bubbles start centred on the button and drift outward, then fade. Each sets
+   its own --bx / --by / --rot so one keyframe serves every direction.
+   The -50%/-50% centering is baked into every step: animating `transform`
+   overrides Tailwind's translate utilities, so omitting it here would snap the
+   bubble to the button's top-left corner on the first frame. */
 @keyframes hero-bubble-float {
-  0%   { opacity: 0; transform: translate(0, 0) scale(0.75) rotate(0deg); }
-  15%  { opacity: 1; transform: translate(calc(var(--bx) * 0.25), calc(var(--by) * 0.25)) scale(1) rotate(var(--rot)); }
-  70%  { opacity: 1; transform: translate(calc(var(--bx) * 0.8), calc(var(--by) * 0.8)) scale(1) rotate(var(--rot)); }
-  100% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(0.9) rotate(var(--rot)); }
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7) rotate(0deg);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--bx) * 0.35), calc(-50% + var(--by) * 0.35)) scale(1) rotate(var(--rot));
+  }
+  70% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--bx) * 0.82), calc(-50% + var(--by) * 0.82)) scale(1) rotate(var(--rot));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--bx)), calc(-50% + var(--by))) scale(0.92) rotate(var(--rot));
+  }
 }
 
 /* Quiz "AI profile" readiness bar — scales up from empty to its own width so

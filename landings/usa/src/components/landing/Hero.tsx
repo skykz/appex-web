@@ -81,15 +81,15 @@ const CTA_BUBBLES = [
 ] as const;
 
 /**
- * Launch slots around the button. Each starts clear of the button edge (`start`)
- * and drifts further out, so a bubble is never hidden behind the CTA or its
- * shadow during its first frames.
+ * Drift directions. Every bubble starts centred on the button and travels
+ * outward, so it reads as emerging from behind the CTA. The layer sits *under*
+ * the button (z-0 vs the button's z-10), which is what hides the first frames.
  */
 const BUBBLE_SLOTS = [
-  { side: "left" as const, start: "104%", top: "-4px", bx: "-70px", by: "-52px", rot: "-7deg" },
-  { side: "right" as const, start: "104%", top: "-4px", bx: "70px", by: "-48px", rot: "6deg" },
-  { side: "left" as const, start: "104%", top: "18px", bx: "-58px", by: "44px", rot: "5deg" },
-  { side: "right" as const, start: "104%", top: "18px", bx: "62px", by: "48px", rot: "-6deg" },
+  { bx: "-150px", by: "-58px", rot: "-7deg" },
+  { bx: "150px", by: "-52px", rot: "6deg" },
+  { bx: "-138px", by: "52px", rot: "5deg" },
+  { bx: "142px", by: "58px", rot: "-6deg" },
 ];
 
 /**
@@ -129,14 +129,15 @@ function HeroCtaBubbles() {
   }, []);
 
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-20">
+    // z-0: the layer sits behind the button (z-10), so bubbles are concealed at
+    // the start of their travel and appear to slide out from underneath it.
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0">
       {bubbles.map((b) => (
         <span
           key={b.id}
-          className="absolute top-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] md:text-[12px] font-bold"
+          // Centred on the button, then translated outward by the keyframe.
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] md:text-[12px] font-bold"
           style={{
-            [b.slot.side]: b.slot.start,
-            marginTop: b.slot.top,
             color: "#C2410C",
             background: "rgba(255,247,237,0.95)",
             border: "1px solid #FED7AA",
@@ -300,7 +301,7 @@ export default function Hero() {
             <a
               href="/quiz"
               data-cta="hero"
-              className="relative overflow-hidden inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-full px-6 md:px-7 py-2.5 md:py-3.5 text-[13px] md:text-[14px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all motion-reduce:animate-none"
+              className="relative z-10 overflow-hidden inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-full px-6 md:px-7 py-2.5 md:py-3.5 text-[13px] md:text-[14px] font-semibold shadow-[0_15px_40px_-10px_rgba(249,115,22,0.5)] hover:opacity-90 hover:-translate-y-0.5 transition-all motion-reduce:animate-none"
               style={{ animation: "hero-cta-breathe 5s ease-in-out infinite" }}
             >
               {/* Light sweep across the button face */}
