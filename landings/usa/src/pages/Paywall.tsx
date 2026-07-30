@@ -9,6 +9,11 @@ import {
   ga4PaywallView,
   ga4PaywallExitIntentShown,
   ga4PaywallTimerExpired,
+  ga4PlanSelect,
+  ga4CheckoutModalView,
+  ga4CheckoutAbandon,
+  ga4CheckoutError,
+  ga4PaywallAbandon,
   getGa4ClientId,
 } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
@@ -345,14 +350,15 @@ function PricingBlock({
   onGetPlan,
   onSignIn,
   selected,
-  setSelected,
+  onSelectPlan,
   checkoutLoading,
   state,
 }: {
   onGetPlan: () => void;
   onSignIn: () => void;
   selected: number;
-  setSelected: (i: number) => void;
+  /** Selects a plan AND reports it — see the paywall's handleSelectPlan. */
+  onSelectPlan: (i: number) => void;
   checkoutLoading: boolean;
   state: DiscountState;
 }) {
@@ -375,7 +381,7 @@ function PricingBlock({
       {/* Pricing cards */}
       <div className="space-y-2 mb-3">
         {VISIBLE_PAYWALL_PLANS.map(({ plan: p, index: i }) => (
-          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => setSelected(i)} state={state} />
+          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => onSelectPlan(i)} state={state} />
         ))}
       </div>
 
@@ -462,6 +468,47 @@ export default function Paywall() {
   const planSavedRef = useRef<string | null>(null);
   const paywallViewFired = useRef(false);
 
+  /* ── Paywall abandonment ─────────────────────────────────────────────────
+     paywall_view says they arrived; nothing said whether they left empty-handed.
+     max_scroll is what makes the result actionable: bouncing after reading the
+     prices and never scrolling to them are opposite problems (pricing vs page
+     structure) that otherwise look identical. */
+  const paywallOpenedAt = useRef<number>(Date.now());
+  const maxScrollPct = useRef(0);
+  const openedCheckoutRef = useRef(false);
+  const paywallAbandonFired = useRef(false);
+
+  useEffect(() => {
+    const track = () => {
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      const pct = Math.round(((window.scrollY || doc.scrollTop) / scrollable) * 100);
+      if (pct > maxScrollPct.current) maxScrollPct.current = Math.min(100, pct);
+    };
+    track();
+    window.addEventListener("scroll", track, { passive: true });
+
+    const onHidden = () => {
+      if (document.visibilityState !== "hidden") return;
+      if (paywallAbandonFired.current) return;
+      paywallAbandonFired.current = true;
+      const payload = {
+        discount_tier: discountState,
+        seconds_on_paywall: Math.round((Date.now() - paywallOpenedAt.current) / 1000),
+        max_scroll: maxScrollPct.current,
+        opened_checkout: openedCheckoutRef.current,
+      };
+      ga4PaywallAbandon(payload);
+      pushToDataLayer("paywall_abandon", payload);
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("scroll", track);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [discountState]);
+
   // Fire paywall_view once on mount (spec funnel step 38, screen shown), tagged
   // with the discount state the visitor actually landed on (a reload after the
   // timer burned lands straight on `expired`).
@@ -525,6 +572,34 @@ export default function Paywall() {
   // this snapshot, so the tier we charge and report matches the price the user
   // actually agreed to even if the countdown lapses while they read it.
   const shownTierRef = useRef<DiscountState>(discountState);
+  const modalOpenedAt = useRef<number>(0);
+  /**
+   * Whether the open order summary ended in a redirect to Stripe. Guards against
+   * counting a confirmed checkout as an abandonment, since confirming also
+   * unmounts the modal.
+   */
+  const checkoutOutcome = useRef<"abandoned" | "confirmed">("abandoned");
+  /** How many times the visitor changed plan — a hesitation signal. */
+  const planSelectCount = useRef(0);
+
+  /**
+   * Switches the highlighted plan and reports it. The paywall opens on "4 Weeks",
+   * so without this a purchase of the default is indistinguishable from a
+   * deliberate choice — and repeated switches (select_index) show hesitation.
+   */
+  const handleSelectPlan = (i: number) => {
+    if (i === selected) return;
+    planSelectCount.current += 1;
+    const plan = PAYWALL_PLANS[i];
+    const payload = {
+      plan: plan.id,
+      discount_tier: discountState,
+      select_index: planSelectCount.current,
+    };
+    ga4PlanSelect(payload);
+    pushToDataLayer("plan_select", payload);
+    setSelected(i);
+  };
 
   const handleGetPlan = () => {
     if (checkoutLoading) return;
@@ -534,7 +609,42 @@ export default function Paywall() {
       return;
     }
     shownTierRef.current = discountState;
+    const plan = PAYWALL_PLANS[selected];
+    modalOpenedAt.current = Date.now();
+    checkoutOutcome.current = "abandoned";
+    openedCheckoutRef.current = true;
+    ga4CheckoutModalView({
+      plan: plan.id,
+      discount_tier: discountState,
+      value: Number(priceFor(plan, discountState)),
+    });
+    pushToDataLayer("checkout_modal_view", {
+      plan: plan.id,
+      discount_tier: discountState,
+      value: Number(priceFor(plan, discountState)),
+    });
     setCheckoutOpen(true);
+  };
+
+  /**
+   * Reports dismissing the order summary without paying — the costliest drop in
+   * the funnel, since the visitor already read the price and the renewal terms.
+   * `checkoutOutcome` keeps a confirmed checkout from also counting as abandoned.
+   */
+  const handleCloseCheckout = () => {
+    if (checkoutOutcome.current === "abandoned") {
+      const plan = PAYWALL_PLANS[selected];
+      const payload = {
+        plan: plan.id,
+        discount_tier: shownTierRef.current,
+        value: Number(priceFor(plan, shownTierRef.current)),
+        seconds_on_modal: Math.round((Date.now() - modalOpenedAt.current) / 1000),
+        reason: "dismissed",
+      };
+      ga4CheckoutAbandon(payload);
+      pushToDataLayer("checkout_abandon", payload);
+    }
+    setCheckoutOpen(false);
   };
 
   const handleConfirmCheckout = async () => {
@@ -613,15 +723,26 @@ export default function Paywall() {
       });
 
       if ("error" in result) {
+        // A failed session is "we broke", not "they changed their mind" — report
+        // it separately so a server-side outage is visible in the funnel instead
+        // of just looking like missing purchases.
+        ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
+        pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
+        checkoutOutcome.current = "confirmed"; // not an abandonment
         // Drop back to the plan picker so the error isn't hidden behind the modal.
         setCheckoutOpen(false);
         window.alert(result.error);
         return;
       }
+      // Redirecting to Stripe: stop the modal's unmount counting as abandonment.
+      checkoutOutcome.current = "confirmed";
       window.location.href = result.url;
     } catch {
       // Network/CORS failure rejects the promise — surface it and re-enable the
       // button (the finally below) instead of leaving it stuck on "Redirecting…".
+      ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: "network_error" });
+      pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: "network_error" });
+      checkoutOutcome.current = "confirmed"; // an error, not an abandonment
       setCheckoutOpen(false);
       window.alert("Could not reach the payment server. Please try again.");
     } finally {
@@ -707,7 +828,7 @@ export default function Paywall() {
             onGetPlan={handleGetPlan}
             onSignIn={handleSignIn}
             selected={selected}
-            setSelected={setSelected}
+            onSelectPlan={handleSelectPlan}
             checkoutLoading={checkoutLoading}
             state={discountState}
           />
@@ -954,7 +1075,7 @@ export default function Paywall() {
         state={discountState}
         timerLabel={timer.label}
         loading={checkoutLoading}
-        onClose={() => setCheckoutOpen(false)}
+        onClose={handleCloseCheckout}
         onConfirm={handleConfirmCheckout}
       />
 

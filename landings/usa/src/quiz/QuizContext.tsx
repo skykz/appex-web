@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
-import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer } from "@/lib/ga4";
+import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 
 export type Answers = {
@@ -156,6 +156,14 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     const handler = (e: MouseEvent) => {
       const target = (e.target as HTMLElement | null)?.closest?.("a[href='/quiz'], a[href='/quiz/']") as HTMLAnchorElement | null;
       if (!target) return;
+      // Report the click here rather than on each button: every landing CTA is an
+      // <a href="/quiz"> funnelled through this one listener, so new CTAs are
+      // tracked automatically instead of being forgotten. `data-cta` names the
+      // section — it tells apart "nobody clicks" (weak copy) from "people click
+      // but the quiz never starts" (broken), which look identical in quiz_step.
+      const location = target.dataset.cta || "unknown";
+      ga4CtaClick({ location });
+      pushToDataLayer("cta_click", { location });
       e.preventDefault();
       open();
     };

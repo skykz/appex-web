@@ -56,6 +56,7 @@ export default function Navbar() {
           </a>
           <a
             href="/quiz"
+            data-cta="navbar"
             className="hidden md:inline-flex bg-gradient-primary text-white text-sm font-semibold rounded-full px-5 py-2.5 hover:opacity-90 transition-opacity"
           >
             Start free quiz →
@@ -118,6 +119,7 @@ export default function Navbar() {
             </a>
             <a
               href="/quiz"
+              data-cta="navbar_mobile"
               onClick={() => setOpen(false)}
               className="mt-2 bg-gradient-primary text-white text-center rounded-full py-3 font-semibold hover:opacity-90 transition-opacity"
             >

@@ -173,6 +173,7 @@ export default function Certificate() {
 
           <a
             href="/quiz"
+            data-cta="certificate"
             className="inline-flex justify-center bg-gradient-primary text-white rounded-xl px-7 py-3.5 text-base font-semibold hover:opacity-90 hover:-translate-y-px transition-all"
           >
             Start Free Quiz →

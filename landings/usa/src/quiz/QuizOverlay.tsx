@@ -13,7 +13,7 @@ import { submitLandingQuiz } from "@/lib/landing-api";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
-import { ga4QuizStep, ga4Lead, ga4NameSubmit, ga4PlanView } from "@/lib/ga4";
+import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import mentorImg from "@/assets/quiz-mentor.jpg";
@@ -2114,7 +2114,7 @@ const STEPS: Record<number, React.FC> = {
 };
 
 export default function QuizOverlay() {
-  const { isOpen, step } = useQuiz();
+  const { isOpen, step, answers } = useQuiz();
 
   useEffect(() => {
     if (isOpen) {
@@ -2144,6 +2144,62 @@ export default function QuizOverlay() {
       type: meta.type,
     });
   }, [isOpen, step]);
+
+  /* ── Abandonment tracking ────────────────────────────────────────────────
+     quiz_step shows where visitors stop *appearing*, which conflates "left
+     here" with "still on this screen". These refs + the exit listener below
+     report the actual exit and how long it took, so the last screen someone
+     saw can be told apart from the screen that lost them. */
+  const stepEnteredAt = useRef<number>(Date.now());
+  const quizStartedAt = useRef<number>(Date.now());
+  // Guards against double-reporting: a visitor can background the tab, come
+  // back, and background it again — that is one abandonment, not two.
+  const abandonFired = useRef(false);
+
+  useEffect(() => {
+    stepEnteredAt.current = Date.now();
+    // Returning to a step after a previous exit means they did NOT abandon, so
+    // allow a fresh report if they leave again later.
+    abandonFired.current = false;
+  }, [step]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const report = (reason: string) => {
+      if (abandonFired.current) return;
+      // Finishing the quiz is not abandonment — quiz_complete covers that.
+      if (step >= TOTAL_STEPS) return;
+      abandonFired.current = true;
+      const meta = overlayStepByIndex(step);
+      const payload = {
+        step_index: step,
+        step_id: meta.id,
+        section: meta.section,
+        type: meta.type,
+        seconds_on_step: Math.round((Date.now() - stepEnteredAt.current) / 1000),
+        seconds_in_quiz: Math.round((Date.now() - quizStartedAt.current) / 1000),
+        // How many questions they actually answered before leaving — a visitor
+        // who answered 15 and stalled is a different problem from one who
+        // answered none.
+        answered_count: Object.values(answers).filter(
+          (v) => v !== undefined && v !== null && v !== ""
+        ).length,
+      };
+      ga4QuizAbandon(payload);
+      pushToDataLayer("quiz_abandon", { ...payload, reason });
+    };
+
+    // visibilitychange (not beforeunload): it is the only one that fires
+    // reliably on mobile Safari, and it still leaves time for the request.
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") report("tab_hidden");
+    };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [isOpen, step, answers]);
 
   if (!isOpen) return null;
   const Step = STEPS[step] || S1;

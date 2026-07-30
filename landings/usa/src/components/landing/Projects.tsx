@@ -121,6 +121,7 @@ export default function Projects() {
         <div className="text-center">
           <a
             href="/quiz"
+            data-cta="projects"
             className="inline-flex justify-center bg-gradient-primary text-white rounded-full px-7 py-3 text-[14px] font-semibold hover:opacity-90 hover:-translate-y-px transition-all"
           >
             Start mastering Claude →

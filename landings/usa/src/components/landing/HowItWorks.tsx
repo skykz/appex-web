@@ -104,6 +104,7 @@ export default function HowItWorks() {
           <div className="text-center mt-14 md:mt-16">
             <a
               href="/quiz"
+              data-cta="how_it_works"
               className="inline-flex items-center gap-2 bg-gradient-primary text-white rounded-xl px-8 py-4 text-base font-semibold hover:opacity-90 hover:-translate-y-px transition-all shadow-[0_10px_30px_-10px_rgba(249,115,22,0.6)]"
             >
               Start step 1 — it's free

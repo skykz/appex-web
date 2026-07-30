@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRight, Award, Check, ChevronDown, ChevronRight } from "lucide-react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
+import { useScrollDepth } from "@/hooks/use-scroll-depth";
 
 type Role = {
   slug: string;
@@ -341,6 +342,11 @@ export default function RoleDetail() {
   const { slug } = useParams();
   const role = roles.find((r) => r.slug === slug);
 
+  // Before the early return below: hooks must run in the same order on every
+  // render, and these role pages count as landings for the funnel (App.tsx emits
+  // landing_view for /ai-skills-for/* too), so they need the same reach data.
+  useScrollDepth();
+
   if (!role) return <Navigate to="/" replace />;
 
   const otherRoles = roles.filter((r) => r.slug !== slug).slice(0, 3);
@@ -381,6 +387,7 @@ export default function RoleDetail() {
                 <div className="flex flex-wrap gap-3">
                   <Link
                     to="/quiz"
+                    data-cta="role_hero"
                     className="inline-flex justify-center bg-gradient-primary text-white rounded-full px-7 py-3.5 text-base font-semibold hover:opacity-90 hover:-translate-y-px transition-all"
                   >
                     Start Free Quiz
@@ -498,6 +505,7 @@ export default function RoleDetail() {
 
               <Link
                 to="/quiz"
+                data-cta="role_sidebar"
                 className="block text-center bg-gradient-primary text-white rounded-full py-3.5 text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                 Start Free Quiz
@@ -621,7 +629,7 @@ export default function RoleDetail() {
             Take the free 5-minute quiz and get a personalized learning plan built around your goals, schedule, and experience.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
-            <Link to="/quiz" className="inline-flex justify-center bg-background text-foreground rounded-full px-7 py-3.5 text-base font-semibold hover:-translate-y-px transition-transform">
+            <Link to="/quiz" data-cta="role_footer" className="inline-flex justify-center bg-background text-foreground rounded-full px-7 py-3.5 text-base font-semibold hover:-translate-y-px transition-transform">
               Start Free Quiz
             </Link>
             <Link to="/#projects" className="inline-flex justify-center rounded-full px-7 py-3.5 text-base font-semibold text-white border border-white/40 hover:bg-white/10 transition-colors">

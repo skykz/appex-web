@@ -161,6 +161,143 @@ export function ga4LandingView(params?: { item_name?: string }): void {
   event('landing_view', params?.item_name ? { item_name: params.item_name } : undefined)
 }
 
+/**
+ * plan_select (custom) — the visitor switched the highlighted plan on the paywall.
+ *
+ * The paywall opens on "4 Weeks" by default, so a purchase of that plan cannot
+ * tell you whether it was chosen or merely accepted. This does: it records the
+ * plans people actively move to, and how often they change their mind before
+ * committing — the signal for whether the default and the price ladder are right.
+ */
+export function ga4PlanSelect(params: {
+  plan: string
+  discount_tier: string
+  /** Which pick this is in the session (1 = first change), for indecision. */
+  select_index: number
+}): void {
+  event('plan_select', params)
+}
+
+/**
+ * checkout_modal_view (custom) — the order-summary modal opened.
+ *
+ * The step between "clicked GET MY PLAN" and "redirected to Stripe". Without it,
+ * a drop here is invisible: checkout_start fires only after the modal is
+ * confirmed, so people who open the summary and think again look identical to
+ * people who never clicked at all.
+ */
+export function ga4CheckoutModalView(params: {
+  plan: string
+  discount_tier: string
+  value: number
+}): void {
+  event('checkout_modal_view', params)
+}
+
+/**
+ * checkout_abandon (custom) — the order summary was dismissed without paying.
+ *
+ * This is the most expensive abandonment in the funnel: the visitor read the
+ * price, the renewal terms and the FTC disclosure, and still backed out.
+ * `seconds_on_modal` separates a misclick from a deliberate reconsideration.
+ */
+export function ga4CheckoutAbandon(params: {
+  plan: string
+  discount_tier: string
+  value: number
+  seconds_on_modal: number
+  reason: string
+}): void {
+  event('checkout_abandon', params)
+}
+
+/**
+ * checkout_error (custom) — creating the Stripe session failed.
+ *
+ * Distinguishes "changed their mind" from "we broke". Worth its own event
+ * because it is silent otherwise: the visitor sees an alert and leaves, and the
+ * funnel just shows a missing purchase. Exactly the 500 that took this project
+ * days to notice in production.
+ */
+export function ga4CheckoutError(params: {
+  plan: string
+  discount_tier: string
+  message: string
+}): void {
+  event('checkout_error', params)
+}
+
+/**
+ * paywall_abandon (custom) — left the paywall without opening checkout.
+ *
+ * `max_scroll` tells apart "saw the price and bounced" from "never scrolled to
+ * the plans at all", which need opposite fixes: pricing versus page structure.
+ */
+export function ga4PaywallAbandon(params: {
+  discount_tier: string
+  seconds_on_paywall: number
+  max_scroll: number
+  opened_checkout: boolean
+}): void {
+  event('paywall_abandon', params)
+}
+
+/**
+ * cta_click (custom) — a "start the quiz" button was clicked on the landing.
+ *
+ * `location` names the section the button lives in (hero, navbar, features…).
+ * The landing has ~11 of these CTAs; without the parameter you learn only that
+ * *someone* clicked, not which pitch actually converts.
+ *
+ * This is also what separates the two very different reasons the landing→quiz
+ * step can be leaking: few clicks means the copy isn't convincing, while many
+ * clicks with few quiz_starts means the quiz itself fails to open.
+ */
+export function ga4CtaClick(params: { location: string }): void {
+  event('cta_click', { location: params.location })
+}
+
+/**
+ * scroll_depth (custom) — visitor reached 25/50/75/100% of the landing.
+ *
+ * Fires once per threshold per page view. Shows whether people read the page at
+ * all: if most never pass 25%, the sections below the hero are irrelevant and
+ * the problem is the first screen (or load speed).
+ */
+export function ga4ScrollDepth(params: { percent: number }): void {
+  event('scroll_depth', { percent: params.percent })
+}
+
+/**
+ * quiz_abandon (custom) — the visitor left the quiz without finishing.
+ *
+ * `quiz_step` alone can only show where people stopped *appearing*, which cannot
+ * distinguish "left the funnel here" from "still sitting on this screen". This
+ * fires on the actual exit (tab closed/backgrounded, or the overlay dismissed)
+ * and names the last screen reached, so the abandon funnel is measured rather
+ * than inferred.
+ *
+ * `seconds_on_step` separates two very different failures on the same screen:
+ * an instant bounce (confusing or unwanted question) from a long pause
+ * (question is hard to answer, or the copy is too long).
+ *
+ * Callers must fire this from `visibilitychange` (hidden), NOT `beforeunload`:
+ * gtag sends over the network and unload routinely kills in-flight requests,
+ * while `visibilitychange` still has time to flush and is the only one of the two
+ * that fires reliably on mobile Safari.
+ */
+export function ga4QuizAbandon(params: {
+  step_index: number
+  step_id: string
+  section: string
+  type: string
+  seconds_on_step: number
+  seconds_in_quiz: number
+  answered_count: number
+}): void {
+  event('quiz_abandon', params)
+}
+
 /** quiz_start (custom) — first quiz answer. */
 export function ga4QuizStart(): void {
   event('quiz_start')

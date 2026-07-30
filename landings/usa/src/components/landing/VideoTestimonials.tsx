@@ -121,6 +121,7 @@ export default function VideoTestimonials() {
       <div className="text-center px-4">
         <a
           href="/quiz"
+          data-cta="video_testimonials"
           className="w-full sm:w-auto inline-flex justify-center bg-gradient-primary text-white rounded-xl px-10 py-4 text-base md:text-lg font-semibold hover:opacity-90 hover:-translate-y-px transition-all font-body"
         >
           Join them →
