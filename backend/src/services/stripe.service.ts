@@ -523,6 +523,16 @@ export async function scheduleWeek1Conversion(
         {
           items: [{ price: fourWeekPrice, quantity: 1 }],
           // No iterations/end_date → renews at $38.95 every 4 weeks until cancelled.
+          //
+          // proration_behavior 'none' + billing_cycle_anchor 'phase_start' are what make
+          // the promised "$38.95 every 4 weeks" literally true. With Stripe's
+          // default ('create_prorations', anchor kept from the weekly phase) the
+          // switch does NOT start a fresh cycle: it back-charges the difference for
+          // the rest of the old anchor window, so the customer's next invoice was
+          // $68.16 ($29.21 proration + $38.95) three weeks late instead of $38.95
+          // on the conversion date. That contradicts the FTC disclosure.
+          proration_behavior: 'none',
+          billing_cycle_anchor: 'phase_start',
         },
       ],
     })
