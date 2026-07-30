@@ -16,6 +16,7 @@ import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
 import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
+import { checkEmail } from "@/lib/email-validation";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
 import womanIncomeImg from "@/assets/quiz-woman-income.jpg";
@@ -1419,7 +1420,31 @@ function Row({ label, value, valueColor }: { label: string; value: string; value
 function S23() {
   const { set, next, answers, commitAnswer } = useQuiz();
   const [email, setEmail] = useState(answers.email || "");
-  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  // Errors appear only after the visitor leaves the field or tries to submit —
+  // validating while they are still typing flags every half-finished address and
+  // reads as the form arguing with them.
+  const [touched, setTouched] = useState(false);
+  const check = checkEmail(email);
+  const canSubmit = check.status === "ok" || check.status === "suggest";
+  const showError = touched && check.status === "invalid" && email.trim().length > 0;
+  /**
+   * The button stays enabled once something has been typed, so tapping it can
+   * REVEAL the reason. Disabling it instead leaves the visitor with a dead
+   * control and no explanation — they can't tell a rejected address from a broken
+   * page, and simply leave. The guard lives in the handler, not the disabled prop.
+   */
+  const buttonDisabled = email.trim().length === 0;
+
+  const submit = (value: string) => {
+    set("email", value);
+    commitAnswer("email_capture", "provided");
+    trackLead();
+    ga4Lead();
+    pushToDataLayer("lead");
+    void submitLandingQuiz({ email: value, answers: { ...answers, email: value } });
+    next();
+  };
+
   return (
     <StepShell>
       <Heading>
@@ -1434,10 +1459,38 @@ function S23() {
           placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => setTouched(true)}
           className="w-full rounded-2xl pl-11 pr-4 py-4 text-[16px] outline-none"
-          style={{ background: "white", border: `1.5px solid ${C.border}`, color: C.text }}
+          style={{
+            background: "white",
+            border: `1.5px solid ${showError ? C.warning : C.border}`,
+            color: C.text,
+          }}
         />
       </div>
+
+      {showError && (
+        <p className="text-[13px] mb-3" style={{ color: C.warning }}>
+          {check.message}
+        </p>
+      )}
+
+      {/* A likely typo is offered as a one-tap fix, never enforced — a real
+          address that merely looks odd must not be turned away here. */}
+      {check.status === "suggest" && (
+        <p className="text-[13px] mb-3" style={{ color: C.text }}>
+          {check.message}{" "}
+          <button
+            type="button"
+            onClick={() => setEmail(check.suggestion)}
+            className="underline font-semibold"
+            style={{ color: C.primary }}
+          >
+            Yes, fix it
+          </button>
+        </p>
+      )}
+
       <p className="flex items-start gap-2 text-[12px] mb-4" style={{ color: C.muted }}>
         <Lock size={14} className="mt-0.5 flex-shrink-0" />
         We respect your privacy. See our <LegalLink href="/privacy" className="underline ml-1">Privacy Policy</LegalLink>.
@@ -1446,17 +1499,15 @@ function S23() {
         Make sure your email is valid — get the <strong>AI Agents Guidebook</strong> from us.
       </div>
       <PrimaryButton
-        disabled={!valid}
+        disabled={buttonDisabled}
         onClick={() => {
-          set("email", email);
-          // Lead milestone. commitAnswer reports "provided" — never send the
-          // address itself as an analytics param.
-          commitAnswer("email_capture", "provided");
-          trackLead();
-          ga4Lead();
-          pushToDataLayer("lead");
-          void submitLandingQuiz({ email, answers: { ...answers, email } });
-          next();
+          // Mark touched FIRST so a rejected address surfaces its message on this
+          // very tap, rather than the tap appearing to do nothing.
+          setTouched(true);
+          if (!canSubmit) return;
+          // Normalised before it leaves the client so the address stored, emailed
+          // and used for the Stripe customer all match.
+          submit(email.trim().toLowerCase());
         }}
       >
         Continue

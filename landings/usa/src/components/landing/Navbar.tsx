@@ -57,9 +57,20 @@ export default function Navbar() {
           <a
             href="/quiz"
             data-cta="navbar"
-            className="hidden md:inline-flex bg-gradient-primary text-white text-sm font-semibold rounded-full px-5 py-2.5 hover:opacity-90 transition-opacity"
+            className="relative overflow-hidden hidden md:inline-flex bg-gradient-primary text-white text-sm font-semibold rounded-full px-5 py-2.5 hover:opacity-90 transition-opacity"
           >
-            Start free quiz →
+            {/* Light sweep left→right on a slow loop — keeps the nav CTA alive
+                without moving the button itself. Decorative only. */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-y-0 left-0 w-1/3 motion-reduce:hidden"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)",
+                animation: "hero-cta-sweep 5s ease-in-out infinite",
+              }}
+            />
+            <span className="relative z-10">Start free quiz →</span>
           </a>
           {/* Hamburger — mobile */}
           <button
@@ -121,9 +132,19 @@ export default function Navbar() {
               href="/quiz"
               data-cta="navbar_mobile"
               onClick={() => setOpen(false)}
-              className="mt-2 bg-gradient-primary text-white text-center rounded-full py-3 font-semibold hover:opacity-90 transition-opacity"
+              className="relative overflow-hidden mt-2 bg-gradient-primary text-white text-center rounded-full py-3 font-semibold hover:opacity-90 transition-opacity"
             >
-              Start free quiz →
+              {/* Same left→right sweep as the desktop nav CTA. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/3 motion-reduce:hidden"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)",
+                  animation: "hero-cta-sweep 5s ease-in-out infinite",
+                }}
+              />
+              <span className="relative z-10">Start free quiz →</span>
             </a>
           </div>
         </div>

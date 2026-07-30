@@ -147,6 +147,40 @@ body {
   60%, 100% { transform: translateX(420%) skewX(-12deg); }
 }
 
+/* ── Hero CTA attention loop ────────────────────────────────────────────────
+   A slow pulse + light sweep every few seconds keeps the primary action alive
+   without being a constantly-moving distraction. */
+
+/* Soft ring that expands out of the button, then fades. */
+@keyframes hero-cta-pulse {
+  0%, 70%, 100% { transform: scale(1); opacity: 0; }
+  72%  { transform: scale(1);    opacity: 0.5; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* Specular sweep across the button face. The travel takes ~30% of the cycle and
+   the rest is an idle tail, so it reads as a periodic glint rather than a
+   loading shimmer. `translate3d` keeps it on the compositor. */
+@keyframes hero-cta-sweep {
+  0%   { transform: translate3d(-140%, 0, 0) skewX(-16deg); }
+  30%, 100% { transform: translate3d(400%, 0, 0) skewX(-16deg); }
+}
+
+/* Button itself breathes very slightly on the same cadence. */
+@keyframes hero-cta-breathe {
+  0%, 88%, 100% { transform: scale(1); }
+  94% { transform: scale(1.035); }
+}
+
+/* Bubbles drift up and outward from behind the button, then fade. Each bubble
+   sets its own --bx / --by / --rot so one keyframe serves every direction. */
+@keyframes hero-bubble-float {
+  0%   { opacity: 0; transform: translate(0, 0) scale(0.75) rotate(0deg); }
+  15%  { opacity: 1; transform: translate(calc(var(--bx) * 0.25), calc(var(--by) * 0.25)) scale(1) rotate(var(--rot)); }
+  70%  { opacity: 1; transform: translate(calc(var(--bx) * 0.8), calc(var(--by) * 0.8)) scale(1) rotate(var(--rot)); }
+  100% { opacity: 0; transform: translate(var(--bx), var(--by)) scale(0.9) rotate(var(--rot)); }
+}
+
 /* Quiz "AI profile" readiness bar — scales up from empty to its own width so
    the score reads as calculated, not pre-filled. Uses transform (not width) so
    it animates on the compositor and can't be skipped by a late layout pass. */
