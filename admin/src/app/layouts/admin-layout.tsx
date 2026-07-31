@@ -81,7 +81,7 @@ export function AdminLayout() {
   const sessionLines = signedInDisplayLines(user ?? undefined)
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       <CommandPalette />
 
       {/* Mobile backdrop — click to dismiss the drawer */}
@@ -95,13 +95,14 @@ export function AdminLayout() {
 
       <aside
         className={cn(
-          'admin-sidebar-surface flex w-64 shrink-0 flex-col border-r shadow-[4px_0_28px_-14px_rgba(15,23,42,0.1)]',
-          // Off-canvas drawer below lg; static in-flow sidebar at lg and up.
-          'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0 lg:transition-none',
+          'admin-sidebar-surface flex w-64 flex-col border-r shadow-[4px_0_28px_-14px_rgba(15,23,42,0.1)]',
+          // Pinned to the viewport at every size: the page scrolls, the nav doesn't.
+          // Below lg it doubles as the off-canvas drawer, hence the transform.
+          'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-out lg:translate-x-0 lg:transition-none',
           mobileNavOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="flex h-[4.25rem] items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-5">
+        <div className="flex h-[4.25rem] shrink-0 items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-5">
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm ring-1 ring-orange-600/20">
               <Zap className="size-4" aria-hidden />
@@ -122,7 +123,7 @@ export function AdminLayout() {
             <X className="size-5" aria-hidden />
           </button>
         </div>
-        <nav className="flex-1 space-y-0.5 p-3">
+        <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-3">
           {nav.map((n) => (
             <NavLink
               key={n.to}
@@ -145,7 +146,7 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="border-t border-[hsl(var(--sidebar-border))] p-4">
+        <div className="shrink-0 border-t border-[hsl(var(--sidebar-border))] p-4">
           <div
             className="mb-3 rounded-lg bg-[hsl(var(--sidebar-accent))] px-3 py-2 ring-1 ring-orange-100/60"
             aria-label="Signed-in account"
@@ -166,7 +167,8 @@ export function AdminLayout() {
           </Button>
         </div>
       </aside>
-      <main className="admin-main-bg flex min-w-0 flex-1 flex-col overflow-auto">
+      {/* Offset by the fixed sidebar's width at lg+; full width below, where it's a drawer. */}
+      <main className="admin-main-bg min-h-screen lg:pl-64">
         {/* Mobile top bar — hamburger + brand, hidden at lg where the sidebar is always visible */}
         <div className="admin-sidebar-surface sticky top-0 z-30 flex h-[4.25rem] items-center gap-3 border-b px-4 lg:hidden">
           <button
