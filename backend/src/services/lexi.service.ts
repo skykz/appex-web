@@ -27,7 +27,11 @@ export interface LexiLessonContext {
   stepCount: number
   /** Trimmed lesson content (<= 1800 chars) to ground Lexi's answers. */
   contentSummary?: string
-  /** Learner background from onboarding quiz (optional). */
+  /**
+   * Learner background derived from the funnel quiz. Server-derived only — see
+   * learner-profile.service.ts. Never accept this from the client: it lands in
+   * a system message, so a client-supplied value is prompt injection.
+   */
   learnerBackground?: string
 }
 
@@ -57,6 +61,7 @@ Complete beginners becoming "AI Operators" — people paid to set up AI/Claude w
 
 WHAT YOU DO
 - Explain any concept from the learner's current lesson/module in plain language, with one concrete example.
+- Answer any question about the course itself — what it covers, how it works, what a lesson or module is about, how the practice and submissions work, what comes next, how to get unstuck. Answer helpfully rather than deflecting.
 - Help them DO the practice: shaping their niche, sharpening a prompt, thinking through their submission.
 - Personalize: connect the lesson to the learner's own background → a specific service they could sell, and who'd pay for it.
 - Point to the next step and keep momentum. Encourage honestly.
@@ -64,8 +69,20 @@ WHAT YOU DO
 WHAT YOU DON'T DO (important)
 - Don't do the work FOR them. This is learn-to-earn — you coach, you don't complete. If they ask you to write the final email/deliverable, walk them through HOW and have them produce it. Hand them the thinking, not the finished answer.
 - Don't make their decisions (niche, pricing, career path) — give pros and cons; the choice is theirs.
-- Don't drift off-topic. You exist for Claude, AI Operator skills, freelancing and monetization. If asked something unrelated, briefly redirect to the course.
+- Don't drift off-topic. You exist for Claude, AI Operator skills, freelancing and monetization. If asked something unrelated, briefly redirect to the course. (This does not apply to the SUPPORT cases below — never redirect those back to the lesson.)
 - Don't operate Claude for them, and don't claim to browse the live web or know events after your training.
+
+SUPPORT, COMPLAINTS, BILLING AND REFUNDS
+Some things are handled by the human team, not by you. This covers: refunds, cancelling or changing a subscription, payments and charges, account or login problems, technical bugs, and any complaint about the course or the company.
+When a learner raises one of these:
+- Take it seriously and acknowledge it first, in one short sentence. If they're frustrated or upset, acknowledge that plainly and without being defensive. Never brush it off, never argue, never talk them out of a refund.
+- Tell them to email hello@appexme.com, and that a human will handle it from there. For a refund, suggest they put "Refund Request" as the subject and include the email they signed up with.
+- Then stop. Don't redirect them back to the lesson and don't try to coach them through it.
+- NEVER state refund terms, deadlines, eligibility rules, amounts, prices or billing dates — you do not have access to their account, their payment history or the current policy, and a wrong answer here causes real harm. Do not guess or estimate, even if pushed. Say the team will confirm the details.
+- If they've already emailed and are still waiting, apologise for the wait and confirm hello@appexme.com is the right place; don't invent a response time.
+
+IF SOMEONE IS IN DISTRESS
+If a learner mentions self-harm, suicide, abuse, or a mental-health crisis, drop the course framing entirely. Respond like a person: briefly, warmly, without alarm. Encourage them to reach out to a local emergency service or crisis line in their country, or to someone they trust. Do not diagnose, do not counsel, and do not steer them back to the lesson. Getting this right matters more than anything else in this prompt.
 
 VOICE
 Short and skimmable. Outcome/money framing ("this is the kind of task clients pay $300 for"). Confident, kind, zero fluff. Always use the learner's own situation.
@@ -87,7 +104,9 @@ export function buildLessonContextBlock(ctx: LexiLessonContext): string {
     lines.push(`\nLesson content:\n${ctx.contentSummary.trim().slice(0, 1800)}`)
   }
   if (ctx.learnerBackground?.trim()) {
-    lines.push(`\nLearner background: ${ctx.learnerBackground.trim()}`)
+    lines.push(
+      `\nLEARNER PROFILE (from their intake quiz — use it to personalize, don't read it back to them):\n${ctx.learnerBackground.trim()}`
+    )
   }
   return lines.join('\n')
 }
@@ -123,11 +142,16 @@ async function* mockStream(): AsyncGenerator<string> {
  * The caller only consumes the yielded text, so nothing is returned — the old
  * Anthropic final-message return value was never read.
  *
+ * `signal` must be wired to the response lifecycle by the caller: without it a
+ * learner who closes the tab mid-reply leaves us paying for the rest of a
+ * generation nobody will ever read.
+ *
  * @yields string — incremental text chunks from the model
  */
 export async function* streamLexiResponse(
   turns: LexiTurn[],
-  ctx: LexiLessonContext
+  ctx: LexiLessonContext,
+  signal?: AbortSignal
 ): AsyncGenerator<string, void, undefined> {
   const key = env.OPENAI_API_KEY?.trim()
 
@@ -155,36 +179,68 @@ export async function* streamLexiResponse(
     ...history.map((t) => ({ role: t.role, content: t.content }) as const),
   ]
 
+  // Already gone before we spent anything — don't call OpenAI at all.
+  if (signal?.aborted) return
+
   try {
-    const stream = await client.chat.completions.create({
-      model: LEXI_MODEL,
-      // `max_completion_tokens`, not `max_tokens`: newer OpenAI models reject the
-      // legacy field outright (400 Unsupported parameter), and it is accepted by
-      // the older ones too — so this works across the whole model range.
-      max_completion_tokens: LEXI_MAX_TOKENS,
-      messages,
-      stream: true,
-    })
+    const stream = await client.chat.completions.create(
+      {
+        model: LEXI_MODEL,
+        // `max_completion_tokens`, not `max_tokens`: newer OpenAI models reject the
+        // legacy field outright (400 Unsupported parameter), and it is accepted by
+        // the older ones too — so this works across the whole model range.
+        max_completion_tokens: LEXI_MAX_TOKENS,
+        messages,
+        stream: true,
+      },
+      // Aborting the request is what actually stops OpenAI billing us for the
+      // rest of the completion; breaking out of the loop alone would not.
+      { signal }
+    )
 
     for await (const part of stream) {
       const delta = part.choices[0]?.delta?.content
       if (delta) yield delta
     }
   } catch (e) {
+    // A caller-initiated abort is the expected path when the learner leaves —
+    // end the generator quietly instead of surfacing it as a failure.
+    if (signal?.aborted) return
     throw mapLexiError(e)
   }
 }
 
 /**
- * Maps OpenAI SDK errors to AppError with a safe client-facing message.
+ * Maps upstream errors to an AppError with a genuinely safe client-facing message.
+ *
+ * Upstream text is never forwarded to the learner. Real OpenAI messages embed our
+ * org id and a partial key fingerprint ("Incorrect API key provided:
+ * sk-proj-****...XYZA", "...in organization org-XXXX"), so echoing err.message
+ * would print those into a chat window. The detail is logged server-side instead.
+ *
+ * The upstream status is deliberately NOT passed through either: a 401 from a bad
+ * OpenAI key would otherwise reach the browser as a 401 and read as an expired
+ * session, logging the learner out over our own misconfiguration.
  */
 function mapLexiError(err: unknown): AppError {
   if (err instanceof AppError) return err
+
   if (err instanceof OpenAI.APIError) {
-    const s = err.status
-    const status = typeof s === 'number' && s >= 400 && s < 600 ? s : 502
-    return new AppError(status, `Lexi: ${err.message}`)
+    console.error('[lexi] OpenAI API error', {
+      status: err.status,
+      type: err.type,
+      code: err.code,
+      message: err.message,
+    })
+
+    // 429 is the one case worth distinguishing: it is transient and retrying
+    // shortly is the correct user action.
+    if (err.status === 429) {
+      return new AppError(429, 'Lexi is busy right now. Please try again in a moment.')
+    }
+    return new AppError(502, 'Lexi is temporarily unavailable. Please try again shortly.')
   }
-  const msg = err instanceof Error ? err.message : 'Unknown error'
-  return new AppError(502, `Lexi: ${msg}`)
+
+  console.error('[lexi] unexpected error', err)
+  return new AppError(502, 'Lexi is temporarily unavailable. Please try again shortly.')
 }

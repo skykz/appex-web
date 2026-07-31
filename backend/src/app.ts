@@ -21,11 +21,19 @@ import adminRoutes from './api/admin/admin.route.js'
 import lexiRoutes from './api/lexi/lexi.route.js'
 import { stripeWebhookHandler } from './api/stripe/stripe.webhook.js'
 import { requestLogger } from './middleware/request-log.middleware.js'
+import { globalLimiter } from './middleware/rate-limit.middleware.js'
 
 /**
  * Express application (shared by local `index.ts` and Vercel serverless `api/index.ts`).
  */
 const app = express()
+
+// Behind Vercel's proxy every request arrives from the platform's own address, so
+// req.ip would be identical for all clients and IP-keyed rate limiting would treat
+// the whole internet as one bucket. Trusting one hop makes req.ip the real client
+// address from X-Forwarded-For. Keep this at 1 — trusting all hops lets a client
+// spoof the header and forge its own key.
+app.set('trust proxy', 1)
 
 /**
  * When `CORS_ORIGINS` is set, only those exact origins get `Access-Control-Allow-Origin`
@@ -57,6 +65,12 @@ app.post(
   express.raw({ type: 'application/json' }),
   stripeWebhookHandler
 )
+
+// Rate limiting starts here, i.e. after the Stripe webhook: Stripe retries
+// aggressively and legitimately, is authenticated by signature rather than by
+// origin, and must never be throttled. Placed before express.json() so a flood of
+// oversized bodies is rejected before we spend memory parsing them.
+app.use(globalLimiter)
 
 app.use(express.json({ limit: '25mb' }))
 

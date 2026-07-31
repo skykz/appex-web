@@ -246,6 +246,8 @@ export function LessonViewer({
       />
       <LessonAssistantWidget
         lessonLabel={lessonLabel}
+        // Only known for the final lesson of a module; Lexi omits it when absent.
+        moduleLabel={moduleCompletion?.moduleLabel}
         stepIndex={stepIndex}
         stepCount={totalSteps}
         blocks={currentBlocks}

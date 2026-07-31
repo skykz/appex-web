@@ -18,8 +18,6 @@ export interface LexiLessonCtx {
   stepCount: number
   /** Trimmed lesson content sent as grounding context (max ~1800 chars). */
   contentSummary?: string
-  /** Learner background from the onboarding quiz (optional). */
-  learnerBackground?: string
 }
 
 export interface LexiThread {
