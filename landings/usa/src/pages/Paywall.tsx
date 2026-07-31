@@ -386,8 +386,6 @@ function PricingBlock({
         ))}
       </div>
 
-      <PaywallTrustBadges />
-
       {/* FTC-required negative-option disclosure (dynamic per plan). Sits ABOVE
           the CTA so the terms are read before the click that agrees to them —
           the disclosure has to precede consent, not follow it. */}
@@ -416,7 +414,7 @@ function PricingBlock({
         </span>
       </button>
 
-      <p className="text-[13px] text-center mb-5">
+      <p className="text-[13px] text-center mb-4">
         <button
           type="button"
           onClick={onSignIn}
@@ -426,6 +424,10 @@ function PricingBlock({
           I already have an account
         </button>
       </p>
+
+      {/* Social proof sits AFTER the CTA: above it, it pushed the plan cards and
+          the button below the fold on short mobile viewports. */}
+      <PaywallTrustBadges />
     </div>
   );
 }

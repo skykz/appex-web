@@ -16,6 +16,7 @@ import {
 } from '../../services/stripe.service.js'
 import { CANCEL_DEADLINE_MS } from '../../services/subscription-billing.constants.js'
 import { sendCancellationConfirmedAsync } from '../../services/lifecycle-email.service.js'
+import { paymentLog } from '../../lib/logger.js'
 
 const BILLING_INTERVALS: BillingInterval[] = ['week_1', 'week_4', 'year']
 
@@ -251,6 +252,41 @@ async function getUserStripeSubId(userId: string): Promise<string> {
   return data.stripe_subscription_id
 }
 
+/**
+ * Detaches a subscription from its Subscription Schedule, if it has one.
+ *
+ * The "1 Week" plan is sold as a two-phase schedule (intro week → 4-week price),
+ * and Stripe refuses direct `subscriptions.update` calls on a subscription a
+ * schedule controls. Every self-serve action here — cancel, pause, switch plan —
+ * is such an update, so without this they all fail with a 500 and the learner
+ * cannot cancel at all. That contradicts the "cancel anytime in one click"
+ * promise in the FTC disclosure shown at checkout.
+ *
+ * `release` keeps the subscription running exactly as it is and only removes the
+ * schedule's control, so the caller's own update then applies normally. The
+ * alternative (cancelling the schedule) would end the subscription immediately
+ * and cut access the learner already paid for.
+ *
+ * Safe to call for any subscription: no schedule means nothing to do. Never
+ * throws — if the release fails, the caller's update is attempted anyway and
+ * surfaces the real Stripe error rather than this one.
+ */
+async function releaseScheduleIfAny(subId: string): Promise<void> {
+  try {
+    const stripe = getStripe()
+    const sub = await stripe.subscriptions.retrieve(subId)
+    if (!sub.schedule) return
+    const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : sub.schedule.id
+    await stripe.subscriptionSchedules.release(scheduleId)
+    paymentLog.info('subscription.schedule_released', { subId, scheduleId })
+  } catch (err) {
+    paymentLog.error('subscription.schedule_release_failed', {
+      subId,
+      message: err instanceof Error ? err.message : 'unknown',
+    })
+  }
+}
+
 /** Pauses collection on the subscription (Stripe keeps the sub active but stops billing). */
 export async function pauseSubscription(
   req: Request,
@@ -261,6 +297,8 @@ export async function pauseSubscription(
     const { userId } = req as AuthenticatedRequest
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
+    // A scheduled subscription rejects direct updates — see releaseScheduleIfAny.
+    await releaseScheduleIfAny(subId)
     const updated = await stripe.subscriptions.update(subId, {
       pause_collection: { behavior: 'void' },
     })
@@ -281,6 +319,8 @@ export async function resumeSubscription(
     const { userId } = req as AuthenticatedRequest
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
+    // Scheduled subs reject direct updates — see releaseScheduleIfAny.
+    await releaseScheduleIfAny(subId)
     const updated = await stripe.subscriptions.update(subId, {
       pause_collection: '',
     })
@@ -323,6 +363,8 @@ export async function cancelSubscription(
 
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
+    // Scheduled subs reject direct updates — see releaseScheduleIfAny.
+    await releaseScheduleIfAny(subId)
     const updated = await stripe.subscriptions.update(subId, {
       cancel_at_period_end: true,
     })
@@ -349,6 +391,8 @@ export async function reactivateSubscription(
     const { userId } = req as AuthenticatedRequest
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
+    // Scheduled subs reject direct updates — see releaseScheduleIfAny.
+    await releaseScheduleIfAny(subId)
     const updated = await stripe.subscriptions.update(subId, {
       cancel_at_period_end: false,
     })
@@ -373,6 +417,8 @@ export async function switchToYearly(
     const { userId } = req as AuthenticatedRequest
     const subId = await getUserStripeSubId(userId)
     const stripe = getStripe()
+    // Scheduled subs reject direct updates — see releaseScheduleIfAny.
+    await releaseScheduleIfAny(subId)
     const current = await stripe.subscriptions.retrieve(subId)
     const itemId = current.items.data[0]?.id
     if (!itemId) throw new AppError(500, 'Subscription has no line items')

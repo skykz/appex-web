@@ -182,26 +182,31 @@ export default function ActivityToasts({ variant = "landing" }: { variant?: Toas
   return (
     <div
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-50 pointer-events-none hidden sm:block"
+      // Mobile: bottom-left, clear of any sticky CTA on the right. Desktop keeps
+      // the bottom-right corner. `pb-safe` keeps it off the iOS home indicator.
+      // z-30 on mobile keeps it under the paywall's sticky CTA (z-40), which
+      // shares the bottom edge; desktop has no sticky bar so it can sit higher.
+      className="fixed left-3 bottom-3 right-auto sm:left-auto sm:right-4 sm:bottom-4 z-30 sm:z-50 pointer-events-none"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div
-        className={`max-w-[300px] rounded-xl border border-border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm transition-all duration-500 ${
+        className={`max-w-[230px] sm:max-w-[300px] rounded-xl border border-border bg-card/95 px-3 py-2 sm:px-4 sm:py-3 shadow-lg backdrop-blur-sm transition-all duration-500 ${
           visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"
         }`}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2 sm:gap-3">
           <span className="mt-1 flex-shrink-0">
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-2 w-2 sm:h-2.5 sm:w-2.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60" />
-              <span className="relative inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-primary" />
+              <span className="relative inline-flex h-2 w-2 sm:h-2.5 sm:w-2.5 animate-pulse rounded-full bg-primary" />
             </span>
           </span>
           <div className="leading-snug">
-            <p className="text-[13px] text-foreground font-body">
+            <p className="text-[11px] sm:text-[13px] text-foreground font-body">
               <span className="font-bold">{toast.name}</span>
               <span className="text-muted-foreground"> from {toast.city}</span> {toast.action}
             </p>
-            <p className="text-[11px] text-muted-foreground font-body mt-0.5">
+            <p className="text-[9.5px] sm:text-[11px] text-muted-foreground font-body mt-0.5">
               {timeAgo(toast.minutesAgo)}
             </p>
           </div>
