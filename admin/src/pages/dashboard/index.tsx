@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -7,12 +8,24 @@ import {
   CreditCard,
   DollarSign,
   Activity,
+  ChevronRight,
+  Flag,
+  LogIn,
+  UserMinus,
 } from 'lucide-react'
-import { dashboardApi } from '@features/dashboard/api'
+import { dashboardApi, type DashboardRange } from '@features/dashboard/api'
 import { StatCard } from '@features/dashboard/stat-card'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
+import { Select } from '@shared/ui/select'
 import { Skeleton } from '@shared/ui/skeleton'
+
+const RANGES: Array<{ value: DashboardRange; label: string }> = [
+  { value: 'all', label: 'All time' },
+  { value: '90d', label: 'Last 90 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: '7d', label: 'Last 7 days' },
+]
 
 /** Formats an ISO timestamp for compact list display in the admin dashboard. */
 function formatDate(iso: string) {
@@ -22,6 +35,140 @@ function formatDate(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+/**
+ * Landing-quiz funnel summary: started → reached email → completed, with the
+ * drop-off stated outright. Links to /funnel for the per-step breakdown.
+ */
+function QuizFunnelSection({
+  quiz,
+  rangeLabel,
+  isRanged,
+}: {
+  quiz: { started: number; completed: number; abandoned: number; completionRate: number; reachedEmail: number }
+  rangeLabel: string
+  isRanged: boolean
+}) {
+  const noData = quiz.started === 0
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Landing quiz funnel</h2>
+          <p className="text-sm text-muted-foreground">
+            Attempts on the marketing quiz{isRanged ? ` · ${rangeLabel.toLowerCase()}` : ''}. Counted
+            per attempt, so a repeat visit from the same device counts twice.
+          </p>
+        </div>
+        <Link
+          to="/funnel"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Step-by-step drop-off
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </Link>
+      </div>
+
+      {noData ? (
+        <Card className="border-dashed border-border/70">
+          <CardContent className="p-6">
+            <p className="font-medium">No quiz attempts recorded{isRanged ? ' in this period' : ' yet'}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Attempts appear here once visitors start the quiz on the landing page. If traffic is
+              live and this stays empty, per-step tracking may not be reaching the API.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              label="Started quiz"
+              value={quiz.started}
+              icon={Flag}
+              hint="Opened the first screen"
+              tone="blue"
+            />
+            <StatCard
+              label="Reached email step"
+              value={quiz.reachedEmail}
+              icon={LogIn}
+              hint={`${pct(quiz.reachedEmail, quiz.started)}% of starts`}
+              tone="cyan"
+            />
+            <StatCard
+              label="Finished quiz"
+              value={quiz.completed}
+              icon={CheckCircle2}
+              hint={`${quiz.completionRate}% completion rate`}
+              tone="emerald"
+            />
+            <StatCard
+              label="Dropped off"
+              value={quiz.abandoned}
+              icon={UserMinus}
+              hint={`${pct(quiz.abandoned, quiz.started)}% left before the end`}
+              tone="rose"
+            />
+          </div>
+
+          <Card className="border-border/70 shadow-sm">
+            <CardContent className="space-y-3 p-5">
+              <FunnelBar label="Started" value={quiz.started} total={quiz.started} tone="bg-primary/70" />
+              <FunnelBar
+                label="Reached email"
+                value={quiz.reachedEmail}
+                total={quiz.started}
+                tone="bg-cyan-500/70"
+              />
+              <FunnelBar
+                label="Finished"
+                value={quiz.completed}
+                total={quiz.started}
+                tone="bg-emerald-500/70"
+              />
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </section>
+  )
+}
+
+/** One horizontal funnel stage, width proportional to the first stage. */
+function FunnelBar({
+  label,
+  value,
+  total,
+  tone,
+}: {
+  label: string
+  value: number
+  total: number
+  tone: string
+}) {
+  const share = total > 0 ? Math.min(100, (value / total) * 100) : 0
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-28 shrink-0 text-xs font-medium text-muted-foreground">{label}</span>
+      <div className="h-6 flex-1 overflow-hidden rounded-md bg-muted/60">
+        <div
+          className={`h-full ${tone} transition-[width] duration-500`}
+          style={{ width: `${share}%` }}
+        />
+      </div>
+      <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+        {value} · {Math.round(share)}%
+      </span>
+    </div>
+  )
+}
+
+/** Whole-percent share of `part` in `whole`, guarding division by zero. */
+function pct(part: number, whole: number): number {
+  return whole > 0 ? Math.round((part / whole) * 100) : 0
 }
 
 /** Formats a numeric amount as USD for revenue display. */
@@ -35,10 +182,13 @@ function formatCurrency(n: number) {
 
 /** Loads aggregate Supabase metrics and recent activity lists for the admin home screen. */
 export function DashboardPage() {
+  const [range, setRange] = useState<DashboardRange>('all')
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['admin', 'dashboard'],
-    queryFn: dashboardApi.stats,
+    queryKey: ['admin', 'dashboard', range],
+    queryFn: () => dashboardApi.stats(range),
   })
+  const rangeLabel = RANGES.find((r) => r.value === range)?.label ?? 'All time'
+  const isRanged = range !== 'all'
 
   if (isLoading) {
     return (
@@ -78,10 +228,35 @@ export function DashboardPage() {
         badge="Admin"
         title="Dashboard"
         description="Key growth and learning metrics at a glance."
+        actions={
+          <div className="flex items-center gap-2">
+            <label htmlFor="dash-range" className="sr-only">
+              Date range
+            </label>
+            <Select
+              id="dash-range"
+              className="h-10 w-44 border-border/80 shadow-sm"
+              value={range}
+              onChange={(e) => setRange(e.target.value as DashboardRange)}
+            >
+              {RANGES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard label="Total users" value={t.users} icon={Users} tone="blue" />
+        <StatCard
+          label={isRanged ? 'New users' : 'Total users'}
+          value={t.users}
+          icon={Users}
+          hint={isRanged ? `Signed up · ${rangeLabel.toLowerCase()}` : undefined}
+          tone="blue"
+        />
         <StatCard
           label="Active today"
           value={t.activeToday}
@@ -89,27 +264,37 @@ export function DashboardPage() {
           hint={`${activeRate}% of users checked in`}
           tone="orange"
         />
-        <StatCard label="Skills (courses)" value={t.skills} icon={BookOpen} tone="violet" />
+        <StatCard
+          label="Skills (courses)"
+          value={t.skills}
+          icon={BookOpen}
+          hint={isRanged ? 'Catalog size — not date-filtered' : undefined}
+          tone="violet"
+        />
         <StatCard
           label="Lessons completed"
           value={t.lessonsCompleted}
           icon={CheckCircle2}
+          hint={isRanged ? rangeLabel : undefined}
           tone="emerald"
         />
         <StatCard
           label="Active subscriptions"
           value={t.activeSubscriptions}
           icon={CreditCard}
+          hint={isRanged ? 'Live count — not date-filtered' : undefined}
           tone="amber"
         />
         <StatCard
-          label="Total revenue"
+          label="Revenue"
           value={formatCurrency(t.revenue)}
           icon={DollarSign}
-          hint="All-time billing"
+          hint={isRanged ? rangeLabel : 'All-time billing'}
           tone="orange"
         />
       </section>
+
+      <QuizFunnelSection quiz={data.quiz} rangeLabel={rangeLabel} isRanged={isRanged} />
 
       <section className="grid gap-6 lg:grid-cols-2">
         <Card className="border-border/70 shadow-sm">

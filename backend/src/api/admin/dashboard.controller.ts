@@ -1,10 +1,37 @@
 import type { Request, Response, NextFunction } from 'express'
+import { z } from 'zod'
 import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import {
   excludeAdminUsers,
   getAdminUserIds,
 } from '../../utils/admin-insights.js'
+
+const statsQuerySchema = z.object({
+  /** Window applied to time-bounded metrics. `all` leaves them unbounded. */
+  range: z.enum(['all', '7d', '30d', '90d']).default('all'),
+})
+
+const RANGE_DAYS: Record<string, number | null> = {
+  all: null,
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+}
+
+/** ISO timestamp `days` ago, or null for an unbounded range. */
+function sinceIso(days: number | null): string | null {
+  if (days == null) return null
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+/**
+ * Slug of the email-capture screen, from `quiz-steps.ts` on the landing
+ * (step 43 / overlay step 31). Kept as a constant because it is the one step id
+ * this summary hard-codes — if the quiz is restructured and this slug changes,
+ * the "reached email" figure silently drops to zero.
+ */
+const EMAIL_STEP_ID = 'email_capture'
 
 type CountableQuery = ReturnType<
   ReturnType<typeof supabaseAdmin.from>['select']
@@ -27,10 +54,82 @@ function startOfTodayUTC(): string {
 }
 
 /**
+ * Landing-quiz funnel: how many attempts started, how many reached the end, and
+ * how many stopped somewhere in between.
+ *
+ * Counted per SESSION rather than per `anon_id`, matching `quiz_funnel` in
+ * migration 037: `anon_id` lives in localStorage across visits, so someone who
+ * starts on Monday and restarts on Tuesday is one device but two attempts —
+ * counting devices would merge those and understate both traffic and drop-off.
+ *
+ * `quiz_events` is written from the first landing hit, so unlike
+ * `landing_quiz_submissions` (only written at the email step) this does see the
+ * visitors who leave early.
+ */
+async function getQuizFunnel(since: string | null): Promise<{
+  started: number
+  completed: number
+  abandoned: number
+  completionRate: number
+  reachedEmail: number
+}> {
+  let query = supabaseAdmin
+    .from('quiz_events')
+    .select('anon_id, session_id, event_name, step_id')
+    .in('event_name', ['quiz_start', 'quiz_complete', 'step_answer'])
+  if (since) query = query.gte('created_at', since)
+
+  const { data, error } = await query
+  if (error) {
+    // The table arrives with migration 037; treat "not yet applied" as "no data"
+    // rather than failing the whole dashboard.
+    if (error.code === 'PGRST205' || /does not exist/i.test(error.message)) {
+      return { started: 0, completed: 0, abandoned: 0, completionRate: 0, reachedEmail: 0 }
+    }
+    throw new AppError(500, `quiz_events: ${error.message}`)
+  }
+
+  const started = new Set<string>()
+  const completed = new Set<string>()
+  const reachedEmail = new Set<string>()
+
+  for (const row of data ?? []) {
+    const attempt = String(row.session_id ?? row.anon_id ?? '')
+    if (!attempt) continue
+    const name = row.event_name as string
+    if (name === 'quiz_start') started.add(attempt)
+    else if (name === 'quiz_complete') completed.add(attempt)
+    if (row.step_id === EMAIL_STEP_ID) reachedEmail.add(attempt)
+  }
+
+  // A session that only emitted later events still started the quiz; union so a
+  // dropped `quiz_start` beacon can't make "completed" exceed "started".
+  for (const a of completed) started.add(a)
+  for (const a of reachedEmail) started.add(a)
+
+  const startedCount = started.size
+  const completedCount = completed.size
+
+  return {
+    started: startedCount,
+    completed: completedCount,
+    abandoned: Math.max(0, startedCount - completedCount),
+    completionRate: startedCount
+      ? Math.round((completedCount / startedCount) * 1000) / 10
+      : 0,
+    reachedEmail: reachedEmail.size,
+  }
+}
+
+/**
  * Sums billing revenue, excluding payments from admin accounts.
  */
-async function sumRevenueExcludingAdmins(adminIds: string[]): Promise<number> {
+async function sumRevenueExcludingAdmins(
+  adminIds: string[],
+  since: string | null
+): Promise<number> {
   let query = supabaseAdmin.from('billing_history').select('amount')
+  if (since) query = query.gte('paid_at', since)
   query = excludeAdminUsers(query, adminIds)
   const { data, error } = await query
   if (error) throw new AppError(500, `billing_history sum: ${error.message}`)
@@ -42,11 +141,13 @@ async function sumRevenueExcludingAdmins(adminIds: string[]): Promise<number> {
  * Admin accounts are excluded from user-facing metrics so internal activity does not skew insights.
  */
 export async function getDashboardStats(
-  _req: Request,
+  req: Request,
   res: Response,
   next: NextFunction
 ) {
   try {
+    const { range } = statsQuerySchema.parse(req.query)
+    const since = sinceIso(RANGE_DAYS[range] ?? null)
     const today = startOfTodayUTC()
     const adminIds = await getAdminUserIds()
 
@@ -56,16 +157,25 @@ export async function getDashboardStats(
       lessonsCompletedTotal,
       activeSubs,
       revenue,
+      quiz,
     ] = await Promise.all([
-      count('users', (q) => q.neq('role', 'admin')),
+      // Signups are datable, so the range narrows them to "new users in period".
+      count('users', (q) => {
+        const base = q.neq('role', 'admin')
+        return since ? base.gte('created_at', since) : base
+      }),
+      // Catalog size and active-subscription count are point-in-time state, not
+      // events, so a date range does not apply to them.
       count('skills'),
-      count('lesson_progress', (q) =>
-        excludeAdminUsers(q.eq('completed', true), adminIds)
-      ),
+      count('lesson_progress', (q) => {
+        const base = excludeAdminUsers(q.eq('completed', true), adminIds)
+        return since ? base.gte('completed_at', since) : base
+      }),
       count('subscriptions', (q) =>
         excludeAdminUsers(q.eq('status', 'active'), adminIds)
       ),
-      sumRevenueExcludingAdmins(adminIds),
+      sumRevenueExcludingAdmins(adminIds, since),
+      getQuizFunnel(since),
     ])
 
     // Users active today = streak_days rows for today, excluding admins
@@ -106,6 +216,7 @@ export async function getDashboardStats(
     }))
 
     res.json({
+      range,
       totals: {
         users: usersTotal,
         activeToday: activeTodayCount ?? 0,
@@ -114,6 +225,7 @@ export async function getDashboardStats(
         activeSubscriptions: activeSubs,
         revenue,
       },
+      quiz,
       recentUsers: recentUsers ?? [],
       recentLessonsCompleted,
     })
