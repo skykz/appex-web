@@ -17,6 +17,7 @@ import {
   getGa4ClientId,
 } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
+import { trackFunnelEvent } from "@/lib/quiz-tracker";
 import { goalLabel, fearLabel, timeCommitmentLabel } from "@/lib/answer-labels";
 import {
   PAYWALL_PLANS,
@@ -501,6 +502,7 @@ export default function Paywall() {
       };
       ga4PaywallAbandon(payload);
       pushToDataLayer("paywall_abandon", payload);
+      trackFunnelEvent("paywall_abandon", payload);
     };
     document.addEventListener("visibilitychange", onHidden);
     return () => {
@@ -517,6 +519,8 @@ export default function Paywall() {
     paywallViewFired.current = true;
     ga4PaywallView({ discount_tier: discountState });
     pushToDataLayer("paywall_view", { discount_tier: discountState });
+    // Our own store too, so the funnel doesn't stop at the quiz.
+    trackFunnelEvent("paywall_view", { discount_tier: discountState });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -598,6 +602,7 @@ export default function Paywall() {
     };
     ga4PlanSelect(payload);
     pushToDataLayer("plan_select", payload);
+    trackFunnelEvent("plan_select", payload);
     setSelected(i);
   };
 
@@ -614,6 +619,11 @@ export default function Paywall() {
     checkoutOutcome.current = "abandoned";
     openedCheckoutRef.current = true;
     ga4CheckoutModalView({
+      plan: plan.id,
+      discount_tier: discountState,
+      value: Number(priceFor(plan, discountState)),
+    });
+    trackFunnelEvent("checkout_modal_view", {
       plan: plan.id,
       discount_tier: discountState,
       value: Number(priceFor(plan, discountState)),
@@ -643,6 +653,7 @@ export default function Paywall() {
       };
       ga4CheckoutAbandon(payload);
       pushToDataLayer("checkout_abandon", payload);
+      trackFunnelEvent("checkout_abandon", payload);
     }
     setCheckoutOpen(false);
   };

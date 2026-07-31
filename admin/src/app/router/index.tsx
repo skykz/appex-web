@@ -15,6 +15,7 @@ import { SubmissionsPage } from '@pages/submissions'
 import { BillingPage } from '@pages/billing'
 import { RefundsPage } from '@pages/refunds'
 import { BillingAlertsPage } from '@pages/billing-alerts'
+import { FunnelPage } from '@pages/funnel'
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -36,6 +37,7 @@ export const router = createBrowserRouter([
           { path: '/billing', element: <BillingPage /> },
           { path: '/refunds', element: <RefundsPage /> },
           { path: '/billing-alerts', element: <BillingAlertsPage /> },
+          { path: '/funnel', element: <FunnelPage /> },
           { path: '/support', element: <SupportInboxPage /> },
           { path: '/submissions', element: <SubmissionsPage /> },
         ],

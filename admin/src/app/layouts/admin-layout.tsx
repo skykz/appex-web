@@ -16,6 +16,7 @@ import {
   X,
   Undo2,
   AlertTriangle,
+  TrendingDown,
 } from 'lucide-react'
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
@@ -29,6 +30,7 @@ import { Button } from '@shared/ui/button'
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/categories', label: 'Categories', icon: FolderTree },
+  { to: '/funnel', label: 'Funnel', icon: TrendingDown },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/users', label: 'Users', icon: Users },
   { to: '/billing', label: 'Billing', icon: CreditCard },

@@ -3,7 +3,7 @@ import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
 import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
-import { trackStepAnswer, getQuestionText } from "@/lib/quiz-tracker";
+import { trackStepAnswer, getQuestionText, trackQuizEvent } from "@/lib/quiz-tracker";
 
 export type Answers = {
   experience_with_claude?: "yes" | "no";
@@ -143,6 +143,9 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     trackQuizStart();
     ga4QuizStart();
     pushToDataLayer("quiz_start");
+    // Also into our own store, so the funnel view has a real entry point rather
+    // than inferring it from the first step_view.
+    trackQuizEvent({ event_name: "quiz_start" });
   }, []);
 
   // quiz_complete when the last overlay step is reached.
@@ -157,6 +160,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     trackQuizComplete();
     ga4QuizComplete();
     pushToDataLayer("quiz_complete");
+    trackQuizEvent({ event_name: "quiz_complete", step_order: TOTAL_STEPS });
   }, [state.step]);
 
   // Persist answers to sessionStorage whenever answers change (for paywall personalization)

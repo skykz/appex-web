@@ -246,6 +246,47 @@ export function setQuizEmail(email: string): void {
   flush()
 }
 
+/**
+ * Records a post-quiz funnel step (paywall, plan choice, checkout).
+ *
+ * Same store as the quiz steps on purpose: a funnel split across two tables
+ * can't be read as one sequence, and the paywall is exactly where the money is
+ * lost — 21 leads produced 2 purchases. `step_id` carries the event name so the
+ * funnel view orders quiz and paywall stages together.
+ *
+ * `step_order` continues past the quiz (100+) so ordering stays monotonic
+ * without colliding with quiz steps if the quiz ever grows.
+ */
+const FUNNEL_ORDER: Record<string, number> = {
+  paywall_view: 100,
+  plan_select: 101,
+  checkout_modal_view: 102,
+  checkout_abandon: 103,
+  paywall_abandon: 104,
+  checkout_error: 105,
+  purchase: 110,
+}
+
+export function trackFunnelEvent(
+  name: string,
+  props: Record<string, unknown> = {}
+): void {
+  trackQuizEvent({
+    event_name: 'step_view',
+    step_id: name,
+    step_order: FUNNEL_ORDER[name] ?? 100,
+    section: 'paywall',
+    step_type: 'funnel',
+    // Values worth filtering on get their own columns; the rest ride in props.
+    answer_label: typeof props.plan === 'string' ? props.plan : undefined,
+    answer_value: props.value ?? props.plan ?? null,
+    props,
+  })
+  // The paywall is the last thing many visitors see, so don't wait for the
+  // buffer to fill — a tab closed right after is otherwise a lost event.
+  if (name.endsWith('_abandon') || name === 'checkout_error') flush(true)
+}
+
 /** Records leaving mid-quiz. Called from the exit handler below. */
 export function trackQuizAbandon(meta: {
   step_order: number
