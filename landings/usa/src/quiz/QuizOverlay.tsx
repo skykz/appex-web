@@ -220,9 +220,26 @@ function TopBar() {
   );
 }
 
+/**
+ * Step container.
+ *
+ * On phones the step fills the remaining viewport height and lays its children
+ * out in a column, so anything marked `data-quiz-actions` (the answer list or a
+ * button row) is pushed to the bottom, within thumb reach, instead of floating
+ * mid-screen on a tall device. `flex-1` on the overlay's own flex column is what
+ * makes the height work without hardcoding the TopBar's size, which varies with
+ * the progress rail.
+ *
+ * From `md` up the block simply flows from the top, where centring a short step
+ * in a wide window already reads fine.
+ */
 function StepShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[520px] px-5 py-5 animate-[fadeUp_0.35s_ease-out]">
+    // `min-h-*` rather than `flex-1`: flex-1 would cap the step at the container
+    // height and clip a long option list without producing a scrollbar. A minimum
+    // height still pushes short steps' actions to the bottom, while letting tall
+    // ones grow past the fold and scroll normally.
+    <div className="mx-auto flex w-full max-w-[520px] flex-col px-5 py-5 animate-[fadeUp_0.35s_ease-out] [min-height:calc(100dvh-var(--quiz-topbar,7rem))] md:block md:min-h-0">
       {children}
     </div>
   );
@@ -294,7 +311,10 @@ function OptionList<T extends string>({
 }: { options: Opt[]; value?: T; onPick: (v: T) => void }) {
   const [picked, setPicked] = useState<string | undefined>(value);
   return (
-    <div className="flex flex-col gap-3">
+    // `mt-auto` is what drops the answers to the bottom of StepShell's column on
+    // phones — the question stays put at the top and the tap targets sit under the
+    // thumb. Reset at `md`, where the step flows normally.
+    <div className="mt-auto flex flex-col gap-3 pt-6 md:mt-0 md:pt-0">
       {options.map((o, i) => {
         const active = picked === o.value;
         return (
