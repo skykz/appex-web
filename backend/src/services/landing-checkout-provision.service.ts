@@ -281,8 +281,10 @@ export async function provisionFromLandingCheckoutSession(
   subscription.metadata = { ...subscription.metadata, user_id: userId }
   await ensureStripeCustomerMapping(userId, customerId)
 
-  // "1 Week" is sold as one intro week that converts to the 4-week price. The
-  // conversion can only be attached after checkout creates the subscription.
+  // Legacy path. week_1 checkouts are now created directly on the 4-week price,
+  // so new sessions carry no `two_phase` flag and need no conversion. This still
+  // runs for webhook replays of sessions created under the old flow, where the
+  // subscription really does start on the weekly price.
   // Runs before the upsert so the stored subscription reflects the schedule.
   if (session.metadata?.two_phase === 'week_1_to_4week') {
     await scheduleWeek1Conversion(subscription, {

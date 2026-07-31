@@ -83,11 +83,11 @@ const envSchema = z.object({
   /** Stripe price IDs for billing cadences. */
   STRIPE_PRICE_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   /**
-   * Phase-1 price for the "1 Week" plan ($17.77/week). The plan is sold as a
-   * two-phase Subscription Schedule: one week at this price (discounted by the
-   * tier coupon), then it converts to STRIPE_PRICE_4WEEK forever. A single
-   * subscription can't express "7 days then a different cadence", which is what
-   * the paywall advertises.
+   * DEPRECATED — read by nothing. The "1 Week" plan used to be sold as a
+   * two-phase Subscription Schedule starting on this weekly price; it is now
+   * created directly on STRIPE_PRICE_4WEEK with a one-off coupon for the reduced
+   * first payment, so Stripe's checkout page states the real renewal terms.
+   * Kept declared so a deployed env that still sets it does not fail validation.
    */
   STRIPE_PRICE_1WEEK_INTRO: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),

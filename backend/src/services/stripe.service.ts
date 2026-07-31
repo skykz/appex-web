@@ -348,14 +348,35 @@ export async function createLandingCheckoutSession(
   }
 
   const landing = input.landing ?? 'usa'
-  // "1 Week" is a two-phase plan: 7 days at the weekly intro price, then it
-  // converts to the 4-week price forever — exactly what the paywall advertises
-  // ("$6.93 today, then $38.95 every 4 weeks"). Checkout bills phase 1; the
-  // webhook attaches a Subscription Schedule that flips it to phase 2 at day 7.
-  const isTwoPhaseWeek = input.interval === 'week_1' && Boolean(env.STRIPE_PRICE_1WEEK_INTRO)
-  const checkoutPriceId = isTwoPhaseWeek
-    ? (env.STRIPE_PRICE_1WEEK_INTRO as string)
+  // The "1 Week" paywall option advertises "$X today, then $38.95 every 4 weeks",
+  // so the subscription is created directly on the 4-week price and the reduced
+  // first payment comes from a one-off coupon.
+  //
+  // It used to be created on a $17.77/week price and converted to 4-week billing
+  // by a Subscription Schedule attached afterwards by the webhook. That schedule
+  // is applied only AFTER payment, so Stripe's own checkout page still stated
+  // "then $17.77 per week" — contradicting the paywall the customer had just
+  // agreed to. Billing on the real renewal price from the start makes the
+  // checkout page truthful and removes a conversion step that could fail and
+  // leave someone renewing weekly forever.
+  const isWeek1On4WeekPrice = input.interval === 'week_1' && Boolean(env.STRIPE_PRICE_4WEEK)
+  const checkoutPriceId = isWeek1On4WeekPrice
+    ? (env.STRIPE_PRICE_4WEEK as string)
     : priceId
+
+  // The coupon amounts are computed against the price the subscription is
+  // created on, so a week_1 checkout billed on the 4-week price needs the
+  // coupons that were recalculated for that base. Logged because the failure is
+  // silent otherwise: a stale coupon still applies, the customer is simply
+  // charged more today than the paywall promised.
+  if (isWeek1On4WeekPrice) {
+    paymentLog.info('checkout.week1_on_4week_price', {
+      reqId: input.reqId,
+      priceId: checkoutPriceId,
+      couponId: tierCoupon ?? null,
+      tier,
+    })
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -369,9 +390,6 @@ export async function createLandingCheckoutSession(
       // Which discount tier actually applied — lets you reconcile 61% vs 71% vs
       // full-price sales in Stripe without re-deriving it from the coupon id.
       discount_tier: tier,
-      // Tells provisioning to convert this subscription to the 4-week price
-      // after the single intro week (see scheduleWeek1Conversion).
-      ...(isTwoPhaseWeek ? { two_phase: 'week_1_to_4week' } : {}),
       ...(input.name?.trim() ? { name: input.name.trim() } : {}),
       // Meta attribution for the server-side Purchase event (read in provisioning).
       ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),
@@ -428,14 +446,17 @@ export interface Week1AlertContext {
 }
 
 /**
- * Converts a paid "1 Week" subscription into its two-phase schedule:
- *   phase 1 — the intro week already paid for at checkout ($17.77/week, minus
- *             the tier coupon), exactly 1 iteration;
- *   phase 2 — the 4-week price ($38.95), renewing indefinitely.
+ * LEGACY — no longer called for new checkouts.
  *
- * Checkout can only create a single-price subscription, so the conversion is
- * attached here, after payment. Without it the customer would keep renewing
- * weekly at $17.77 — contradicting the disclosure they agreed to.
+ * Converts a "1 Week" subscription that was created on the $17.77/week price
+ * into a two-phase schedule: one paid intro week, then the $38.95 4-week price
+ * indefinitely.
+ *
+ * New week_1 checkouts are created directly on the 4-week price (see
+ * `createLandingCheckoutSession`), so no conversion is needed. This is kept
+ * because subscriptions sold under the old flow still rely on their schedules,
+ * and because a schedule that failed to attach back then can still be repaired
+ * by calling this.
  *
  * Safe to call more than once: a subscription that already has a schedule is
  * left alone. Never throws — a failed conversion must not break provisioning.
