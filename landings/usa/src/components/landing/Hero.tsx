@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import paywallAfter from "@/assets/paywall-after.webp";
-import paywallAfterMale from "@/assets/paywall-after-male.webp";
+// Hero-only photos. Kept separate from the `paywall-after*.webp` pair, which the
+// paywall still uses as the "your future self" images after the quiz.
+import heroLearnerFemale from "@/assets/hero-learner-female.webp";
+import heroLearnerMale from "@/assets/hero-learner-male.webp";
 
 /* ── AI provider logos ── */
 function ChatGPTLogo({ size = 36 }: { size?: number }) {
@@ -168,7 +170,7 @@ export default function Hero() {
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg -rotate-[8deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[230px] md:h-[250px]"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfter} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={460} height={500} />
+            <img src={heroLearnerFemale} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={460} height={500} />
           </div>
         </div>
 
@@ -183,7 +185,7 @@ export default function Hero() {
             className="rounded-2xl md:rounded-[28px] overflow-hidden shadow-card-lg rotate-[6deg] hover:rotate-0 transition-transform duration-500 w-[90px] h-[100px] md:w-[260px] md:h-[230px]"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfterMale} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={520} height={460} />
+            <img src={heroLearnerMale} alt="Appex learner" className="w-full h-full object-cover" fetchPriority="high" decoding="async" width={520} height={460} />
           </div>
         </div>
 
@@ -244,7 +246,7 @@ export default function Hero() {
             className="rounded-2xl overflow-hidden shadow-card-lg -rotate-[8deg] w-[104px] h-[124px] shrink-0"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfter} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
+            <img src={heroLearnerFemale} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
           </div>
           <div className="flex flex-col gap-3 shrink-0">
             <div className="flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-card" style={{ border: "1px solid hsl(var(--border))" }}>
@@ -258,7 +260,7 @@ export default function Hero() {
             className="rounded-2xl overflow-hidden shadow-card-lg rotate-[6deg] w-[104px] h-[124px] shrink-0"
             style={{ border: "3px solid white" }}
           >
-            <img src={paywallAfterMale} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
+            <img src={heroLearnerMale} alt="Appex learner" className="w-full h-full object-cover" loading="eager" decoding="async" width={208} height={248} />
           </div>
         </div>
 

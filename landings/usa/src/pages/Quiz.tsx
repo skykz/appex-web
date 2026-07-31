@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import quizClaudeLaptop from "@/assets/quiz-claude-laptop.webp";
 import { QuizProvider, useQuiz } from "@/contexts/QuizContext";
 import QuizFlow from "@/components/quiz/QuizFlow";
 import { LegalLink } from "@/components/legal/LegalLink";
@@ -112,62 +113,16 @@ function IntroScreen({ onStart }: { onStart: () => void }) {
           <span className="absolute -top-1 -left-2 text-[14px] opacity-60">✦</span>
           <span className="absolute -top-2 right-2 text-[12px] opacity-50">✦</span>
 
-          {/* Laptop body */}
-          <div className="relative">
-            {/* Screen */}
-            <div
-              className="rounded-t-xl p-1.5"
-              style={{
-                background: 'linear-gradient(180deg, #1A1A1A 0%, #0D0D0D 100%)',
-                boxShadow: '0 12px 28px -10px rgba(249,115,22,0.35)',
-              }}
-            >
-              <div
-                className="rounded-md p-2.5"
-                style={{
-                  background: '#FFF7ED',
-                  aspectRatio: '16 / 10',
-                }}
-              >
-                {/* Browser top bar */}
-                <div className="flex items-center gap-1 mb-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FF5F57]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#FEBC2E]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#28C840]" />
-                </div>
-
-                {/* Claude logo in center */}
-                <div className="flex items-center justify-center h-[calc(100%-16px)]">
-                  <svg viewBox="0 0 100 100" className="w-12 h-12 md:w-20 md:h-20" aria-hidden>
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <rect
-                        key={i}
-                        x="46"
-                        y="10"
-                        width="8"
-                        height="34"
-                        rx="4"
-                        fill="#F97316"
-                        transform={`rotate(${i * 36} 50 50)`}
-                      />
-                    ))}
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            {/* Laptop base */}
-            <div
-              className="h-2 rounded-b-xl"
-              style={{
-                background: 'linear-gradient(180deg, #2A2A2A 0%, #1A1A1A 100%)',
-                width: '110%',
-                marginLeft: '-5%',
-              }}
-            />
-            {/* Notch / trackpad */}
-            <div className="h-0.5 mx-auto rounded-full" style={{ width: '20%', background: '#444', marginTop: '-1px' }} />
-          </div>
+          {/* Laptop — real product photo instead of the previous CSS mock-up */}
+          <img
+            src={quizClaudeLaptop}
+            alt="Claude open on a laptop"
+            className="w-full h-auto block"
+            width={720}
+            height={483}
+            loading="eager"
+            decoding="async"
+          />
 
           {/* Floating spark badge */}
           <div className="absolute -top-2 -right-3 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-[14px]">
