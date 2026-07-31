@@ -93,6 +93,34 @@ function device(): string {
   return w < 768 ? 'mobile' : w < 1024 ? 'tablet' : 'desktop'
 }
 
+/**
+ * Environment facts recorded with every event, in `props`.
+ *
+ * `device` alone hides the cases that actually break: a 320px-wide phone and a
+ * 430px one are both "mobile", but a question whose options overflow only fails
+ * on the narrow one. Exact viewport is what makes that visible.
+ *
+ * `timezone` gives rough geography without touching an IP address, so a
+ * region-specific drop-off (or a translation problem) can be spotted.
+ *
+ * Kept in `props` rather than new columns: these are for slicing, never for
+ * joining, and columns would mean a migration each time we add one.
+ */
+function environment(): Record<string, unknown> {
+  if (typeof window === 'undefined') return {}
+  return {
+    viewport_width: window.innerWidth,
+    viewport_height: window.innerHeight,
+    screen_width: window.screen?.width,
+    screen_height: window.screen?.height,
+    // Minutes east of UTC — a plain number, easier to group than an IANA name.
+    timezone_offset: -new Date().getTimezoneOffset(),
+    // Language reveals the mismatch where an English funnel is shown to someone
+    // whose browser is set to another language.
+    language: navigator.language,
+  }
+}
+
 function endpoint(): string | null {
   const base = getApiBaseUrl()
   return base ? `${base}/landing/quiz/events` : null
@@ -184,6 +212,8 @@ export function trackQuizEvent(event: QuizEvent): void {
       attribution: getAttributionParams(),
       device: device(),
       landing: 'usa',
+      // Environment first so an event's own props always win on a key clash.
+      props: { ...environment(), ...(event.props ?? {}) },
     })
 
     // Hard cap: if flushing keeps failing, drop the oldest rather than grow

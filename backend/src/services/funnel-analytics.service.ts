@@ -28,6 +28,23 @@ export interface FunnelStep {
   conversion_from_start: number
 }
 
+/** Where a whole stage of the funnel loses people, not just one screen. */
+export interface SectionRollup {
+  section: string
+  entered: number
+  exited: number
+  drop_rate: number
+}
+
+/** Same funnel split by device — drop-off usually differs sharply by screen size. */
+export interface DeviceSplit {
+  device: string
+  sessions: number
+  reached_email: number
+  completed: number
+  completion_rate: number
+}
+
 export interface FunnelSummary {
   steps: FunnelStep[]
   totals: {
@@ -35,19 +52,47 @@ export interface FunnelSummary {
     reached_email: number
     completed: number
     devices: number
+    /** Sessions that left before answering a single question. */
+    bounced_immediately: number
   }
+  /** Aggregated by funnel stage, so a bad SECTION is visible when no single
+   *  screen looks unusual on its own. */
+  sections: SectionRollup[]
+  by_device: DeviceSplit[]
   range: { from: string; to: string }
 }
 
 interface EventRow {
   session_id: string | null
   anon_id: string
+  /** Present from the email step onward; used to spot our own test addresses. */
+  email: string | null
+  device: string | null
   step_id: string | null
   step_order: number | null
   section: string | null
   event_name: string
   ms_on_step: number | null
   question_text: string | null
+}
+
+/**
+ * Session/device prefixes and email domains produced by our own testing.
+ *
+ * Excluded from every report: a handful of synthetic sessions is a large share of
+ * a funnel this size, so leaving them in would move the drop-off numbers the
+ * whole page exists to show. Filtered at query time rather than by deleting rows,
+ * so a test run stays inspectable without polluting the metrics.
+ */
+const TEST_ID_PREFIXES = ['demo-', 'aud-', 'audit-', 'probe-', 'test-']
+const TEST_EMAIL_PATTERNS = ['@example.', '@test.', '@df.com', 'probe+', 'audit+']
+
+/** True when the row came from our own testing rather than a real visitor. */
+function isTestRow(r: { session_id: string | null; anon_id: string; email?: string | null }): boolean {
+  const ids = [r.session_id ?? '', r.anon_id ?? '']
+  if (ids.some((id) => TEST_ID_PREFIXES.some((p) => id.startsWith(p)))) return true
+  const email = (r.email ?? '').toLowerCase()
+  return Boolean(email) && TEST_EMAIL_PATTERNS.some((p) => email.includes(p))
 }
 
 /** Median of a numeric list; null when empty. Used instead of the mean because
@@ -84,7 +129,7 @@ export async function getFunnel(opts: {
 
   let query = supabaseAdmin
     .from('quiz_events')
-    .select('session_id, anon_id, step_id, step_order, section, event_name, ms_on_step, question_text')
+    .select('session_id, anon_id, email, device, step_id, step_order, section, event_name, ms_on_step, question_text')
     .gte('created_at', from)
     .lte('created_at', to)
     .not('step_id', 'is', null)
@@ -98,10 +143,17 @@ export async function getFunnel(opts: {
   const { data, error } = await query
   if (error) {
     quizLog.error('funnel.query_failed', { message: error.message })
-    return { steps: [], totals: { sessions: 0, reached_email: 0, completed: 0, devices: 0 }, range: { from, to } }
+    return {
+      steps: [],
+      totals: { sessions: 0, reached_email: 0, completed: 0, devices: 0, bounced_immediately: 0 },
+      sections: [],
+      by_device: [],
+      range: { from, to },
+    }
   }
 
-  const rows = (data ?? []) as EventRow[]
+  // Drop our own test traffic before any counting — see isTestRow.
+  const rows = ((data ?? []) as EventRow[]).filter((r) => !isTestRow(r))
   /** Session key; falls back to the device when a session id is missing. */
   const keyOf = (r: EventRow) => r.session_id || r.anon_id
 
@@ -119,6 +171,12 @@ export async function getFunnel(opts: {
   >()
   const allSessions = new Set<string>()
   const devices = new Set<string>()
+  /** session → device, for the per-device split. */
+  const sessionDevice = new Map<string, string>()
+  /** Sessions that answered at least one question — the rest simply bounced. */
+  const answeredAny = new Set<string>()
+  /** section → sessions that entered it, for the stage rollup. */
+  const sectionSessions = new Map<string, Set<string>>()
   /** Highest step_order each session got to — the basis for "dropped here". */
   const furthest = new Map<string, number>()
 
@@ -149,7 +207,16 @@ export async function getFunnel(opts: {
     if (order && order < bucket.order) bucket.order = order
     if (!bucket.question && r.question_text) bucket.question = r.question_text
     bucket.reached.add(key)
-    if (r.event_name === 'step_answer') bucket.answered.add(key)
+    if (r.device && !sessionDevice.has(key)) sessionDevice.set(key, r.device)
+    if (r.section) {
+      let sec = sectionSessions.get(r.section)
+      if (!sec) { sec = new Set(); sectionSessions.set(r.section, sec) }
+      sec.add(key)
+    }
+    if (r.event_name === 'step_answer') {
+      bucket.answered.add(key)
+      answeredAny.add(key)
+    }
     if (typeof r.ms_on_step === 'number' && r.ms_on_step > 0) bucket.times.push(r.ms_on_step)
   }
 
@@ -183,6 +250,58 @@ export async function getFunnel(opts: {
   const emailStep = result.find((s) => s.step_id === 'email_capture')
   const completed = result.find((s) => s.step_id === 'plan_reveal')
 
+  // Section rollup: `exited` counts sessions whose furthest step belongs to this
+  // section, so a stage that bleeds people across several unremarkable screens
+  // still shows up.
+  const stepSection = new Map(result.map((r) => [r.step_order, r.section]))
+  const sections: SectionRollup[] = [...sectionSessions.entries()]
+    .map(([section, members]) => {
+      let exited = 0
+      for (const sess of members) {
+        const far = furthest.get(sess) ?? -1
+        if (stepSection.get(far) === section) exited++
+      }
+      return {
+        section,
+        entered: members.size,
+        exited,
+        drop_rate: members.size ? Math.round((exited / members.size) * 1000) / 10 : 0,
+      }
+    })
+    // Ordered by where the section sits in the flow, not alphabetically.
+    .sort((a, b) => {
+      const first = (sec: string) =>
+        result.find((r) => r.section === sec)?.step_order ?? 999
+      return first(a.section) - first(b.section)
+    })
+
+  // Per-device split. Completion is measured against the same final step used in
+  // `totals`, so the numbers reconcile.
+  const emailSessions = new Set<string>()
+  const doneSessions = new Set<string>()
+  for (const [id, b] of steps) {
+    if (id === 'email_capture') for (const k of b.reached) emailSessions.add(k)
+    if (id === 'plan_reveal') for (const k of b.reached) doneSessions.add(k)
+  }
+  const deviceBuckets = new Map<string, { sessions: Set<string>; email: number; done: number }>()
+  for (const sess of allSessions) {
+    const dev = sessionDevice.get(sess) ?? 'unknown'
+    let bucket = deviceBuckets.get(dev)
+    if (!bucket) { bucket = { sessions: new Set(), email: 0, done: 0 }; deviceBuckets.set(dev, bucket) }
+    bucket.sessions.add(sess)
+    if (emailSessions.has(sess)) bucket.email++
+    if (doneSessions.has(sess)) bucket.done++
+  }
+  const by_device: DeviceSplit[] = [...deviceBuckets.entries()]
+    .map(([device, b]) => ({
+      device,
+      sessions: b.sessions.size,
+      reached_email: b.email,
+      completed: b.done,
+      completion_rate: b.sessions.size ? Math.round((b.done / b.sessions.size) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.sessions - a.sessions)
+
   return {
     steps: result,
     totals: {
@@ -190,7 +309,10 @@ export async function getFunnel(opts: {
       reached_email: emailStep?.reached ?? 0,
       completed: completed?.reached ?? 0,
       devices: devices.size,
+      bounced_immediately: allSessions.size - answeredAny.size,
     },
+    sections,
+    by_device,
     range: { from, to },
   }
 }
@@ -222,7 +344,7 @@ export async function getAnswerBreakdown(
 
   const { data, error } = await supabaseAdmin
     .from('quiz_events')
-    .select('session_id, anon_id, answer_label, answer_value, question_text, created_at')
+    .select('session_id, anon_id, email, answer_label, answer_value, question_text, created_at')
     .eq('step_id', stepId)
     .eq('event_name', 'step_answer')
     .gte('created_at', from)
@@ -239,6 +361,7 @@ export async function getAnswerBreakdown(
   const latest = new Map<string, string>()
   let question: string | null = null
   for (const r of data ?? []) {
+    if (isTestRow(r as { session_id: string | null; anon_id: string; email?: string | null })) continue
     const key = (r.session_id as string) || (r.anon_id as string)
     const label =
       (r.answer_label as string) ??

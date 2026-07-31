@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { TrendingDown, Users, Mail, CheckCircle2, Clock } from 'lucide-react'
+import { TrendingDown, Users, Mail, CheckCircle2, Clock, LogOut, Smartphone, Monitor, Tablet } from 'lucide-react'
 import { funnelApi, type FunnelFilters, type FunnelStep } from '@features/funnel/api'
 import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
@@ -136,7 +136,7 @@ export function FunnelPage() {
         </div>
       ) : (
         totals && (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatCard icon={Users} label="Sessions" value={totals.sessions} hint={`${totals.devices} devices`} />
             <StatCard
               icon={Mail}
@@ -151,10 +151,20 @@ export function FunnelPage() {
               hint={totals.sessions ? `${Math.round((totals.completed / totals.sessions) * 100)}% of sessions` : undefined}
             />
             <StatCard
+              icon={LogOut}
+              label="Left without answering"
+              value={totals.bounced_immediately}
+              hint={
+                totals.sessions
+                  ? `${Math.round((totals.bounced_immediately / totals.sessions) * 100)}% never engaged`
+                  : undefined
+              }
+            />
+            <StatCard
               icon={TrendingDown}
               label="Biggest drop"
               value={worst[0]?.step_id ?? '—'}
-              hint={worst[0] ? `${worst[0].dropped} left here` : undefined}
+              hint={worst[0] ? `${worst[0].dropped} left here (${worst[0].drop_rate}%)` : undefined}
             />
           </div>
         )
@@ -179,6 +189,75 @@ export function FunnelPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stage-level view. A section can bleed people across several screens that
+          each look fine alone, so the rollup is where that becomes visible. */}
+      {(report.data?.sections?.length ?? 0) > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="mb-1 text-sm font-semibold">Drop-off by stage</h3>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Share of everyone entering a stage who left somewhere inside it.
+            </p>
+            <div className="space-y-2">
+              {report.data!.sections.map((sec) => (
+                <div key={sec.section} className="flex items-center gap-3 text-sm">
+                  <span className="w-20 shrink-0 capitalize">{sec.section}</span>
+                  <span className="relative h-5 flex-1 overflow-hidden rounded bg-muted">
+                    <span
+                      className={`absolute inset-y-0 left-0 ${SECTION_COLOR[sec.section] ?? 'bg-slate-400'}`}
+                      style={{ width: `${Math.min(100, sec.drop_rate)}%` }}
+                    />
+                    <span className="absolute inset-y-0 left-2 flex items-center text-xs font-medium">
+                      {sec.drop_rate}% left
+                    </span>
+                  </span>
+                  <span className="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                    {sec.exited} of {sec.entered}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Device split: the same funnel usually performs very differently on a
+          phone, and that difference is invisible in the combined numbers. */}
+      {(report.data?.by_device?.length ?? 0) > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="mb-3 text-sm font-semibold">By device</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {report.data!.by_device.map((d) => {
+                const Icon =
+                  d.device === 'mobile' ? Smartphone : d.device === 'tablet' ? Tablet : Monitor
+                return (
+                  <div key={d.device} className="rounded-lg border p-3">
+                    <div className="mb-1 flex items-center gap-2">
+                      <Icon className="size-4 text-muted-foreground" />
+                      <span className="text-sm font-medium capitalize">{d.device}</span>
+                    </div>
+                    <p className="text-lg font-bold tabular-nums">{d.sessions}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {d.reached_email} reached email · {d.completed} completed
+                    </p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded bg-muted">
+                      <div
+                        className="h-full bg-emerald-500"
+                        style={{ width: `${Math.min(100, d.completion_rate)}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {d.completion_rate}% completion
+                    </p>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>

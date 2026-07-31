@@ -17,6 +17,21 @@ export interface FunnelStep {
   conversion_from_start: number
 }
 
+export interface SectionRollup {
+  section: string
+  entered: number
+  exited: number
+  drop_rate: number
+}
+
+export interface DeviceSplit {
+  device: string
+  sessions: number
+  reached_email: number
+  completed: number
+  completion_rate: number
+}
+
 export interface FunnelReport {
   steps: FunnelStep[]
   totals: {
@@ -24,7 +39,11 @@ export interface FunnelReport {
     reached_email: number
     completed: number
     devices: number
+    /** Sessions that left without answering anything. */
+    bounced_immediately: number
   }
+  sections: SectionRollup[]
+  by_device: DeviceSplit[]
   range: { from: string; to: string }
 }
 

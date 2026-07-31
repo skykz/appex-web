@@ -17,7 +17,7 @@ import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView } from
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
-import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText } from "@/lib/quiz-tracker";
+import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText, trackQuizEvent } from "@/lib/quiz-tracker";
 import { loadRemoteQuiz } from "@/lib/quiz-content";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
@@ -1442,6 +1442,19 @@ function S23() {
     // Backfills the address onto the ~30 anonymous rows this device already
     // wrote, which is what links a later purchase to the answers behind it.
     setQuizEmail(value);
+    // Records that consent was given at this step, with the wording shown. The
+    // screen states the guidebook will be emailed, so submitting IS the consent —
+    // worth storing as its own fact rather than inferring it later from a lead row.
+    trackQuizEvent({
+      event_name: "step_answer",
+      step_id: "email_consent",
+      step_order: 31,
+      section: "signup",
+      step_type: "milestone",
+      answer_label: "granted",
+      answer_value: true,
+      props: { consent_copy: "AI Agents Guidebook opt-in on email step" },
+    });
     commitAnswer("email_capture", "provided");
     trackLead();
     ga4Lead();

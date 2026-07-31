@@ -145,7 +145,9 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     pushToDataLayer("quiz_start");
     // Also into our own store, so the funnel view has a real entry point rather
     // than inferring it from the first step_view.
-    trackQuizEvent({ event_name: "quiz_start" });
+    // step_id/step_order are required for the funnel report, which filters on
+    // step_id and orders by step_order. 0 puts the entry point ahead of screen 1.
+    trackQuizEvent({ event_name: "quiz_start", step_id: "quiz_start", step_order: 0, section: "intro", step_type: "milestone" });
   }, []);
 
   // quiz_complete when the last overlay step is reached.
@@ -160,7 +162,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     trackQuizComplete();
     ga4QuizComplete();
     pushToDataLayer("quiz_complete");
-    trackQuizEvent({ event_name: "quiz_complete", step_order: TOTAL_STEPS });
+    trackQuizEvent({ event_name: "quiz_complete", step_id: "quiz_complete", step_order: TOTAL_STEPS + 1, section: "plan", step_type: "milestone" });
   }, [state.step]);
 
   // Persist answers to sessionStorage whenever answers change (for paywall personalization)
