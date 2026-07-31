@@ -81,9 +81,15 @@ async function getQuizFunnel(since: string | null): Promise<{
 
   const { data, error } = await query
   if (error) {
-    // The table arrives with migration 037; treat "not yet applied" as "no data"
+    // The table arrives with migration 037; treat "not applied yet" as "no data"
     // rather than failing the whole dashboard.
-    if (error.code === 'PGRST205' || /does not exist/i.test(error.message)) {
+    //
+    // Matched on error CODE, not on the message: `42703` ("column ... does not
+    // exist") also contains "does not exist", so a text match would swallow a
+    // genuine typo in a column name and report zeroes instead of surfacing it.
+    //   42P01    — undefined_table, what PostgREST returns directly (verified)
+    //   PGRST205 — Supabase/PostgREST cannot find the table in its schema cache
+    if (error.code === '42P01' || error.code === 'PGRST205') {
       return { started: 0, completed: 0, abandoned: 0, completionRate: 0, reachedEmail: 0 }
     }
     throw new AppError(500, `quiz_events: ${error.message}`)
