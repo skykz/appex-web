@@ -4,6 +4,8 @@ import * as landingController from './landing.controller.js'
 const router = Router()
 
 router.post('/quiz', landingController.submitLandingQuiz)
+router.post('/quiz/events', landingController.ingestQuizEvents)
+router.get('/quiz/content', landingController.getQuizContent)
 router.patch('/quiz/plan', landingController.updateLandingQuizPlan)
 router.post('/checkout', landingController.createLandingCheckout)
 router.get('/checkout/session', landingController.getLandingCheckoutSessionStatus)

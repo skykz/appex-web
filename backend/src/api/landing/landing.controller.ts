@@ -11,6 +11,11 @@ import {
   completeLandingCheckoutAccount,
   getLandingCheckoutStatus,
 } from '../../services/landing-checkout-complete.service.js'
+import {
+  recordQuizEvents,
+  attachEmailToQuizEvents,
+} from '../../services/quiz-events.service.js'
+import { getActiveQuiz } from '../../services/quiz-content.service.js'
 
 const LANDING_IDS = ['usa'] as const
 const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
@@ -412,6 +417,115 @@ export async function completeLandingCheckout(
       name: body.name,
     })
     res.json(result)
+  } catch (err) {
+    next(err)
+  }
+}
+
+/** One quiz screen view/answer. Kept permissive: analytics must never 400 a
+ *  funnel step over a stray field, so unknown props ride along in `props`. */
+const quizEventSchema = z.object({
+  /** Idempotency key from the client; duplicates are dropped on insert. */
+  event_id: z.string().uuid(),
+  anon_id: z.string().min(1).max(128),
+  session_id: z.string().max(128).optional(),
+  email: z.string().max(320).optional(),
+  event_name: z.enum([
+    'quiz_start',
+    'step_view',
+    'step_answer',
+    'quiz_complete',
+    'quiz_abandon',
+  ]),
+  step_order: z.number().int().min(0).max(500).optional(),
+  step_id: z.string().max(120).optional(),
+  section: z.string().max(60).optional(),
+  step_type: z.string().max(40).optional(),
+  question_text: z.string().max(500).optional(),
+  answer_label: z.string().max(500).optional(),
+  answer_value: z.unknown().optional(),
+  ms_on_step: z.number().int().min(0).max(86_400_000).optional(),
+  ms_in_quiz: z.number().int().min(0).max(86_400_000).optional(),
+  quiz_version: z.string().max(40).optional(),
+  landing_version: z.string().max(40).optional(),
+  attribution: z.record(z.unknown()).optional(),
+  props: z.record(z.unknown()).optional(),
+  landing: z.enum(LANDING_IDS).optional(),
+  device: z.string().max(20).optional(),
+})
+
+// Batched: the client buffers steps and flushes periodically, so one request
+// carries several screens. Capped so a malformed or hostile client can't push
+// an unbounded insert.
+const quizEventsSchema = z.object({
+  events: z.array(quizEventSchema).min(1).max(50),
+})
+
+/**
+ * Ingests per-step quiz analytics.
+ *
+ * Always answers 202 — including on validation failure. This endpoint is fired
+ * from `sendBeacon` during page unload and from every quiz step; a 4xx would
+ * make the client retry or log noise while changing nothing for the visitor,
+ * and a blocked analytics call must never stall the funnel.
+ */
+export async function ingestQuizEvents(
+  req: Request,
+  _res: Response,
+  next: NextFunction
+) {
+  void next
+  const res = _res
+  try {
+    const parsed = quizEventsSchema.safeParse(req.body)
+    if (!parsed.success) {
+      quizLog.warn('quiz_events.invalid_payload', {
+        issues: parsed.error.issues.slice(0, 3),
+      })
+      res.status(202).json({ accepted: 0 })
+      return
+    }
+
+    const written = await recordQuizEvents(parsed.data.events)
+
+    // The email arrives ~30 screens in; backfill it onto the earlier anonymous
+    // rows so a purchase can be traced back to the answers that preceded it.
+    const withEmail = parsed.data.events.find((e) => e.email)
+    if (withEmail?.email) {
+      await attachEmailToQuizEvents(withEmail.anon_id, withEmail.email)
+    }
+
+    res.status(202).json({ accepted: written })
+  } catch (err) {
+    // Swallow: analytics must not surface errors into the funnel.
+    quizLog.error('quiz_events.unhandled', {
+      message: err instanceof Error ? err.message : 'unknown',
+    })
+    res.status(202).json({ accepted: 0 })
+  }
+}
+
+
+/**
+ * Serves the published quiz for a landing.
+ *
+ * Returns `{ quiz: null }` with 200 when nothing is published — the client then
+ * renders its built-in flow. A 404 would be wrong: "no version published" is a
+ * normal state, not a missing route, and treating it as an error would make the
+ * client log noise on every load during rollout.
+ */
+export async function getQuizContent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const landing = typeof req.query.landing === 'string' ? req.query.landing : 'usa'
+    const quiz = await getActiveQuiz(landing)
+    // Short public cache: content changes on an editor's schedule, and this
+    // sits in front of the first paint of the funnel.
+    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
+    res.json({ quiz })
   } catch (err) {
     next(err)
   }

@@ -2,6 +2,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
 import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
+import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
+import { trackStepAnswer, getQuestionText } from "@/lib/quiz-tracker";
 
 export type Answers = {
   experience_with_claude?: "yes" | "no";
@@ -101,9 +103,32 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
 
   /** Emits quiz_answer for a committed answer. The overlay's answer keys are
    * already clean slugs (work_status, age_band, …) so they double as step_id. */
+  // Read through a ref so commitAnswer can stay dependency-free: rebuilding it
+  // on every step change would re-run each screen's effects.
+  const stepRef = useRef(state.step);
+  stepRef.current = state.step;
+
   const commitAnswer = useCallback((key: string, value: unknown) => {
     ga4QuizAnswer({ step_id: key, answer: value });
     pushToDataLayer("quiz_answer", { step_id: key, answer: value });
+    // Mirror into our own store. The step meta comes from the shared taxonomy so
+    // an answer row carries the same step_id/section as its step_view row.
+    const stepNo = stepRef.current;
+    const meta = overlayStepByIndex(stepNo);
+    trackStepAnswer({
+      step_order: stepNo,
+      step_id: meta.id,
+      section: meta.section,
+      step_type: meta.type,
+      // The answer key is recorded separately from the screen id: on screens
+      // that collect several fields they differ, and the key is what identifies
+      // the actual question answered.
+      answer_label: typeof value === "string" ? value : undefined,
+      answer_value: value,
+      // Real wording when the published content provides it; otherwise the
+      // answer key, which still identifies the question unambiguously.
+      question_text: getQuestionText(meta.id) ?? key,
+    });
   }, []);
 
   /** Fires quiz_start on the very first answer (Meta + GA4 + dataLayer). */

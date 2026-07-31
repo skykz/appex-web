@@ -17,6 +17,8 @@ import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView } from
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
+import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText } from "@/lib/quiz-tracker";
+import { loadRemoteQuiz } from "@/lib/quiz-content";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.jpg";
 import womanIncomeImg from "@/assets/quiz-woman-income.jpg";
@@ -1437,6 +1439,9 @@ function S23() {
 
   const submit = (value: string) => {
     set("email", value);
+    // Backfills the address onto the ~30 anonymous rows this device already
+    // wrote, which is what links a later purchase to the answers behind it.
+    setQuizEmail(value);
     commitAnswer("email_capture", "provided");
     trackLead();
     ga4Lead();
@@ -2194,7 +2199,36 @@ export default function QuizOverlay() {
       section: meta.section,
       type: meta.type,
     });
+    // Our own store, keyed by anon_id: GA4 gives counts, this gives the raw rows
+    // that can be joined to purchases and read for abandoned sessions.
+    trackStepView({
+      step_order: step,
+      step_id: meta.id,
+      section: meta.section,
+      step_type: meta.type,
+    });
   }, [isOpen, step]);
+
+  // Deliver anything still buffered when the tab is hidden — the last screen
+  // before leaving is precisely the one worth knowing about.
+  useEffect(() => installQuizFlushOnExit(), []);
+
+  /**
+   * Pulls published quiz content and registers the question wording, so every
+   * recorded answer carries the text the visitor actually read rather than a
+   * bare key. Purely additive: the screens still render from code, and a failed
+   * or empty response simply leaves the wording unregistered.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    void loadRemoteQuiz("usa").then((quiz) => {
+      if (cancelled || !quiz) return;
+      registerQuestionText(quiz.steps);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* ── Abandonment tracking ────────────────────────────────────────────────
      quiz_step shows where visitors stop *appearing*, which conflates "left
@@ -2239,6 +2273,15 @@ export default function QuizOverlay() {
       };
       ga4QuizAbandon(payload);
       pushToDataLayer("quiz_abandon", { ...payload, reason });
+      // Same event into our own store, flushed via sendBeacon so it survives the
+      // unload that triggered it.
+      trackQuizAbandon({
+        step_order: step,
+        step_id: meta.id,
+        section: meta.section,
+        step_type: meta.type,
+        answered_count: payload.answered_count,
+      });
     };
 
     // visibilitychange (not beforeunload): it is the only one that fires
