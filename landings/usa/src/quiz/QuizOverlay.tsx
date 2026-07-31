@@ -665,7 +665,7 @@ function S8() {
   const { next } = useQuiz();
   return (
     <StepShell>
-      <img src={womanIncomeImg} alt="Earning more with AI" width={896} height={640} loading="lazy" className="w-full rounded-2xl mb-6 object-cover" style={{ maxHeight: 220 }} />
+      <img src={womanIncomeImg} alt="Earning more with AI" width={951} height={712} loading="lazy" className="w-full rounded-2xl mb-6 object-cover" style={{ maxHeight: 220 }} />
       <Heading>There is nothing to worry about</Heading>
       <Sub>The question isn't whether AI will change your career — it already is. The only question is: will you be the one using it, or the one replaced by someone who does?</Sub>
       <div className="rounded-2xl p-4 mb-6 text-[14px]" style={{ background: "rgba(47,79,224,0.08)", color: C.text, border: `1px solid rgba(47,79,224,0.18)` }}>
