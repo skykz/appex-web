@@ -1,8 +1,7 @@
 import type { Answers } from "@/quiz/QuizContext";
 import { getLearnerAppUrl } from "@/lib/checkout-redirect";
-import { getAttributionParams } from "@/lib/attribution";
+import { getAttributionParams, getSessionId } from "@/lib/attribution";
 
-const SESSION_KEY = "appexLandingSession";
 const LANDING_ID = "usa";
 
 export type LandingPlanId = "week_1" | "week_4" | "year";
@@ -54,18 +53,16 @@ export function getApiBaseUrl(): string | null {
  * Stable anonymous browser id used to correlate partial quiz saves before signup.
  */
 export function getOrCreateSessionId(): string {
-  try {
-    const existing = localStorage.getItem(SESSION_KEY);
-    if (existing) return existing;
-    const id =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `sess-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(SESSION_KEY, id);
-    return id;
-  } catch {
-    return `sess-${Date.now()}`;
-  }
+  // Delegates to attribution.ts rather than keeping its own id.
+  //
+  // This used to mint a SEPARATE id into localStorage, which made it a device id
+  // in all but name: it never expired, so every lead from one browser shared a
+  // single "session" (26 leads collapsed into 15 ids, one repeated 5 times) and
+  // it could never be joined to quiz_events, which uses the real per-visit id.
+  //
+  // getSessionId() is per-visit (sessionStorage), so a lead row now points at the
+  // exact visit whose quiz answers produced it.
+  return getSessionId();
 }
 
 /**

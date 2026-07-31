@@ -26,6 +26,24 @@ export interface FunnelStep {
   drop_rate: number
   /** reached / (first step's reached), as a percentage. */
   conversion_from_start: number
+  /**
+   * question | info | loader | milestone | funnel.
+   *
+   * Surfaced because the diagnosis differs by kind: people leaving a `question`
+   * suggests the wording or the ask is wrong, while leaving an `info` screen
+   * means they lost patience reading. Ranking both in one list invites the wrong
+   * fix.
+   */
+  step_type: string | null
+  /**
+   * Sessions that saw the screen but never answered it.
+   *
+   * Distinct from `dropped`: someone can view a question, skip past it and still
+   * finish the quiz. A screen with reached=50 / answered=10 looks healthy on drop
+   * rate alone while quietly being ignored by 40 people.
+   * Always 0 for screens that take no answer.
+   */
+  viewed_not_answered: number
 }
 
 /** Where a whole stage of the funnel loses people, not just one screen. */
@@ -71,6 +89,7 @@ interface EventRow {
   step_id: string | null
   step_order: number | null
   section: string | null
+  step_type: string | null
   event_name: string
   ms_on_step: number | null
   question_text: string | null
@@ -129,7 +148,7 @@ export async function getFunnel(opts: {
 
   let query = supabaseAdmin
     .from('quiz_events')
-    .select('session_id, anon_id, email, device, step_id, step_order, section, event_name, ms_on_step, question_text')
+    .select('session_id, anon_id, email, device, step_id, step_order, section, step_type, event_name, ms_on_step, question_text')
     .gte('created_at', from)
     .lte('created_at', to)
     .not('step_id', 'is', null)
@@ -163,6 +182,7 @@ export async function getFunnel(opts: {
     {
       order: number
       section: string | null
+      stepType: string | null
       question: string | null
       reached: Set<string>
       answered: Set<string>
@@ -195,6 +215,7 @@ export async function getFunnel(opts: {
       bucket = {
         order,
         section: r.section,
+        stepType: r.step_type,
         question: r.question_text,
         reached: new Set(),
         answered: new Set(),
@@ -206,6 +227,7 @@ export async function getFunnel(opts: {
     // step in the funnel.
     if (order && order < bucket.order) bucket.order = order
     if (!bucket.question && r.question_text) bucket.question = r.question_text
+    if (!bucket.stepType && r.step_type) bucket.stepType = r.step_type
     bucket.reached.add(key)
     if (r.device && !sessionDevice.has(key)) sessionDevice.set(key, r.device)
     if (r.section) {
@@ -244,6 +266,11 @@ export async function getFunnel(opts: {
       conversion_from_start: startReached
         ? Math.round((reached / startReached) * 1000) / 10
         : 0,
+      step_type: b.stepType,
+      // Only meaningful where an answer is expected; info/loader screens would
+      // otherwise all report their full audience as "ignored".
+      viewed_not_answered:
+        b.stepType === 'question' ? Math.max(0, reached - b.answered.size) : 0,
     }
   })
 

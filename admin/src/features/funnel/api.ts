@@ -15,6 +15,10 @@ export interface FunnelStep {
   dropped: number
   drop_rate: number
   conversion_from_start: number
+  /** question | info | loader | milestone | funnel. */
+  step_type: string | null
+  /** Saw the screen but never answered it — 0 for screens taking no answer. */
+  viewed_not_answered: number
 }
 
 export interface SectionRollup {

@@ -75,6 +75,18 @@ function StatCard({
 export function FunnelPage() {
   const [days, setDays] = useState('30')
   const [expanded, setExpanded] = useState<string | null>(null)
+  /**
+   * Three readings of the same numbers, because each answers a different
+   * question: `bars` for "how many at each screen", `shape` for "where does the
+   * cliff sit", `heat` for "which screens are worst" at a glance.
+   */
+  const [view, setView] = useState<'bars' | 'shape' | 'heat'>('bars')
+  /**
+   * Questions and info screens leak for different reasons — bad wording versus
+   * lost patience — so they can be looked at separately instead of being ranked
+   * against each other in one list.
+   */
+  const [kind, setKind] = useState<'all' | 'question' | 'info'>('all')
 
   const filters = useMemo<FunnelFilters>(() => ({ from: daysAgo(Number(days)) }), [days])
 
@@ -89,7 +101,15 @@ export function FunnelPage() {
     enabled: Boolean(expanded),
   })
 
-  const steps = report.data?.steps ?? []
+  const allSteps = report.data?.steps ?? []
+  const steps =
+    kind === 'all'
+      ? allSteps
+      : allSteps.filter((s) =>
+          kind === 'question'
+            ? s.step_type === 'question'
+            : s.step_type !== 'question'
+        )
   const totals = report.data?.totals
 
   // Baseline for "unusual" drop — see severityOf.
@@ -263,6 +283,50 @@ export function FunnelPage() {
         </Card>
       )}
 
+      {/* View switcher. The same data, three readings — see the `view` state. */}
+      {steps.length > 0 && (
+        <div className="flex items-center gap-1 rounded-lg border bg-card p-1 w-fit">
+          {([
+            ['bars', 'Steps', 'Count reaching each screen'],
+            ['shape', 'Funnel shape', 'Width shows how many survive'],
+            ['heat', 'Drop heatmap', 'Colour by drop severity'],
+          ] as const).map(([id, label, hint]) => (
+            <button
+              key={id}
+              type="button"
+              title={hint}
+              onClick={() => setView(id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                view === id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          <span className="mx-1 h-5 w-px bg-border" />
+          {([
+            ['all', 'All'],
+            ['question', 'Questions'],
+            ['info', 'Info / other'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setKind(id)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                kind === id
+                  ? 'bg-secondary text-secondary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* The funnel itself. Bar width is share of the first step, so the shape
           of the decline is readable at a glance. */}
       <Card>
@@ -277,6 +341,113 @@ export function FunnelPage() {
             <p className="p-8 text-center text-sm text-muted-foreground">
               No events in this range yet. Data appears once visitors go through the quiz.
             </p>
+          ) : view === 'shape' ? (
+            /* Centred funnel: each screen is a band whose width is the share of
+               visitors still present. A cliff is visible as a sudden narrowing,
+               which a flat list of numbers does not convey. */
+            <div className="space-y-px p-4">
+              {steps.map((s) => {
+                const width = Math.max(3, (s.reached / maxReached) * 100)
+                const sev = severityOf(s, medianDrop)
+                return (
+                  <button
+                    key={s.step_id}
+                    type="button"
+                    onClick={() => setExpanded(expanded === s.step_id ? null : s.step_id)}
+                    className="group flex w-full items-center gap-3 rounded px-1 py-0.5 hover:bg-muted/40"
+                    title={`${s.step_id} — ${s.reached} reached, ${s.dropped} left`}
+                  >
+                    <span className="w-7 shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
+                      {s.step_order}
+                    </span>
+                    <span className="flex flex-1 justify-center">
+                      <span
+                        className={`flex h-7 items-center justify-center rounded-sm text-[11px] font-medium text-white transition-all ${
+                          sev === 'high'
+                            ? 'bg-red-500'
+                            : sev === 'medium'
+                              ? 'bg-amber-500'
+                              : SECTION_COLOR[s.section ?? ''] ?? 'bg-slate-400'
+                        }`}
+                        style={{ width: `${width}%` }}
+                      >
+                        {width > 18 ? `${s.step_id} · ${s.reached}` : s.reached}
+                      </span>
+                    </span>
+                    <span className="w-12 shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                      {s.conversion_from_start}%
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : view === 'heat' ? (
+            /* Heatmap: one tile per screen, coloured by how badly it leaks. Built
+               for scanning 30+ screens at once — the worst offenders stand out
+               without reading a single number. */
+            <div className="p-4">
+              <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
+                <span>Drop rate:</span>
+                {[
+                  ['bg-emerald-500', 'low'],
+                  ['bg-amber-500', 'medium'],
+                  ['bg-red-500', 'high'],
+                ].map(([cls, label]) => (
+                  <span key={label} className="flex items-center gap-1">
+                    <span className={`size-3 rounded ${cls}`} />
+                    {label}
+                  </span>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {steps.map((s) => {
+                  const sev = severityOf(s, medianDrop)
+                  return (
+                    <button
+                      key={s.step_id}
+                      type="button"
+                      onClick={() => setExpanded(expanded === s.step_id ? null : s.step_id)}
+                      className={`rounded-lg border p-2.5 text-left transition-colors hover:ring-2 hover:ring-primary/40 ${
+                        sev === 'high'
+                          ? 'border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-950/30'
+                          : sev === 'medium'
+                            ? 'border-amber-200 bg-amber-50 dark:border-amber-900/40 dark:bg-amber-950/30'
+                            : 'bg-card'
+                      }`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-xs font-medium">{s.step_id}</span>
+                        <span className="shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                          #{s.step_order}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-lg font-bold tabular-nums">
+                        {s.dropped > 0 ? `−${s.dropped}` : '0'}
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          of {s.reached}
+                        </span>
+                      </p>
+                      <div className="mt-1.5 h-1.5 overflow-hidden rounded bg-muted">
+                        <div
+                          className={`h-full ${
+                            sev === 'high'
+                              ? 'bg-red-500'
+                              : sev === 'medium'
+                                ? 'bg-amber-500'
+                                : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${Math.min(100, s.drop_rate)}%` }}
+                        />
+                      </div>
+                      <p className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
+                        <span>{s.drop_rate}% left</span>
+                        <span>{s.median_seconds != null ? `${s.median_seconds}s` : '—'}</span>
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           ) : (
             <div className="divide-y">
               {steps.map((s) => {
@@ -321,6 +492,23 @@ export function FunnelPage() {
                         }`}
                       >
                         {s.dropped > 0 ? `−${s.dropped}` : '—'}
+                      </span>
+
+                      {/* Saw it, never answered it. A screen can look fine on drop
+                          rate while being skipped by most of its audience. */}
+                      <span
+                        className={`hidden w-16 shrink-0 text-right text-xs tabular-nums sm:block ${
+                          s.viewed_not_answered > 0 && s.reached > 0 && s.viewed_not_answered / s.reached > 0.3
+                            ? 'font-semibold text-amber-600'
+                            : 'text-muted-foreground'
+                        }`}
+                        title="Viewed but never answered"
+                      >
+                        {s.step_type === 'question'
+                          ? s.viewed_not_answered > 0
+                            ? `${s.viewed_not_answered} skip`
+                            : '—'
+                          : ''}
                       </span>
 
                       <span className="hidden w-16 shrink-0 items-center justify-end gap-1 text-xs text-muted-foreground tabular-nums sm:flex">
