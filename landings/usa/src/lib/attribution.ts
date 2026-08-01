@@ -14,9 +14,29 @@
 
 const STORAGE_KEY = 'appexAttribution'
 
+/**
+ * Version of this landing build.
+ *
+ * Bump when the landing changes in a way that could move conversion, so cohorts
+ * before and after stay comparable. An ad URL can override it with
+ * `?landing_version=` to tag a specific campaign's build.
+ */
+export const LANDING_VERSION = 'v1'
+
 export type Attribution = {
   /** Creative / page variant tag from `?v=` (e.g. "hero_a"). */
   variant?: string
+  /**
+   * Landing build the visitor entered on (`?landing_version=v5`).
+   *
+   * Separate from `quiz_version` on purpose: the landing and the quiz ship
+   * independently, so one changing must not invalidate cohort comparisons for
+   * the other. Jobescape carries both in every ad URL for the same reason.
+   *
+   * Defaults to LANDING_VERSION when the ad URL omits it, so organic traffic
+   * still lands in a named cohort instead of an unattributable null bucket.
+   */
+  landing_version?: string
   utm_source?: string
   utm_campaign?: string
   utm_medium?: string
@@ -36,6 +56,7 @@ export type Attribution = {
 /** Fields exported as flat string params (excludes the internal timestamp). */
 const ATTR_KEYS: (keyof Attribution)[] = [
   'variant',
+  'landing_version',
   'utm_source',
   'utm_campaign',
   'utm_medium',
@@ -65,6 +86,9 @@ function readFromUrl(): Attribution {
     // `v` is the short creative/variant tag; also accept explicit `variant`.
     const variant = params.get('v') ?? params.get('variant') ?? undefined
     if (variant) attr.variant = variant.slice(0, 64)
+    // Always set, falling back to the build's own version: a null here would
+    // drop organic visitors out of every version-sliced report.
+    attr.landing_version = (params.get('landing_version') ?? LANDING_VERSION).slice(0, 40)
     for (const key of ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term'] as const) {
       const val = params.get(key)
       if (val) attr[key] = val.slice(0, 200)

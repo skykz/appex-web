@@ -1,4 +1,4 @@
-import { getEventEnvelope, getAttributionParams } from './attribution'
+import { getEventEnvelope, getAttributionParams, getAttribution, LANDING_VERSION } from './attribution'
 import { getApiBaseUrl } from './landing-api'
 
 /**
@@ -209,6 +209,9 @@ export function trackQuizEvent(event: QuizEvent): void {
       ...event,
       ms_in_quiz: event.ms_in_quiz ?? now - quizStartedAt,
       quiz_version: QUIZ_VERSION,
+      // Its own column, not just an attribution key: the landing and the quiz
+      // ship independently, so reports need to slice by either one alone.
+      landing_version: getAttribution().landing_version ?? LANDING_VERSION,
       attribution: getAttributionParams(),
       device: device(),
       landing: 'usa',

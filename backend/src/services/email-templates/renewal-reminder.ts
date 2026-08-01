@@ -19,6 +19,14 @@ export interface RenewalReminderEmailInput {
   renewalDateIso: string
   amount: number
   currency?: string
+  /**
+   * Billing frequency copy from Stripe, e.g. "every 4 weeks". Null when it could
+   * not be resolved — the email then omits it rather than implying a cadence.
+   *
+   * Stating it matters: the paywall sells a "1 Week" plan that actually bills on
+   * the 4-week price, so an amount with no frequency reads as a weekly charge.
+   */
+  cadence?: string | null
   /** E3 = 3 days before renewal; E5 = 24 hours before renewal. */
   variant: RenewalReminderVariant
 }
@@ -60,13 +68,21 @@ export function renderRenewalReminderEmail(input: RenewalReminderEmailInput): {
   const renewalLabel = formatRenewalDate(input.renewalDateIso)
   const priceLabel = formatUsd(input.amount, input.currency)
   const copy = COPY[input.variant]
+  const cadence = input.cadence?.trim() || null
+
+  // Spell out amount, date and frequency in one sentence. "You'll be charged
+  // automatically" alone left customers on the 1-week plan expecting a weekly
+  // charge at the weekly price, when the real one is $38.95 every 4 weeks.
+  const chargeSentence = cadence
+    ? `Your card will be charged ${priceLabel} on ${renewalLabel}, and ${cadence} after that.`
+    : `Your card will be charged ${priceLabel} on ${renewalLabel}.`
 
   const bodyHtml = `
     <p style="margin:0 0 10px;font-size:16px;font-weight:500;color:#111111;">Hi ${escapeHtml(input.firstName)},</p>
     <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">${copy.intro}</p>
-    ${renderRenewalRemindBox(renewalLabel, priceLabel)}
+    ${renderRenewalRemindBox(renewalLabel, priceLabel, cadence)}
     <p style="margin:0 0 20px;font-size:14px;color:#555555;line-height:1.7;">
-      You'll be charged automatically. To cancel or manage your subscription, go to your account settings anytime.
+      ${escapeHtml(chargeSentence)} To cancel or manage your subscription, go to your account settings anytime.
     </p>
     ${renderOutlineButton('Manage subscription', settingsUrl)}
     ${renderDivider()}
@@ -92,8 +108,9 @@ export function renderRenewalReminderEmail(input: RenewalReminderEmailInput): {
     '',
     `Renewal date: ${renewalLabel}`,
     `Amount: ${priceLabel}`,
+    ...(cadence ? [`Billing cycle: ${cadence}`] : []),
     '',
-    "You'll be charged automatically. To cancel or manage your subscription, go to your account settings anytime.",
+    `${chargeSentence} To cancel or manage your subscription, go to your account settings anytime.`,
     settingsUrl,
     '',
     copy.progressLine,

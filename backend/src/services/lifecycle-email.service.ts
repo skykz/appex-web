@@ -1,5 +1,9 @@
 import { supabaseAdmin } from '../db/supabase.js'
 import type Stripe from 'stripe'
+import { env } from '../config/env.js'
+import { getStripe } from '../lib/stripe.js'
+import { paymentLog } from '../lib/logger.js'
+import { cadenceLabel } from './stripe.service.js'
 import { renderAccessLockedEmail } from './email-templates/access-locked.js'
 import { renderCancellationConfirmedEmail } from './email-templates/cancellation-confirmed.js'
 import {
@@ -351,6 +355,87 @@ export async function processDueRenewalReminders24h(): Promise<{ sent: number }>
 }
 
 /**
+ * Reads the recurring cadence ("every 4 weeks") off a preview invoice.
+ *
+ * Returns null when the interval cannot be determined — the reminder then omits
+ * the cadence rather than guessing, since a wrong billing frequency is exactly
+ * the confusion this is meant to remove. Picks the last recurring line: on a
+ * phase switch the preview also carries proration lines for the old price, and
+ * the going-forward one is what the customer needs to know about.
+ */
+function cadenceFromPreview(preview: Stripe.Invoice): string | null {
+  const lines = preview.lines?.data ?? []
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const priceRef = lines[i]?.pricing?.price_details?.price
+    // Only an expanded Price object carries `recurring`; a bare id tells us nothing.
+    if (!priceRef || typeof priceRef === 'string') continue
+
+    const rec = priceRef.recurring
+    if (rec?.interval) return cadenceLabel(rec.interval, rec.interval_count ?? 1)
+  }
+
+  return null
+}
+
+/**
+ * Resolves what Stripe will actually charge at the next renewal.
+ *
+ * Returns null when the figure cannot be trusted — no subscription id, Stripe
+ * not configured, or the API call failed. Callers MUST skip the reminder in
+ * that case rather than falling back to `subscriptions.price`: quoting a stale
+ * amount is what this function exists to prevent, and a skipped run is retried
+ * an hour later while a wrong number reaches the customer permanently.
+ */
+async function resolveUpcomingChargeForReminder(
+  subscriptionId: string | null,
+  userId: string
+): Promise<{ amount: number; currency: string; cadence: string | null } | null> {
+  if (!subscriptionId) {
+    paymentLog.warn('renewal_reminder.no_subscription_id', { userId })
+    return null
+  }
+
+  if (!env.stripeEnabled) {
+    paymentLog.warn('renewal_reminder.stripe_disabled', { userId, subscriptionId })
+    return null
+  }
+
+  try {
+    // `createPreview` is the successor to the removed `invoices.retrieveUpcoming`
+    // (Stripe SDK 22 / API 2026-04-22). `amount_due` is the post-discount,
+    // post-tax total the customer will be billed.
+    const preview = await getStripe().invoices.createPreview({
+      subscription: subscriptionId,
+      // Needed for the billing cadence: the line item otherwise carries only a
+      // price id, and the reminder has to state "every 4 weeks" explicitly.
+      expand: ['lines.data.pricing.price_details.price'],
+    })
+
+    if (preview.amount_due == null) {
+      paymentLog.warn('renewal_reminder.preview_no_amount', { userId, subscriptionId })
+      return null
+    }
+
+    return {
+      amount: preview.amount_due / 100,
+      currency: preview.currency ?? 'usd',
+      cadence: cadenceFromPreview(preview),
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'unknown'
+    // Worth alerting on: every failure here is a reminder that silently did not
+    // go out. Sustained failures mean customers get charged with no warning.
+    paymentLog.error('renewal_reminder.preview_failed', {
+      userId,
+      subscriptionId,
+      message: msg,
+    })
+    return null
+  }
+}
+
+/**
  * Sends renewal reminder emails for subscriptions whose period end falls in the lead-time window.
  */
 async function sendRenewalRemindersForLeadTime(args: {
@@ -367,7 +452,7 @@ async function sendRenewalRemindersForLeadTime(args: {
   const { data: rows, error } = await supabaseAdmin
     .from('subscriptions')
     .select(
-      `user_id, current_period_end, price, currency, status, cancel_at_period_end, ${args.sentColumn}`
+      `user_id, stripe_subscription_id, current_period_end, price, currency, status, cancel_at_period_end, ${args.sentColumn}`
     )
     .in('status', ['active', 'trialing'])
     .eq('cancel_at_period_end', false)
@@ -394,6 +479,23 @@ async function sendRenewalRemindersForLeadTime(args: {
 
     if (!profile?.email) continue
 
+    // The amount MUST come from Stripe, not from `subscriptions.price`. That
+    // column holds the price of the CURRENT phase, which is not what gets
+    // charged when a Subscription Schedule switches phases at period end:
+    // legacy "1 Week" subscriptions sit on the $17.77/week price but renew onto
+    // the $38.95 4-week price, so the stored value understates the charge by
+    // $21.18. The upcoming invoice also folds in an expiring coupon, proration
+    // and tax — none of which the column knows about.
+    //
+    // Resolved BEFORE claiming: a failed lookup must leave the row unclaimed so
+    // the next hourly run retries. Claiming first would burn the only send on a
+    // transient Stripe error and the reminder would never go out.
+    const upcoming = await resolveUpcomingChargeForReminder(
+      row.stripe_subscription_id as string | null,
+      userId
+    )
+    if (!upcoming) continue
+
     // Claim BEFORE sending so two concurrent cron runs can't both send: the
     // unique index makes exactly one claim win; the loser skips.
     const claimed = await claimEmailSend({
@@ -403,13 +505,12 @@ async function sendRenewalRemindersForLeadTime(args: {
     })
     if (!claimed) continue
 
-    const amount = (row.price as number) ?? 0
-
     const email = renderRenewalReminderEmail({
       firstName: firstNameFrom(profile.name ?? ''),
       renewalDateIso: periodEnd,
-      amount,
-      currency: (row.currency as string) ?? 'usd',
+      amount: upcoming.amount,
+      currency: upcoming.currency,
+      cadence: upcoming.cadence,
       variant: args.emailType === 'renewal_reminder' ? '3d' : '24h',
     })
 

@@ -85,6 +85,23 @@ export const lexiIpGate = rateLimit({
 })
 
 /**
+ * Limiter for the public lead email-confirmation endpoint.
+ *
+ * The token is a 256-bit random value, so brute force is not realistically a
+ * threat, but the endpoint is unauthenticated and hits the database on every call
+ * — this keeps it from being a free amplification target. Set high enough that a
+ * real person double-clicking the link, or a mail client prefetching it, is fine.
+ */
+export const confirmTokenLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => `ip:${ipKeyGenerator(req.ip ?? '')}`,
+  message: { error: 'Too many requests. Please try again shortly.' },
+})
+
+/**
  * Limiter for unauthenticated auth endpoints (login, signup, password reset).
  *
  * Always keyed by IP, never by user: these run before any token exists, so there

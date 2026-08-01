@@ -2,8 +2,8 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ChevronRight, Download } from 'lucide-react'
-import type { AdminUserRow } from '@features/users/api'
-import { fetchAdminUsers } from '@features/users/api'
+import type { AdminLeadRow, AdminUserRow } from '@features/users/api'
+import { fetchAdminLeads, fetchAdminUsers, type LeadStatusFilter } from '@features/users/api'
 import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
 import { PageHeader } from '@shared/ui/page-header'
@@ -12,8 +12,19 @@ import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { SearchToolbar } from '@shared/ui/search-toolbar'
 import { Skeleton } from '@shared/ui/skeleton'
 import { DataTable, type Column } from '@shared/ui/data-table'
+import { cn } from '@shared/lib'
 
 const PAGE_SIZE = 25
+
+/**
+ * Three distinct populations, deliberately not two:
+ *  - customers  — rows in `users`, i.e. someone who paid.
+ *  - confirmed  — lead who clicked the emailed confirm link but has not paid.
+ *  - unconfirmed— lead who typed an email and never confirmed it.
+ * "Confirmed" used to mean "has an account", which was wrong: confirming an
+ * address and buying are independent facts.
+ */
+type Tab = 'customers' | 'confirmed' | 'unconfirmed'
 
 /**
  * Builds a CSV string from user rows with RFC-style quoted fields where needed.
@@ -26,13 +37,53 @@ function buildUsersCsv(rows: AdminUserRow[]): string {
   )
 }
 
+/** Builds a CSV string from lead rows. */
+function buildLeadsCsv(rows: AdminLeadRow[]): string {
+  return toCsv(
+    [
+      'id',
+      'email',
+      'name',
+      'landing',
+      'selected_plan',
+      'utm_source',
+      'utm_campaign',
+      'utm_medium',
+      'confirmed_at',
+      'confirm_email_sent_at',
+      'welcome_email_sent_at',
+      'created_at',
+    ],
+    rows,
+    (r) => [
+      r.id,
+      r.email,
+      r.name ?? '',
+      r.landing ?? '',
+      r.selected_plan ?? '',
+      r.utm_source ?? '',
+      r.utm_campaign ?? '',
+      r.utm_medium ?? '',
+      r.confirmed_at ?? '',
+      r.confirm_email_sent_at ?? '',
+      r.welcome_email_sent_at ?? '',
+      r.created_at,
+    ]
+  )
+}
+
 /**
- * Searchable, paginated user directory backed by server-side filters; supports deep-link ?q= and CSV export.
+ * Searchable, paginated people directory backed by server-side filters; supports deep-link ?q= and CSV export.
+ *
+ * Three tabs, because paying and confirming an email are independent facts:
+ * "Customers" lists `users` (accounts, created on payment), while the two lead tabs
+ * list quiz submissions split by whether the emailed confirm link was clicked.
  */
 export function UsersPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const qFromUrl = searchParams.get('q') ?? ''
+  const [tab, setTab] = useState<Tab>('customers')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const deferredSearch = useDeferredValue(search.trim())
@@ -43,16 +94,37 @@ export function UsersPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [deferredSearch])
+  }, [deferredSearch, tab])
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const usersQuery = useQuery({
     queryKey: ['admin', 'users', deferredSearch, page, PAGE_SIZE],
     queryFn: () =>
       fetchAdminUsers({ search: deferredSearch || undefined, page, limit: PAGE_SIZE }),
+    enabled: tab === 'customers',
   })
 
-  const rows = data?.items ?? []
-  const total = data?.total ?? 0
+  // Both lead tabs share one query whose key includes the status, so switching
+  // between them refetches instead of showing the other tab's cached rows.
+  const leadStatus: LeadStatusFilter = tab === 'confirmed' ? 'confirmed' : 'unconfirmed'
+  const leadsQuery = useQuery({
+    queryKey: ['admin', 'leads', leadStatus, deferredSearch, page, PAGE_SIZE],
+    queryFn: () =>
+      fetchAdminLeads({
+        search: deferredSearch || undefined,
+        status: leadStatus,
+        page,
+        limit: PAGE_SIZE,
+      }),
+    enabled: tab !== 'customers',
+  })
+
+  // Read every derived value off the SAME query object for the active tab, so a
+  // stray render can't mix `total` from one tab with `isLoading`/rows from the other.
+  const active = tab === 'customers' ? usersQuery : leadsQuery
+  const isLoading = active.isLoading
+  const isError = active.isError
+  const rows = usersQuery.data?.items ?? []
+  const total = active.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const columns: Column<AdminUserRow>[] = useMemo(
@@ -113,14 +185,113 @@ export function UsersPage() {
     []
   )
 
+  const leadColumns: Column<AdminLeadRow>[] = useMemo(
+    () => [
+      {
+        key: 'lead',
+        header: 'Lead',
+        render: (l) => (
+          <div>
+            <div className="font-medium">{l.name || '—'}</div>
+            <div className="text-xs text-muted-foreground">{l.email}</div>
+          </div>
+        ),
+      },
+      {
+        key: 'plan',
+        header: 'Selected plan',
+        render: (l) =>
+          l.selected_plan ? (
+            <span className="font-medium">{l.selected_plan}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        key: 'source',
+        header: 'UTM source',
+        render: (l) => (
+          <span className={l.utm_source ? 'text-sm' : 'text-muted-foreground'}>
+            {l.utm_source || '—'}
+          </span>
+        ),
+      },
+      {
+        key: 'confirmed',
+        header: 'Email confirmed',
+        render: (l) =>
+          l.confirmed_at ? (
+            <span
+              className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700"
+              title={new Date(l.confirmed_at).toLocaleString()}
+            >
+              Confirmed
+            </span>
+          ) : l.confirm_email_sent_at ? (
+            <span
+              className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
+              title={`Confirmation email sent ${new Date(l.confirm_email_sent_at).toLocaleString()}`}
+            >
+              Awaiting click
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Not emailed</span>
+          ),
+      },
+      {
+        key: 'welcome',
+        header: 'Welcome email',
+        render: (l) => (
+          <span
+            className={cn(
+              'inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+              l.welcome_email_sent_at
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+                : 'border-border/80 text-muted-foreground'
+            )}
+            title={
+              l.welcome_email_sent_at
+                ? new Date(l.welcome_email_sent_at).toLocaleString()
+                : undefined
+            }
+          >
+            {l.welcome_email_sent_at ? 'Sent' : 'Not sent'}
+          </span>
+        ),
+      },
+      {
+        key: 'created',
+        header: 'Created',
+        render: (l) => (
+          <span className="text-muted-foreground">
+            {new Date(l.created_at).toLocaleDateString()}
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
   async function exportCsv() {
-    const chunk = await fetchAdminUsers({
-      search: deferredSearch || undefined,
-      page: 1,
-      limit: 500,
-    })
-    const csv = buildUsersCsv(chunk.items)
-    downloadCsvFile(csv, 'appex-users.csv')
+    if (tab === 'customers') {
+      const chunk = await fetchAdminUsers({
+        search: deferredSearch || undefined,
+        page: 1,
+        limit: 500,
+      })
+      const csv = buildUsersCsv(chunk.items)
+      downloadCsvFile(csv, 'appex-users.csv')
+    } else {
+      const chunk = await fetchAdminLeads({
+        search: deferredSearch || undefined,
+        status: leadStatus,
+        page: 1,
+        limit: 500,
+      })
+      const csv = buildLeadsCsv(chunk.items)
+      // Filename carries the status so two exports don't overwrite each other.
+      downloadCsvFile(csv, `appex-leads-${leadStatus}.csv`)
+    }
   }
 
   return (
@@ -131,11 +302,33 @@ export function UsersPage() {
         description="Registered users with server-side search and pagination."
       />
 
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="People lists">
+        {(
+          [
+            ['customers', 'Customers'],
+            ['confirmed', 'Confirmed leads'],
+            ['unconfirmed', 'Unconfirmed leads'],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={value}
+            type="button"
+            size="sm"
+            role="tab"
+            aria-selected={tab === value}
+            variant={tab === value ? 'default' : 'outline'}
+            onClick={() => setTab(value)}
+          >
+            {label}
+          </Button>
+        ))}
+      </div>
+
       <SearchToolbar
         value={search}
         onChange={setSearch}
         placeholder="Search by name or email…"
-        label="Search users"
+        label={tab === 'customers' ? 'Search customers' : 'Search leads'}
         actions={
           <Button type="button" variant="outline" size="sm" className="gap-2" onClick={exportCsv}>
             <Download className="h-4 w-4" />
@@ -150,8 +343,12 @@ export function UsersPage() {
           <Skeleton className="h-10 w-full" />
         </div>
       ) : isError ? (
-        <QueryErrorPanel error={error} what="users" onRetry={() => refetch()} />
-      ) : (
+        <QueryErrorPanel
+          error={active.error}
+          what={tab === 'customers' ? 'users' : 'leads'}
+          onRetry={() => active.refetch()}
+        />
+      ) : tab === 'customers' ? (
         <>
           <DataTable
             rows={rows}
@@ -168,6 +365,28 @@ export function UsersPage() {
             onPageChange={setPage}
             total={total}
             itemNoun="user"
+          />
+        </>
+      ) : (
+        <>
+          <DataTable
+            rows={leadsQuery.data?.items ?? []}
+            columns={leadColumns}
+            getRowKey={(l) => l.id}
+            empty={
+              deferredSearch
+                ? `No leads match “${deferredSearch}”.`
+                : tab === 'confirmed'
+                  ? 'No confirmed leads yet.'
+                  : 'No unconfirmed leads.'
+            }
+          />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            total={total}
+            itemNoun="lead"
           />
         </>
       )}

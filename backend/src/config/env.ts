@@ -145,6 +145,19 @@ const envSchema = z.object({
   /** Protects /api/cron/* (Vercel Cron sends Authorization: Bearer <secret>). */
   CRON_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
 
+  /**
+   * Public download URL for the "AI Agents Guidebook" promised on the quiz email
+   * step. Acts as the feature flag for the lead magnet: while it is unset, the
+   * guidebook email is not sent at all. Sending a "here's your guidebook" mail
+   * with no guidebook behind it is worse than sending nothing, so this must stay
+   * a hard requirement rather than degrade to a link-less email.
+   */
+  LEAD_GUIDEBOOK_URL: z
+    .string()
+    .url()
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+
   // --- Meta Conversions API (server-side Purchase for the ads funnel) ---
   /**
    * Meta Pixel id (same id as VITE_META_PIXEL_ID on the USA landing). Defaults to
@@ -302,4 +315,9 @@ export const env = {
   mailgunWebhooksEnabled: Boolean(parsed.MAILGUN_WEBHOOK_SIGNING_KEY),
   metaCapiEnabled,
   ga4MpEnabled,
+  /**
+   * The lead-magnet email needs BOTH a guidebook to link to and a working
+   * mailer; either one missing makes the send pointless or the promise empty.
+   */
+  leadGuidebookEnabled: Boolean(parsed.LEAD_GUIDEBOOK_URL && mailgunEnabled),
 }

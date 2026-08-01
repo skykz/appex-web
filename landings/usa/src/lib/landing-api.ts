@@ -360,3 +360,32 @@ export async function updateLandingQuizPlan(
     return false;
   }
 }
+
+/** Outcome of redeeming a lead email-confirmation token. */
+export type LeadConfirmStatus =
+  | "confirmed"
+  | "already_confirmed"
+  | "expired"
+  | "invalid"
+  | "error";
+
+/**
+ * Redeems the token from the "Confirm email" link in the lead confirmation mail.
+ *
+ * Returns a status only — the backend deliberately never echoes the address, since
+ * the token travels in a URL that ends up in history and proxy logs.
+ */
+export async function confirmLeadEmail(token: string): Promise<LeadConfirmStatus> {
+  const base = getApiBaseUrl();
+  if (!base) return "error";
+
+  try {
+    const params = new URLSearchParams({ token });
+    const res = await fetch(`${base}/landing/confirm?${params.toString()}`);
+    if (!res.ok) return "error";
+    const data = (await res.json()) as { status?: LeadConfirmStatus };
+    return data.status ?? "error";
+  } catch {
+    return "error";
+  }
+}

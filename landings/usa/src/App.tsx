@@ -15,6 +15,7 @@ import Privacy from "./pages/Privacy.tsx";
 import Subscription from "./pages/Subscription.tsx";
 import SettingsCheckoutReturn from "./pages/SettingsCheckoutReturn.tsx";
 import CheckoutSuccess from "./pages/CheckoutSuccess.tsx";
+import ConfirmEmail from "./pages/ConfirmEmail.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 import ActivityToasts from "./components/landing/ActivityToasts";
@@ -85,6 +86,8 @@ const App = () => (
             <Route path="/quiz/result" element={<QuizResult />} />
             <Route path="/paywall" element={<Paywall />} />
             <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            {/* Target of the "Confirm email" link in the lead confirmation mail. */}
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
             <Route path="/ai-skills-for/:slug" element={<RoleDetail />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />

@@ -1,0 +1,81 @@
+import type { Request, Response, NextFunction } from 'express'
+import { z } from 'zod'
+import { supabaseAdmin } from '../../db/supabase.js'
+import { AppError } from '../../utils/error-handler.js'
+import { ilikeOrCondition, isUuid, joinOrConditions } from '../../utils/admin-search.js'
+
+const listQuerySchema = z.object({
+  search: z
+    .string()
+    .optional()
+    .transform((s) => (s?.trim() ? s.trim() : undefined)),
+  /**
+   * Email-confirmation state, which is NOT the same thing as having an account:
+   * a lead can confirm their address and never pay. Defaults to 'unconfirmed'
+   * because that is the list the admin UI opens on.
+   */
+  status: z.enum(['unconfirmed', 'confirmed', 'all']).default('unconfirmed'),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+})
+
+/**
+ * Lists funnel leads from `landing_quiz_submissions` — people who submitted an email
+ * in the quiz but have no account (`user_id IS NULL`). Paying users live in `users`
+ * and are served by `listAdminUsers`, so the two lists never overlap.
+ *
+ * The `status` filter splits these leads by whether they clicked the emailed
+ * confirmation link (`confirmed_at`).
+ */
+export async function listAdminLeads(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { search, status, page, limit } = listQuerySchema.parse(req.query)
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    let listQuery = supabaseAdmin
+      .from('landing_quiz_submissions')
+      .select(
+        'id, email, name, landing, selected_plan, utm_source, utm_campaign, utm_medium, welcome_email_sent_at, confirmed_at, confirm_email_sent_at, created_at',
+        { count: 'exact' }
+      )
+      .is('user_id', null)
+      .order('created_at', { ascending: false })
+
+    if (status === 'unconfirmed') listQuery = listQuery.is('confirmed_at', null)
+    else if (status === 'confirmed') listQuery = listQuery.not('confirmed_at', 'is', null)
+
+    if (search) {
+      if (isUuid(search)) {
+        listQuery = listQuery.eq('id', search)
+      } else {
+        listQuery = listQuery.or(
+          joinOrConditions([ilikeOrCondition('email', search), ilikeOrCondition('name', search)])
+        )
+      }
+    }
+
+    const { data, error, count } = await listQuery.range(from, to)
+
+    if (error) throw new AppError(500, error.message)
+
+    const items = (data ?? []).map((r: Record<string, unknown>) => ({
+      id: r.id,
+      email: r.email ?? '',
+      name: r.name ?? '',
+      landing: r.landing ?? '',
+      selected_plan: r.selected_plan ?? null,
+      utm_source: r.utm_source ?? null,
+      utm_campaign: r.utm_campaign ?? null,
+      utm_medium: r.utm_medium ?? null,
+      welcome_email_sent_at: r.welcome_email_sent_at ?? null,
+      confirmed_at: r.confirmed_at ?? null,
+      confirm_email_sent_at: r.confirm_email_sent_at ?? null,
+      created_at: r.created_at,
+    }))
+
+    res.json({ items, total: count ?? 0, page, limit })
+  } catch (err) {
+    next(err)
+  }
+}

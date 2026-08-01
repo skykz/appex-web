@@ -16,6 +16,8 @@ import {
   attachEmailToQuizEvents,
 } from '../../services/quiz-events.service.js'
 import { getActiveQuiz } from '../../services/quiz-content.service.js'
+import { sendLeadGuidebookEmailAsync } from '../../services/lead-magnet-email.service.js'
+import { confirmLeadEmail, sendLeadConfirmEmailAsync } from '../../services/lead-confirm.service.js'
 
 const LANDING_IDS = ['usa'] as const
 const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
@@ -23,6 +25,9 @@ const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
 const submitQuizSchema = z.object({
   email: z.string().email().max(320),
   name: z.string().max(200).optional(),
+  // Landing build the lead entered on. Without it zod strips the field the
+  // client already sends, and lead rows silently lose the cohort they belong to.
+  landing_version: z.string().max(40).optional(),
   landing: z.enum(LANDING_IDS).default('usa'),
   answers: z.record(z.unknown()).optional(),
   selected_plan: z.enum(PLAN_IDS).optional(),
@@ -70,6 +75,7 @@ function mergeAnswers(
 
 const ATTRIBUTION_FIELDS = [
   'variant',
+  'landing_version',
   'utm_source',
   'utm_campaign',
   'utm_medium',
@@ -204,6 +210,24 @@ export async function submitLandingQuiz(
         selectedPlan: body.selected_plan ?? null,
       })
 
+      // The quiz re-submits on every step, so these fire repeatedly for one lead;
+      // both services dedupe internally and send at most once. Called on the update
+      // path too because the row is created at the email step while the name only
+      // arrives on a later submit — so the first send may have had no name.
+      sendLeadConfirmEmailAsync({
+        email,
+        name: row.name,
+        landing: body.landing,
+        reqId: req.reqId,
+      })
+      // No-op until LEAD_GUIDEBOOK_URL is configured (no asset exists yet).
+      sendLeadGuidebookEmailAsync({
+        email,
+        name: row.name,
+        landing: body.landing,
+        reqId: req.reqId,
+      })
+
       res.json({ ...data, created: false })
       return
     }
@@ -229,7 +253,50 @@ export async function submitLandingQuiz(
       selectedPlan: body.selected_plan ?? null,
     })
 
+    // Fire-and-forget: the visitor is mid-quiz and must not wait on Mailgun.
+    sendLeadConfirmEmailAsync({
+      email,
+      name: row.name,
+      landing: body.landing,
+      reqId: req.reqId,
+    })
+    // No-op until LEAD_GUIDEBOOK_URL is configured (no asset exists yet).
+    sendLeadGuidebookEmailAsync({
+      email,
+      name: row.name,
+      landing: body.landing,
+      reqId: req.reqId,
+    })
+
     res.status(201).json({ ...data, created: true })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * GET /api/landing/confirm?token=...
+ *
+ * Public endpoint behind the "Confirm email" button in the lead confirmation mail.
+ *
+ * Returns a coarse status and never the address that was looked up: the token
+ * arrives in a URL, which lands in browser history, referrer headers and proxy
+ * logs, so echoing back whose address it belongs to would leak it to anyone who
+ * sees the link. `invalid` covers "no such token" and "malformed" alike so the
+ * endpoint cannot be used to probe which tokens exist.
+ */
+export async function confirmLandingLeadEmail(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const token = typeof req.query.token === 'string' ? req.query.token : ''
+    const result = await confirmLeadEmail({ token, reqId: req.reqId })
+
+    // 200 for every outcome: this is read by a landing page that renders its own
+    // copy per status, and a 4xx would surface as a generic browser error instead.
+    res.json({ status: result.status })
   } catch (err) {
     next(err)
   }

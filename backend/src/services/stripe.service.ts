@@ -614,7 +614,7 @@ function toIso(seconds: number | null | undefined): string | null {
 }
 
 /** Renders a Stripe recurring interval as the cadence copy the UI shows. */
-function cadenceLabel(interval: string, count: number): string {
+export function cadenceLabel(interval: string, count: number): string {
   if (interval === 'year') return count === 1 ? 'every year' : `every ${count} years`
   if (interval === 'month') return count === 1 ? 'every month' : `every ${count} months`
   if (interval === 'week') return count === 1 ? 'every week' : `every ${count} weeks`

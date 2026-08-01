@@ -1,9 +1,12 @@
 import { Router } from 'express'
+import { confirmTokenLimiter } from '../../middleware/rate-limit.middleware.js'
 import * as landingController from './landing.controller.js'
 
 const router = Router()
 
 router.post('/quiz', landingController.submitLandingQuiz)
+// Public, token-bearing: rate limited per IP so it can't be hammered.
+router.get('/confirm', confirmTokenLimiter, landingController.confirmLandingLeadEmail)
 router.post('/quiz/events', landingController.ingestQuizEvents)
 router.get('/quiz/content', landingController.getQuizContent)
 router.patch('/quiz/plan', landingController.updateLandingQuizPlan)

@@ -124,6 +124,27 @@ export function renderCtaButton(label: string, href: string): string {
 }
 
 /**
+ * Renders a compact, content-width primary CTA (shrink-to-fit, not full bleed).
+ *
+ * Separate from renderCtaButton rather than a tweak to it: that one is shared by
+ * all eleven transactional emails, and changing its size would silently restyle
+ * every existing send. Used by the lead emails, where a full-width black bar
+ * reads as a banner ad rather than a button.
+ *
+ * `align="center"` on the outer table plus a shrink-wrapping inner table is the
+ * standard way to centre a button in Outlook, which ignores `margin:auto`.
+ */
+export function renderCompactCtaButton(label: string, href: string): string {
+  return `<table role="presentation" align="center" cellspacing="0" cellpadding="0" style="margin:24px auto 8px;">
+  <tr>
+    <td align="center" style="border-radius:10px;background:${EMAIL_THEME.black};">
+      <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;text-align:center;border-radius:10px;">${escapeHtml(label)}</a>
+    </td>
+  </tr>
+</table>`
+}
+
+/**
  * Renders a full-width outlined secondary button (white fill, dark border).
  */
 export function renderOutlineButton(label: string, href: string): string {
@@ -231,21 +252,44 @@ function renderFeatureCard(card: FeatureCard): string {
 
 /**
  * Renders the renewal date + amount row used in E3/E5 renewal reminders.
+ *
+ * `cadence` ("every 4 weeks") adds a third column. It is optional because the
+ * frequency is read from Stripe and may be unavailable; the box then falls back
+ * to the original two-column layout instead of showing an empty field.
  */
-export function renderRenewalRemindBox(renewalDate: string, amount: string): string {
+export function renderRenewalRemindBox(
+  renewalDate: string,
+  amount: string,
+  cadence?: string | null
+): string {
+  // Equal thirds when the cadence is present, halves when it is not. Widths are
+  // inline on <td> because Outlook ignores stylesheet-driven table layout.
+  const colWidth = cadence ? '33%' : '50%'
+  const cadenceCell = cadence
+    ? `
+          <td width="34%" valign="top" align="right">
+            <p style="margin:0 0 4px;font-size:12px;color:#888888;">Billing cycle</p>
+            <p style="margin:0;font-size:15px;font-weight:500;color:#111111;">${escapeHtml(cadence)}</p>
+          </td>`
+    : ''
+
+  // With three columns the amount sits in the middle, so centre it; with two it
+  // stays right-aligned against the edge of the box.
+  const amountAlign = cadence ? 'center' : 'right'
+
   return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px;background:#f9f9f9;border:1px solid #eeeeee;border-radius:8px;">
   <tr>
     <td style="padding:18px;">
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
         <tr>
-          <td width="50%" valign="top">
+          <td width="${colWidth}" valign="top">
             <p style="margin:0 0 4px;font-size:12px;color:#888888;">Renewal date</p>
             <p style="margin:0;font-size:15px;font-weight:500;color:#111111;">${escapeHtml(renewalDate)}</p>
           </td>
-          <td width="50%" valign="top" align="right">
+          <td width="${colWidth}" valign="top" align="${amountAlign}">
             <p style="margin:0 0 4px;font-size:12px;color:#888888;">Amount</p>
             <p style="margin:0;font-size:15px;font-weight:500;color:#111111;">${escapeHtml(amount)}</p>
-          </td>
+          </td>${cadenceCell}
         </tr>
       </table>
     </td>
