@@ -216,3 +216,12 @@ export async function getLearnerBackground(userId: string): Promise<string | nul
 export function __resetLabelCache(): void {
   labelCache = null
 }
+
+/**
+ * Test seam for the pure helpers.
+ *
+ * Exported rather than tested through getLearnerBackground because that function
+ * needs Supabase; these two carry the logic worth pinning down (label lookup,
+ * value cleanup, and the length cap that keeps the prompt bounded).
+ */
+export const __testables = { humanizeValue, renderBlock, MAX_BACKGROUND_CHARS, RELEVANT_KEYS }

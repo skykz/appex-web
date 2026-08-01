@@ -10,7 +10,9 @@
     "lint": "tsc --noEmit",
     "logs": "node scripts/pull-logs.mjs",
     "logs:stats": "node scripts/pull-logs.mjs --stats",
-    "logs:errors": "node scripts/pull-logs.mjs --level error --all"
+    "logs:errors": "node scripts/pull-logs.mjs --level error --all",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.93.0",
@@ -31,6 +33,7 @@
     "@types/express": "^5.0.2",
     "@types/node": "^22.15.0",
     "tsx": "^4.19.4",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
   }
 }
