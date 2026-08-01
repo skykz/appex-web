@@ -1,11 +1,17 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Download } from 'lucide-react'
+import { ChevronRight, Download, Trash2 } from 'lucide-react'
 import type { AdminLeadRow, AdminUserRow } from '@features/users/api'
-import { fetchAdminLeads, fetchAdminUsers, type LeadStatusFilter } from '@features/users/api'
+import {
+  deleteAdminLead,
+  fetchAdminLeads,
+  fetchAdminUsers,
+  type LeadStatusFilter,
+} from '@features/users/api'
 import { downloadCsvFile, toCsv } from '@shared/lib/csv'
 import { Button } from '@shared/ui/button'
+import { DestructiveConfirmDialog } from '@shared/ui/destructive-confirm-dialog'
 import { PageHeader } from '@shared/ui/page-header'
 import { Pagination } from '@shared/ui/pagination'
 import { QueryErrorPanel } from '@shared/ui/query-error-panel'
@@ -81,12 +87,15 @@ function buildLeadsCsv(rows: AdminLeadRow[]): string {
  */
 export function UsersPage() {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [searchParams] = useSearchParams()
   const qFromUrl = searchParams.get('q') ?? ''
   const [tab, setTab] = useState<Tab>('customers')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const deferredSearch = useDeferredValue(search.trim())
+  const [deleteTarget, setDeleteTarget] = useState<AdminLeadRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (qFromUrl) setSearch(qFromUrl)
@@ -116,6 +125,20 @@ export function UsersPage() {
         limit: PAGE_SIZE,
       }),
     enabled: tab !== 'customers',
+  })
+
+  const removeLead = useMutation({
+    mutationFn: (id: string) => deleteAdminLead(id),
+    onSuccess: () => {
+      setDeleteTarget(null)
+      setDeleteError(null)
+      // Invalidate by prefix so BOTH lead tabs refetch: a deleted row must not
+      // linger in the other tab's cache, and the totals would drift otherwise.
+      void qc.invalidateQueries({ queryKey: ['admin', 'leads'] })
+    },
+    onError: (err: unknown) => {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete this lead.')
+    },
   })
 
   // Read every derived value off the SAME query object for the active tab, so a
@@ -268,6 +291,29 @@ export function UsersPage() {
           </span>
         ),
       },
+      {
+        key: 'remove',
+        header: '',
+        className: 'w-10 text-right',
+        render: (l) => (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive"
+            aria-label={`Delete lead ${l.email}`}
+            onClick={(e) => {
+              // Rows may become clickable later; don't let this bubble into a
+              // navigation the operator didn't ask for.
+              e.stopPropagation()
+              setDeleteError(null)
+              setDeleteTarget(l)
+            }}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </Button>
+        ),
+      },
     ],
     []
   )
@@ -390,6 +436,29 @@ export function UsersPage() {
           />
         </>
       )}
+
+      <DestructiveConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(o) => {
+          // Don't discard state mid-request: closing while the delete is in
+          // flight would hide the pending state and any error it returns.
+          if (o || removeLead.isPending) return
+          setDeleteTarget(null)
+          setDeleteError(null)
+        }}
+        title="Delete this lead?"
+        description={
+          deleteTarget
+            ? `Permanently delete ${deleteTarget.email}? This also removes their quiz answers and email-confirmation status. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete lead"
+        isPending={removeLead.isPending}
+        errorMessage={deleteError}
+        onConfirm={() => {
+          if (deleteTarget) removeLead.mutate(deleteTarget.id)
+        }}
+      />
     </div>
   )
 }

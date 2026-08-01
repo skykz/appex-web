@@ -78,3 +78,13 @@ export async function fetchAdminLeads(params: {
   const q = sp.toString()
   return httpClient.get<AdminLeadsListResponse>(`/admin/leads${q ? `?${q}` : ''}`)
 }
+
+/**
+ * Deletes one unconfirmed/confirmed funnel lead.
+ *
+ * Irreversible: it removes the learner's quiz answers and confirmation state too.
+ * The server refuses to touch leads that converted into a paying account.
+ */
+export async function deleteAdminLead(id: string): Promise<void> {
+  return httpClient.delete<void>(`/admin/leads/${id}`)
+}

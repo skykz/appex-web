@@ -15,6 +15,8 @@ export type AuditTargetType =
   | 'contact_message'
   | 'lesson_submission'
   | 'billing_alert'
+  /** A pre-signup funnel lead (`landing_quiz_submissions` row). */
+  | 'landing_lead'
 
 export interface AuditEntry {
   action: string
