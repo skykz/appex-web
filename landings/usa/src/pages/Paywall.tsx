@@ -236,15 +236,28 @@ function CertificatePreview() {
 /** Learner count badge (laurels) shown beneath subscription plan cards. */
 function PaywallTrustBadges() {
   return (
-    <div className="flex items-center justify-center gap-4 sm:gap-8 mb-4 flex-wrap">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center gap-3 sm:gap-8 mb-4 flex-wrap">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         <Laurel side="left" />
         <div className="text-center">
-          <p className="text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
-            3000+ learners
+          <p className="text-[13px] sm:text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
+            3241 learners
           </p>
-          <p className="text-[11px] mt-1" style={{ color: "#475569" }}>
+          <p className="text-[10px] sm:text-[11px] mt-1" style={{ color: "#475569" }}>
             Learned new skills
+          </p>
+        </div>
+        <Laurel side="right" />
+      </div>
+
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <Laurel side="left" />
+        <div className="text-center">
+          <p className="text-[13px] sm:text-[14px] font-bold leading-tight" style={{ color: BLACK }}>
+            47,567 tasks
+          </p>
+          <p className="text-[10px] sm:text-[11px] mt-1" style={{ color: "#475569" }}>
+            Done with Claude
           </p>
         </div>
         <Laurel side="right" />
@@ -848,21 +861,30 @@ export default function Paywall() {
         </section>
 
         {/* Section 2 — Money-back guarantee */}
-        <section className="mb-8">
-          <div className="flex justify-center -mb-7 relative z-10">
-            <div className="w-14 h-14 flex items-center justify-center rounded-full border-4 border-white shadow-md" style={{ background: '#10B981' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+        {/* Sized down on phones and tablets: this is reassurance, not the offer, and
+            at its old size it pushed the pricing further from the plan summary.
+            The badge, padding and type all scale back up from `md`. The address is
+            a real mailto rather than the inert <button> it used to be — the copy
+            tells people to email, so the control should do it. */}
+        <section className="mb-6 lg:mb-8">
+          <div className="flex justify-center -mb-5 lg:-mb-7 relative z-10">
+            <div className="w-10 h-10 lg:w-14 lg:h-14 flex items-center justify-center rounded-full border-[3px] lg:border-4 border-white shadow-md" style={{ background: '#10B981' }}>
+              <svg className="w-[18px] h-[18px] lg:w-6 lg:h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
           </div>
-          <div className="rounded-3xl p-7 pt-12 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
-            <h2 className="text-[24px] font-extrabold mb-3" style={{ color: BLACK }}>Money-back guarantee</h2>
-            <p className="text-[14px] leading-relaxed mb-5" style={{ color: '#475569' }}>
-              If you aren't happy with your course after giving it your full attention, we'll refund your purchase. You just need to email us at hello@appexme.com
+          <div className="rounded-2xl lg:rounded-3xl px-4 py-4 pt-8 lg:p-7 lg:pt-12 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
+            <h2 className="text-[17px] lg:text-[24px] font-extrabold mb-1.5 lg:mb-3" style={{ color: BLACK }}>Money-back guarantee</h2>
+            <p className="text-[13px] lg:text-[14px] leading-snug lg:leading-relaxed mb-3 lg:mb-5" style={{ color: '#475569' }}>
+              Not happy after really giving the course a go? Email us and we'll refund you.
             </p>
-            <button className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-white font-semibold text-[14px] border-none cursor-pointer" style={{ background: BLACK }}>
+            <a
+              href="mailto:hello@appexme.com"
+              className="inline-flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 rounded-full text-white font-semibold text-[13px] lg:text-[14px] no-underline"
+              style={{ background: BLACK }}
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
               Risk-free learning
-            </button>
+            </a>
           </div>
         </section>
 
@@ -1079,6 +1101,52 @@ export default function Paywall() {
             <span className="font-extrabold" style={{ color: BLACK }}>App</span><span className="font-extrabold" style={{ color: ORANGE }}>ex</span> Inc.
           </p>
         </footer>
+        {/* Section 7 — Support.
+            Deliberately NOT another centred card with a badge above it: the
+            money-back section already uses that shape, and repeating it makes the
+            page read as two identical reassurance blocks. This one goes
+            horizontal, uses the brand orange rather than a second green, and
+            makes the address a real mailto so the promise is one tap away
+            instead of a decorative pill that does nothing. */}
+        <section className="mb-12">
+          <div
+            className="rounded-2xl lg:rounded-3xl border px-4 py-4 lg:p-6"
+            style={{ background: '#FFF7ED', borderColor: '#FED7AA' }}
+          >
+            {/* Icon stays beside the text even on phones — stacking it added height
+                without adding clarity, and this block should sit lighter than the
+                guarantee above it, not heavier. */}
+            <div className="flex items-start gap-3 lg:items-center lg:gap-4">
+              <div
+                className="flex h-9 w-9 lg:h-12 lg:w-12 shrink-0 items-center justify-center rounded-xl lg:rounded-2xl"
+                style={{ background: ORANGE }}
+              >
+                <svg className="w-[17px] h-[17px] lg:w-[22px] lg:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-[16px] lg:text-[20px] font-extrabold leading-tight" style={{ color: BLACK }}>
+                  Stuck? A real person replies
+                </h2>
+                <p className="mt-1 text-[13px] lg:text-[14px] leading-snug lg:leading-relaxed" style={{ color: '#78350F' }}>
+                  Not a bot — someone who knows the course, usually within a day.
+                </p>
+                <a
+                  href="mailto:hello@appexme.com"
+                  className="mt-2.5 lg:mt-3 inline-flex items-center gap-2 rounded-full px-4 lg:px-5 py-2 lg:py-2.5 text-[13px] lg:text-[14px] font-semibold text-white no-underline transition-transform active:scale-[0.99]"
+                  style={{ background: BLACK }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="m22 7-10 6L2 7" />
+                  </svg>
+                  hello@appexme.com
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Order-summary modal — carries timer + discount to the final click */}
