@@ -35,6 +35,18 @@ const PAGE_SIZE = 25
 type Tab = 'customers' | 'confirmed' | 'unconfirmed'
 
 /**
+ * Leads first, customers last: the lead tabs are the ones that need action, and
+ * this is also the arrow-key order inside the tablist.
+ */
+const TABS: ReadonlyArray<{ value: Tab; label: string }> = [
+  { value: 'unconfirmed', label: 'Unconfirmed leads' },
+  { value: 'confirmed', label: 'Confirmed leads' },
+  { value: 'customers', label: 'Customers' },
+]
+
+const TAB_ORDER: readonly Tab[] = TABS.map((t) => t.value)
+
+/**
  * Searchable, paginated people directory backed by server-side filters; supports deep-link ?q= and CSV export.
  *
  * Three tabs, because paying and confirming an email are independent facts:
@@ -48,8 +60,10 @@ export function UsersPage() {
   const qFromUrl = searchParams.get('q') ?? ''
   // Deep-linkable so the dashboard tiles can open a specific list directly.
   const tabFromUrl = searchParams.get('tab')
+  // Defaults to unconfirmed leads: those are the rows that need action (chase or
+  // delete), whereas customers are a settled list you look up on purpose.
   const [tab, setTab] = useState<Tab>(
-    tabFromUrl === 'confirmed' || tabFromUrl === 'unconfirmed' ? tabFromUrl : 'customers'
+    tabFromUrl === 'confirmed' || tabFromUrl === 'customers' ? tabFromUrl : 'unconfirmed'
   )
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -93,6 +107,9 @@ export function UsersPage() {
         limit: PAGE_SIZE,
       }),
     enabled: tab !== 'customers',
+    // Hold the previous response while the next one loads: without this, changing
+    // tab or page empties `data` for a frame and the badge numbers visibly blink.
+    placeholderData: (prev) => prev,
   })
 
   const removeLead = useMutation({
@@ -135,6 +152,23 @@ export function UsersPage() {
     },
   })
 
+  /**
+   * Badge numbers.
+   *
+   * Lead counts come from whichever lead response is currently cached — both lead
+   * tabs return both numbers, so switching tabs does not blank the badges. They
+   * stay undefined until the first lead fetch lands, and on the customers tab
+   * (where no lead query runs) the last known values persist.
+   *
+   * Customers has no badge: `usersQuery.total` counts the current search only, so
+   * a number there would mean something different from the lead badges.
+   */
+  const tabCounts: Record<Tab, number | undefined> = {
+    unconfirmed: leadsQuery.data?.counts.unconfirmed,
+    confirmed: leadsQuery.data?.counts.confirmed,
+    customers: undefined,
+  }
+
   // Read every derived value off the SAME query object for the active tab, so a
   // stray render can't mix `total` from one tab with `isLoading`/rows from the other.
   const active = tab === 'customers' ? usersQuery : leadsQuery
@@ -143,6 +177,14 @@ export function UsersPage() {
   const rows = usersQuery.data?.items ?? []
   const total = active.data?.total ?? 0
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  /**
+   * True while the table is showing the previous tab's or page's rows.
+   *
+   * placeholderData keeps the badges from blinking, but it also means `isLoading`
+   * stays false during a tab switch — so without this the operator would briefly
+   * read stale rows as if they belonged to the tab they just opened.
+   */
+  const isStale = active.isPlaceholderData
 
   const columns: Column<AdminUserRow>[] = useMemo(
     () => [
@@ -392,26 +434,56 @@ export function UsersPage() {
         description="Paying customers and funnel leads, with server-side search and pagination."
       />
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="People lists">
-        {(
-          [
-            ['customers', 'Customers'],
-            ['confirmed', 'Confirmed leads'],
-            ['unconfirmed', 'Unconfirmed leads'],
-          ] as const
-        ).map(([value, label]) => (
-          <Button
-            key={value}
-            type="button"
-            size="sm"
-            role="tab"
-            aria-selected={tab === value}
-            variant={tab === value ? 'default' : 'outline'}
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </Button>
-        ))}
+      {/* Segmented control rather than three separate buttons: the tabs are one
+          choice, and a shared track makes that read at a glance. */}
+      <div
+        className="inline-flex flex-wrap items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1"
+        role="tablist"
+        aria-label="People lists"
+        onKeyDown={(e) => {
+          // Arrow-key movement is expected of a tablist; without it the group is
+          // keyboard-reachable but not keyboard-navigable.
+          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+          if (!step) return
+          e.preventDefault()
+          const i = TAB_ORDER.indexOf(tab)
+          setTab(TAB_ORDER[(i + step + TAB_ORDER.length) % TAB_ORDER.length]!)
+        }}
+      >
+        {TABS.map(({ value, label }) => {
+          const selected = tab === value
+          const count = tabCounts[value]
+          return (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              // Only the active tab is a tab stop; arrows move between them.
+              tabIndex={selected ? 0 : -1}
+              onClick={() => setTab(value)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60',
+                selected
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {label}
+              {count != null ? (
+                <span
+                  className={cn(
+                    'rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums',
+                    selected ? 'bg-primary/10 text-primary' : 'bg-muted-foreground/15'
+                  )}
+                >
+                  {count}
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
       </div>
 
       <SearchToolbar
@@ -458,7 +530,9 @@ export function UsersPage() {
           />
         </>
       ) : (
-        <>
+        // Dim while the rows still belong to the previous tab or page, so stale
+        // data is never mistaken for the list that was just requested.
+        <div className={cn('space-y-4 transition-opacity', isStale && 'opacity-50')}>
           <DataTable
             rows={leadsQuery.data?.items ?? []}
             columns={leadColumns}
@@ -478,7 +552,7 @@ export function UsersPage() {
             total={total}
             itemNoun="lead"
           />
-        </>
+        </div>
       )}
 
       <DestructiveConfirmDialog

@@ -259,7 +259,7 @@ export function DashboardPage() {
           icon={Users}
           hint={isRanged ? `Signed up · ${rangeLabel.toLowerCase()}` : undefined}
           tone="blue"
-          to="/users"
+          to="/users?tab=customers"
         />
         <StatCard
           label="Active today"

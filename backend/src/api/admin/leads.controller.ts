@@ -57,7 +57,37 @@ export async function listAdminLeads(req: Request, res: Response, next: NextFunc
       }
     }
 
-    const { data, error, count } = await listQuery.range(from, to)
+    // Tab badge counts. Built with the SAME search filter as the list, so a badge
+    // never claims rows the current filter would not show.
+    const countFor = (state: 'confirmed' | 'unconfirmed') => {
+      const base = supabaseAdmin
+        .from('landing_quiz_submissions')
+        .select('*', { count: 'exact', head: true })
+        .is('user_id', null)
+
+      let q =
+        state === 'confirmed' ? base.not('confirmed_at', 'is', null) : base.is('confirmed_at', null)
+
+      if (search) {
+        q = isUuid(search)
+          ? q.eq('id', search)
+          : q.or(
+              joinOrConditions([
+                ilikeOrCondition('email', search),
+                ilikeOrCondition('name', search),
+              ])
+            )
+      }
+      return q
+    }
+
+    const [listResult, confirmedResult, unconfirmedResult] = await Promise.all([
+      listQuery.range(from, to),
+      countFor('confirmed'),
+      countFor('unconfirmed'),
+    ])
+
+    const { data, error, count } = listResult
 
     if (error) throw new AppError(500, error.message)
 
@@ -76,7 +106,18 @@ export async function listAdminLeads(req: Request, res: Response, next: NextFunc
       created_at: r.created_at,
     }))
 
-    res.json({ items, total: count ?? 0, page, limit })
+    res.json({
+      items,
+      total: count ?? 0,
+      page,
+      limit,
+      // Drive the tab badges. Sent on every list response so the badges stay in
+      // step with a delete or a status change without a second round trip.
+      counts: {
+        confirmed: confirmedResult.count ?? 0,
+        unconfirmed: unconfirmedResult.count ?? 0,
+      },
+    })
   } catch (err) {
     next(err)
   }

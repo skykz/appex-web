@@ -58,6 +58,14 @@ export interface AdminLeadsListResponse {
   total: number
   page: number
   limit: number
+  /**
+   * Row counts per confirmation state, honouring the same search filter as the
+   * list — so the tab badges can never disagree with what the table shows.
+   */
+  counts: {
+    confirmed: number
+    unconfirmed: number
+  }
 }
 
 /**
