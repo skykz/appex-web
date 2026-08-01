@@ -12,6 +12,9 @@ export interface DashboardStats {
     lessonsCompleted: number
     activeSubscriptions: number
     revenue: number
+    /** Leads who clicked the emailed confirm link. null until migration 041 lands. */
+    confirmedLeads: number | null
+    unconfirmedLeads: number | null
   }
   /** Landing-quiz funnel, counted per attempt (session), not per device. */
   quiz: {

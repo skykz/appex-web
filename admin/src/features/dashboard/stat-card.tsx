@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { cn } from '@shared/lib'
 import { Card, CardContent } from '@shared/ui/card'
 
@@ -12,6 +13,12 @@ interface StatCardProps {
   hint?: string
   /** Drives icon tile gradient and a thin top accent on the card. */
   tone?: StatTone
+  /**
+   * When set, the whole tile becomes a link to the matching section.
+   * Omit for metrics with nowhere to drill into (e.g. revenue totals) — a card
+   * that looks clickable but isn't is worse than one that plainly isn't.
+   */
+  to?: string
 }
 
 const toneTop: Record<StatTone, string> = {
@@ -47,11 +54,14 @@ const toneIcon: Record<StatTone, string> = {
 /**
  * Compact metric tile for the admin dashboard; uses soft gradients like the user ProgressCard area.
  */
-export function StatCard({ label, value, icon: Icon, hint, tone = 'blue' }: StatCardProps) {
-  return (
+export function StatCard({ label, value, icon: Icon, hint, tone = 'blue', to }: StatCardProps) {
+  const card = (
     <Card
       className={cn(
         'overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-orange-50/25 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md',
+        // Only the linked variant gets affordances — cursor, stronger hover and a
+        // focus ring — so a non-clickable tile never looks interactive.
+        to && 'cursor-pointer hover:border-primary/40',
         toneTop[tone]
       )}
     >
@@ -75,5 +85,19 @@ export function StatCard({ label, value, icon: Icon, hint, tone = 'blue' }: Stat
         </div>
       </CardContent>
     </Card>
+  )
+
+  if (!to) return card
+
+  return (
+    <Link
+      to={to}
+      // aria-label spells out the metric because the tile's own text is split
+      // across three nodes; a screen reader would otherwise announce "14" alone.
+      aria-label={`${label}: ${value}. View details`}
+      className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2"
+    >
+      {card}
+    </Link>
   )
 }

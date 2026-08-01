@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../db/supabase.js'
 import { AppError } from '../../utils/error-handler.js'
 import { ilikeOrCondition, isUuid, joinOrConditions } from '../../utils/admin-search.js'
 import { recordAdminAction } from '../../services/admin-audit.service.js'
+import { sendLeadConfirmEmail } from '../../services/lead-confirm.service.js'
 
 const listQuerySchema = z.object({
   search: z
@@ -112,13 +113,17 @@ export async function deleteAdminLead(req: Request, res: Response, next: NextFun
     if (readErr) throw new AppError(500, readErr.message)
     if (!lead) throw new AppError(404, 'Lead not found.')
 
-    const { error: delErr } = await supabaseAdmin
+    const { data: deleted, error: delErr } = await supabaseAdmin
       .from('landing_quiz_submissions')
       .delete()
       .eq('id', id)
       // Re-assert the guard on the write itself: between the read and here the
       // lead could have paid, and the row would no longer be ours to delete.
       .is('user_id', null)
+      // Returning the row is what makes this safe under concurrency: without it a
+      // DELETE that matched nothing still reports success, so six simultaneous
+      // clicks all answered 200 and wrote six audit entries for one deletion.
+      .select('id')
 
     if (delErr) {
       await recordAdminAction(req, {
@@ -131,6 +136,11 @@ export async function deleteAdminLead(req: Request, res: Response, next: NextFun
       throw new AppError(500, delErr.message)
     }
 
+    // Another request already removed it (double-click, or two operators at once).
+    // Report not-found rather than a second success, so the audit log records one
+    // deletion and the UI doesn't claim to have deleted something twice.
+    if (!deleted?.length) throw new AppError(404, 'Lead not found.')
+
     await recordAdminAction(req, {
       action: 'lead.delete',
       targetType: 'landing_lead',
@@ -139,6 +149,81 @@ export async function deleteAdminLead(req: Request, res: Response, next: NextFun
     })
 
     res.json({ success: true })
+  } catch (err) {
+    next(err)
+  }
+}
+
+/**
+ * Sends the confirmation email to one lead on demand.
+ *
+ * Exists because the automatic send only fires on a quiz submission: the leads
+ * captured before that path shipped never got an email, and there was no way to
+ * reach them without editing the database by hand.
+ *
+ * Sends immediately and ignores the resend cooldown — an operator pressing the
+ * button is a deliberate one-off, unlike the quiz firing on every step.
+ */
+export async function resendAdminLeadConfirmEmail(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  // Express 5 types route params as string | string[]; normalise before use.
+  const id = String(req.params.id ?? '')
+
+  try {
+    if (!isUuid(id)) throw new AppError(400, 'Invalid lead id.')
+
+    // Scoped to leads: a paying customer is served by the lifecycle emails, and
+    // sending them a "confirm your email" would be nonsense.
+    const { data: lead, error: readErr } = await supabaseAdmin
+      .from('landing_quiz_submissions')
+      .select('id, email, name, landing, confirmed_at')
+      .eq('id', id)
+      .is('user_id', null)
+      .maybeSingle()
+
+    if (readErr) throw new AppError(500, readErr.message)
+    if (!lead) throw new AppError(404, 'Lead not found.')
+    if (lead.confirmed_at) {
+      throw new AppError(409, 'This lead already confirmed their email.')
+    }
+
+    const outcome = await sendLeadConfirmEmail({
+      email: lead.email,
+      name: lead.name,
+      landing: lead.landing,
+      reqId: req.reqId,
+      immediate: true,
+    })
+
+    await recordAdminAction(req, {
+      action: 'lead.resend_confirm_email',
+      targetType: 'landing_lead',
+      targetId: id,
+      metadata: { email: lead.email, outcome },
+      // A skip is not a failure, but it IS the operator's action not taking
+      // effect, so record why rather than logging a bare success.
+      error: outcome === 'sent' ? undefined : outcome,
+    })
+
+    if (outcome === 'sent') {
+      res.json({ success: true, outcome })
+      return
+    }
+
+    // Translate the service's vocabulary into something an operator can act on.
+    const message =
+      outcome === 'skipped_disabled'
+        ? 'Email sending is not configured on this environment.'
+        : outcome === 'skipped_already_confirmed'
+          ? 'This lead already confirmed their email.'
+          : outcome === 'skipped_no_row'
+            ? 'Lead not found.'
+            : 'Could not send the email. Please try again shortly.'
+
+    throw new AppError(outcome === 'skipped_disabled' ? 503 : 409, message)
   } catch (err) {
     next(err)
   }

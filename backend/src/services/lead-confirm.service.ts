@@ -69,12 +69,19 @@ function buildConfirmUrl(token: string): string {
  *
  * Never throws: this runs off the back of a quiz submission, and a mail failure
  * must not turn a captured lead into a 500 for the visitor.
+ *
+ * `immediate` exists for the admin "resend" button. An operator clicking send is a
+ * deliberate one-off, not the quiz firing on every step, so there is nothing to
+ * rate limit and nothing gained by making them wait ten minutes to see whether it
+ * worked. The automatic path keeps both the delay and the cooldown.
  */
 export async function sendLeadConfirmEmail(args: {
   email: string
   name?: string | null
   landing: string
   reqId?: string
+  /** Skip the send delay and the resend cooldown (admin-triggered send). */
+  immediate?: boolean
 }): Promise<SendConfirmResult> {
   if (!env.mailgunEnabled) return 'skipped_disabled'
 
@@ -96,8 +103,9 @@ export async function sendLeadConfirmEmail(args: {
     if (row.confirmed_at) return 'skipped_already_confirmed'
 
     // The quiz re-submits on every step, so without a cooldown one lead would get
-    // a burst of identical confirmation emails.
-    if (row.confirm_email_sent_at) {
+    // a burst of identical confirmation emails. An admin-triggered send bypasses
+    // this: the operator asked for exactly one email, on purpose.
+    if (!args.immediate && row.confirm_email_sent_at) {
       const age = Date.now() - new Date(row.confirm_email_sent_at).getTime()
       if (age < RESEND_COOLDOWN_MS) return 'skipped_cooldown'
     }
@@ -146,8 +154,9 @@ export async function sendLeadConfirmEmail(args: {
         // Marketing mail to a non-account holder: an unsubscribe path is required.
         listUnsubscribeMailto: env.MAILGUN_REPLY_TO ?? undefined,
         // Mailgun holds the message and delivers it later, so the delay survives
-        // the request ending — unlike a timer in this process.
-        deliveryTime: new Date(now.getTime() + SEND_DELAY_MS),
+        // the request ending — unlike a timer in this process. Omitted entirely for
+        // an admin send: passing a past date would be rejected, not treated as "now".
+        ...(args.immediate ? {} : { deliveryTime: new Date(now.getTime() + SEND_DELAY_MS) }),
       })
 
       // sendEmail resolves to null (rather than throwing) when Mailgun is off.

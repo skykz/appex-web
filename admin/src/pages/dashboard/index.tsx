@@ -11,6 +11,8 @@ import {
   ChevronRight,
   Flag,
   LogIn,
+  MailCheck,
+  MailWarning,
   UserMinus,
 } from 'lucide-react'
 import { dashboardApi, type DashboardRange } from '@features/dashboard/api'
@@ -198,7 +200,8 @@ export function DashboardPage() {
           <Skeleton className="h-4 w-72 max-w-full" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {/* Matches the eight tiles rendered below, so the layout doesn't jump. */}
+          {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-28 w-full rounded-xl" />
           ))}
         </div>
@@ -256,6 +259,7 @@ export function DashboardPage() {
           icon={Users}
           hint={isRanged ? `Signed up · ${rangeLabel.toLowerCase()}` : undefined}
           tone="blue"
+          to="/users"
         />
         <StatCard
           label="Active today"
@@ -270,6 +274,7 @@ export function DashboardPage() {
           icon={BookOpen}
           hint={isRanged ? 'Catalog size — not date-filtered' : undefined}
           tone="violet"
+          to="/courses"
         />
         <StatCard
           label="Lessons completed"
@@ -284,6 +289,7 @@ export function DashboardPage() {
           icon={CreditCard}
           hint={isRanged ? 'Live count — not date-filtered' : undefined}
           tone="amber"
+          to="/billing"
         />
         <StatCard
           label="Revenue"
@@ -291,6 +297,25 @@ export function DashboardPage() {
           icon={DollarSign}
           hint={isRanged ? rangeLabel : 'All-time billing'}
           tone="orange"
+          to="/billing"
+        />
+        {/* Lead confirmation state. Rendered as a dash until migration 041 adds
+            `confirmed_at`, rather than showing a misleading 0. */}
+        <StatCard
+          label="Confirmed leads"
+          value={t.confirmedLeads ?? '—'}
+          icon={MailCheck}
+          hint={t.confirmedLeads == null ? 'Pending migration' : 'Clicked the email link · no purchase'}
+          tone="cyan"
+          to={t.confirmedLeads == null ? undefined : '/users?tab=confirmed'}
+        />
+        <StatCard
+          label="Unconfirmed leads"
+          value={t.unconfirmedLeads ?? '—'}
+          icon={MailWarning}
+          hint={t.unconfirmedLeads == null ? 'Pending migration' : 'Left an email · never confirmed'}
+          tone="rose"
+          to={t.unconfirmedLeads == null ? undefined : '/users?tab=unconfirmed'}
         />
       </section>
 

@@ -54,6 +54,40 @@ function startOfTodayUTC(): string {
 }
 
 /**
+ * Counts funnel leads (no account) split by whether they clicked the emailed
+ * confirmation link.
+ *
+ * Returns nulls instead of throwing when `confirmed_at` is absent: the column
+ * arrives with migration 041, and a dashboard that 500s on every card because one
+ * optional metric is unavailable would be worse than hiding that one metric. The
+ * UI renders a dash for null.
+ */
+async function getLeadConfirmationTotals(): Promise<{
+  confirmed: number | null
+  unconfirmed: number | null
+}> {
+  try {
+    const [confirmed, unconfirmed] = await Promise.all([
+      supabaseAdmin
+        .from('landing_quiz_submissions')
+        .select('*', { count: 'exact', head: true })
+        .is('user_id', null)
+        .not('confirmed_at', 'is', null),
+      supabaseAdmin
+        .from('landing_quiz_submissions')
+        .select('*', { count: 'exact', head: true })
+        .is('user_id', null)
+        .is('confirmed_at', null),
+    ])
+
+    if (confirmed.error || unconfirmed.error) return { confirmed: null, unconfirmed: null }
+    return { confirmed: confirmed.count ?? 0, unconfirmed: unconfirmed.count ?? 0 }
+  } catch {
+    return { confirmed: null, unconfirmed: null }
+  }
+}
+
+/**
  * Landing-quiz funnel: how many attempts started, how many reached the end, and
  * how many stopped somewhere in between.
  *
@@ -164,6 +198,7 @@ export async function getDashboardStats(
       activeSubs,
       revenue,
       quiz,
+      leadConfirmation,
     ] = await Promise.all([
       // Signups are datable, so the range narrows them to "new users in period".
       count('users', (q) => {
@@ -182,6 +217,8 @@ export async function getDashboardStats(
       ),
       sumRevenueExcludingAdmins(adminIds, since),
       getQuizFunnel(since),
+      // Point-in-time state, so the date range does not apply.
+      getLeadConfirmationTotals(),
     ])
 
     // Users active today = streak_days rows for today, excluding admins
@@ -230,6 +267,9 @@ export async function getDashboardStats(
         lessonsCompleted: lessonsCompletedTotal,
         activeSubscriptions: activeSubs,
         revenue,
+        /** Leads who clicked the emailed confirm link. null = column not migrated yet. */
+        confirmedLeads: leadConfirmation.confirmed,
+        unconfirmedLeads: leadConfirmation.unconfirmed,
       },
       quiz,
       recentUsers: recentUsers ?? [],

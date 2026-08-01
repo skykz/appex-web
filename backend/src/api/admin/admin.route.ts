@@ -26,7 +26,11 @@ import {
   reorderModuleLessons,
 } from './courses.controller.js'
 import { listAdminUsers } from './users.controller.js'
-import { deleteAdminLead, listAdminLeads } from './leads.controller.js'
+import {
+  deleteAdminLead,
+  listAdminLeads,
+  resendAdminLeadConfirmEmail,
+} from './leads.controller.js'
 import { listContactMessages, patchContactMessage, getContactUnreadCount, markAllContactMessagesRead } from './contact-inbox.controller.js'
 import {
   listLessonSubmissions,
@@ -89,6 +93,7 @@ router.get('/lessons/:id/engagement', ...guard, getLessonEngagement)
 router.get('/users', ...guard, listAdminUsers)
 router.get('/leads', ...guard, listAdminLeads)
 router.delete('/leads/:id', ...guard, deleteAdminLead)
+router.post('/leads/:id/resend-confirm', ...guard, resendAdminLeadConfirmEmail)
 router.get('/users/:id', ...guard, getAdminUserDetail)
 
 router.get('/subscriptions', ...guard, listAdminSubscriptions)

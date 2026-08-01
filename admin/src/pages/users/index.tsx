@@ -1,12 +1,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronRight, Download, Trash2 } from 'lucide-react'
+import { ChevronRight, Download, Loader2, Mail, Trash2 } from 'lucide-react'
 import type { AdminLeadRow, AdminUserRow } from '@features/users/api'
 import {
   deleteAdminLead,
   fetchAdminLeads,
   fetchAdminUsers,
+  resendLeadConfirmEmail,
   type LeadStatusFilter,
 } from '@features/users/api'
 import { downloadCsvFile, toCsv } from '@shared/lib/csv'
@@ -90,7 +91,11 @@ export function UsersPage() {
   const qc = useQueryClient()
   const [searchParams] = useSearchParams()
   const qFromUrl = searchParams.get('q') ?? ''
-  const [tab, setTab] = useState<Tab>('customers')
+  // Deep-linkable so the dashboard tiles can open a specific list directly.
+  const tabFromUrl = searchParams.get('tab')
+  const [tab, setTab] = useState<Tab>(
+    tabFromUrl === 'confirmed' || tabFromUrl === 'unconfirmed' ? tabFromUrl : 'customers'
+  )
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const deferredSearch = useDeferredValue(search.trim())
@@ -100,6 +105,14 @@ export function UsersPage() {
   useEffect(() => {
     if (qFromUrl) setSearch(qFromUrl)
   }, [qFromUrl])
+
+  // Follow ?tab= on later navigations too: arriving here from a dashboard tile
+  // while already on this page does not remount the component, so the initial
+  // useState value alone would leave the wrong tab selected.
+  useEffect(() => {
+    if (tabFromUrl === 'confirmed' || tabFromUrl === 'unconfirmed') setTab(tabFromUrl)
+    else if (tabFromUrl === 'customers') setTab('customers')
+  }, [tabFromUrl])
 
   useEffect(() => {
     setPage(1)
@@ -132,12 +145,38 @@ export function UsersPage() {
     onSuccess: () => {
       setDeleteTarget(null)
       setDeleteError(null)
+      // Deleting the only row on a page would otherwise leave the operator staring
+      // at an empty table with no obvious way back — refetching page N returns the
+      // same empty slice. Step back a page when that was the last row on it.
+      if (leadsQuery.data?.items.length === 1 && page > 1) setPage(page - 1)
       // Invalidate by prefix so BOTH lead tabs refetch: a deleted row must not
       // linger in the other tab's cache, and the totals would drift otherwise.
       void qc.invalidateQueries({ queryKey: ['admin', 'leads'] })
     },
     onError: (err: unknown) => {
       setDeleteError(err instanceof Error ? err.message : 'Could not delete this lead.')
+    },
+  })
+
+  // Per-row send feedback. Keyed by lead id because several rows can be acted on
+  // in sequence and a single shared message would attach to the wrong one.
+  const [sendResult, setSendResult] = useState<{ id: string; ok: boolean; text: string } | null>(
+    null
+  )
+
+  const sendConfirmEmail = useMutation({
+    mutationFn: (id: string) => resendLeadConfirmEmail(id),
+    onSuccess: (_data, id) => {
+      setSendResult({ id, ok: true, text: 'Email sent' })
+      // Refetch so the "Email confirmed" column flips to "Awaiting click".
+      void qc.invalidateQueries({ queryKey: ['admin', 'leads'] })
+    },
+    onError: (err: unknown, id) => {
+      setSendResult({
+        id,
+        ok: false,
+        text: err instanceof Error ? err.message : 'Could not send the email.',
+      })
     },
   })
 
@@ -292,30 +331,80 @@ export function UsersPage() {
         ),
       },
       {
-        key: 'remove',
+        key: 'actions',
         header: '',
-        className: 'w-10 text-right',
-        render: (l) => (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-destructive"
-            aria-label={`Delete lead ${l.email}`}
-            onClick={(e) => {
-              // Rows may become clickable later; don't let this bubble into a
-              // navigation the operator didn't ask for.
-              e.stopPropagation()
-              setDeleteError(null)
-              setDeleteTarget(l)
-            }}
-          >
-            <Trash2 className="h-4 w-4" aria-hidden />
-          </Button>
-        ),
+        className: 'w-24 text-right',
+        render: (l) => {
+          const sending = sendConfirmEmail.isPending && sendConfirmEmail.variables === l.id
+          const result = sendResult?.id === l.id ? sendResult : null
+          // Nothing to confirm once they already did — offering the button would
+          // only let an operator mail a redundant "please confirm" request.
+          const canSend = !l.confirmed_at
+
+          return (
+            <div className="flex items-center justify-end gap-1">
+              {result ? (
+                <span
+                  className={cn(
+                    'mr-1 text-xs',
+                    result.ok ? 'text-emerald-600' : 'text-destructive'
+                  )}
+                  // Announce the outcome: the icon-only button gives no other cue.
+                  role="status"
+                  title={result.text}
+                >
+                  {result.ok ? 'Sent' : 'Failed'}
+                </span>
+              ) : null}
+              {canSend ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-primary"
+                  disabled={sending}
+                  aria-label={`Send confirmation email to ${l.email}`}
+                  title={`Send confirmation email to ${l.email}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSendResult(null)
+                    sendConfirmEmail.mutate(l.id)
+                  }}
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Mail className="h-4 w-4" aria-hidden />
+                  )}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                aria-label={`Delete lead ${l.email}`}
+                onClick={(e) => {
+                  // Rows may become clickable later; don't let this bubble into a
+                  // navigation the operator didn't ask for.
+                  e.stopPropagation()
+                  // Clear the previous attempt's state, or a failure on one lead
+                  // would greet the operator as an error on the next one they open.
+                  removeLead.reset()
+                  setDeleteError(null)
+                  setDeleteTarget(l)
+                }}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+              </Button>
+            </div>
+          )
+        },
       },
     ],
-    []
+    // Everything referenced in the action buttons must be a dependency, or the
+    // memo would keep closures over stale mutation/feedback state.
+    [removeLead, sendConfirmEmail, sendResult]
   )
 
   async function exportCsv() {
@@ -345,7 +434,7 @@ export function UsersPage() {
       <PageHeader
         badge="People"
         title="Users"
-        description="Registered users with server-side search and pagination."
+        description="Paying customers and funnel leads, with server-side search and pagination."
       />
 
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="People lists">

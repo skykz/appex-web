@@ -88,3 +88,13 @@ export async function fetchAdminLeads(params: {
 export async function deleteAdminLead(id: string): Promise<void> {
   return httpClient.delete<void>(`/admin/leads/${id}`)
 }
+
+/**
+ * Sends the confirmation email to one lead on demand (admin-triggered).
+ *
+ * Delivered immediately, bypassing the delay and cooldown the automatic quiz path
+ * uses — see the backend handler for why.
+ */
+export async function resendLeadConfirmEmail(id: string): Promise<{ success: boolean }> {
+  return httpClient.post<{ success: boolean }>(`/admin/leads/${id}/resend-confirm`, {})
+}
