@@ -1,9 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
 import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
-import { trackStepAnswer, getQuestionText, trackQuizEvent } from "@/lib/quiz-tracker";
+import { trackStepAnswer, getQuestionText, trackQuizEvent, buildQuizQuery } from "@/lib/quiz-tracker";
+
+/** The one route the quiz overlay lives on. */
+export const QUIZ_PATH = "/quiz";
 
 export type Answers = {
   experience_with_claude?: "yes" | "no";
@@ -40,6 +44,23 @@ type Action =
   | { type: "GOTO"; step: number }
   | { type: "RESET_STEP" };
 
+/**
+ * Reads back the answers persisted by the "Persist answers" effect below.
+ * Only called once, at reducer init — this is what makes a refresh or a
+ * shared /quiz?quiz_page_id=N link land with the earlier answers intact
+ * instead of on a personalization screen ("Your age: —") built from nothing.
+ */
+function loadPersistedAnswers(): Answers {
+  try {
+    const raw = sessionStorage.getItem("appexQuiz");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as { answers?: Answers };
+    return parsed.answers ?? {};
+  } catch {
+    return {};
+  }
+}
+
 export const TOTAL_STEPS = 34;
 
 /**
@@ -69,7 +90,9 @@ function reducer(state: State, action: Action): State {
 
 interface Ctx {
   isOpen: boolean;
-  open: () => void;
+  /** Opens the quiz (navigates to /quiz). `utmButton` names the CTA that
+   *  triggered it and is surfaced in the URL as utm_button. */
+  open: (utmButton?: string) => void;
   close: () => void;
   step: number;
   answers: Answers;
@@ -91,8 +114,34 @@ const QuizCtx = createContext<Ctx | null>(null);
 const FREE_TEXT_KEYS = new Set<string>(["email", "name"]);
 
 export function QuizProvider({ children }: { children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [state, dispatch] = useReducer(reducer, { step: 1, answers: {} });
+  const navigate = useNavigate();
+  const location = useLocation();
+  // Lazy init reads sessionStorage AND the URL once, synchronously, before
+  // first paint — this is what makes a refresh or a shared
+  // /quiz?quiz_page_id=N link work at all. Doing this in an effect instead (as
+  // an earlier version did) means the first render briefly answers with
+  // step=1, and if a step->URL sync effect runs before a URL->step effect gets
+  // a chance to correct it, that first render's step=1 gets pushed onto the
+  // URL — clobbering the deep-linked step before it was ever read. Reading
+  // window.location directly (not the `location` from useLocation, which
+  // isn't available yet at this point in the component) sidesteps that
+  // ordering question entirely: there is no wrong first render to race.
+  const [state, dispatch] = useReducer(reducer, undefined, () => {
+    const answers = loadPersistedAnswers();
+    if (window.location.pathname !== QUIZ_PATH) return { step: 1, answers };
+    const raw = new URLSearchParams(window.location.search).get("quiz_page_id");
+    const step = Number(raw);
+    return {
+      step: Number.isInteger(step) && step >= 1 && step <= TOTAL_STEPS ? step : 1,
+      answers,
+    };
+  });
+
+  // The URL is the source of truth for "is the quiz open": /quiz shows it, any
+  // other path hides it. This makes the quiz shareable/bookmarkable and lets the
+  // browser Back button close it, instead of the open state living only in a
+  // React flag the URL knows nothing about.
+  const isOpen = location.pathname === QUIZ_PATH;
 
   // Fire quiz_start / quiz_complete once each, persisted so a reload mid-funnel
   // doesn't re-count them (mirrors the /quiz route's guards).
@@ -103,11 +152,80 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     typeof sessionStorage !== "undefined" && sessionStorage.getItem("appexOverlayCompleteFired") === "1"
   );
 
-  const open = useCallback(() => {
-    dispatch({ type: "RESET_STEP" });
-    setIsOpen(true);
+  const open = useCallback(
+    (utmButton?: string) => {
+      dispatch({ type: "RESET_STEP" });
+      // If we're already on /quiz (a double-clicked CTA, or open() called twice),
+      // replace instead of push. Two pushes would stack two identical /quiz
+      // entries, so the first browser Back would land on the duplicate instead
+      // of leaving the quiz — the user would have to press Back twice to exit.
+      const alreadyOnQuiz = window.location.pathname === QUIZ_PATH;
+      navigate(`${QUIZ_PATH}?${buildQuizQuery(1, utmButton)}`, { replace: alreadyOnQuiz });
+    },
+    [navigate]
+  );
+  // Always an explicit push to "/", never navigate(-1): with the one-history-
+  // entry-per-step model below, "back out of the quiz entirely" and "back one
+  // step" have to be different actions, or Back from step 15 would only step
+  // back to step 14 instead of actually closing.
+  const close = useCallback(() => navigate("/"), [navigate]);
+
+  /**
+   * URL <-> step. Two DIRECTIONS that must never both fire off the same
+   * navigation, or whichever effect runs first corrupts the URL before the
+   * other reads it — which is exactly what a single combined "sync on any
+   * location.search change" effect did: on landing directly on
+   * /quiz?quiz_page_id=5, the step->URL half saw the still-initial step (1)
+   * and pushed quiz_page_id=1 before the URL->step half got a chance to read
+   * the 5 that was actually in the address bar.
+   *
+   * The fix is to make the two directions structurally unable to race:
+   *  1. Deep-link read happens ONCE, synchronously, in the SAME reducer init
+   *     as loadPersistedAnswers() (see useReducer below) — not in an effect at
+   *     all, so there is no first render with the wrong step to race against.
+   *  2. Forward motion (next/prev/goto from the quiz UI) pushes a URL from
+   *     `state.step` — this is the only writer of quiz_page_id after mount.
+   *  3. The browser's OWN Back/Forward is handled by a dedicated `popstate`
+   *     listener, not by watching `location.search` — `location.search`
+   *     changes for both "the quiz pushed it" and "the user clicked Back",
+   *     and telling those apart from inside a location-watching effect is
+   *     exactly the ping-pong this replaces.
+   */
+
+  // step -> URL: push one entry per step change, preserving whatever other
+  // params are already in the address bar (utm_button etc.) rather than
+  // rebuilding the query from buildQuizQuery, which only knows utm_button at
+  // the /quiz entry point and would otherwise drop it on the first step change.
+  useEffect(() => {
+    if (!isOpen) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get("quiz_page_id") === String(state.step)) return;
+    params.set("quiz_page_id", String(state.step));
+    navigate(`${QUIZ_PATH}?${params.toString()}`);
+    // location.search is deliberately omitted: this effect's job is "step
+    // changed, push a URL for it", not "URL changed, do something" — the
+    // latter is popstate's job below. Including it here would make this fire
+    // on the browser's Back/Forward too and re-push the entry it just left.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, state.step, navigate]);
+
+  // Browser's own Back/Forward: read quiz_page_id straight off window.location
+  // (not the React Router `location` prop, which hasn't necessarily
+  // re-rendered yet at the moment this fires) and jump the reducer straight
+  // to it. No push here — popstate means the browser already moved the
+  // history pointer; pushing again would fight it.
+  useEffect(() => {
+    const onPopState = () => {
+      if (window.location.pathname !== QUIZ_PATH) return;
+      const raw = new URLSearchParams(window.location.search).get("quiz_page_id");
+      const target = raw ? Number(raw) : NaN;
+      if (Number.isInteger(target) && target >= 1 && target <= TOTAL_STEPS) {
+        dispatch({ type: "GOTO", step: target });
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
-  const close = useCallback(() => setIsOpen(false), []);
 
   /** Emits quiz_answer for a committed answer. The overlay's answer keys are
    * already clean slugs (work_status, age_band, …) so they double as step_id. */
@@ -200,11 +318,12 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       // tracked automatically instead of being forgotten. `data-cta` names the
       // section — it tells apart "nobody clicks" (weak copy) from "people click
       // but the quiz never starts" (broken), which look identical in quiz_step.
-      const location = target.dataset.cta || "unknown";
-      ga4CtaClick({ location });
-      pushToDataLayer("cta_click", { location });
+      const ctaLocation = target.dataset.cta || "unknown";
+      ga4CtaClick({ location: ctaLocation });
+      pushToDataLayer("cta_click", { location: ctaLocation });
       e.preventDefault();
-      open();
+      // Pass the CTA name through so it lands in the URL as utm_button.
+      open(ctaLocation);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);

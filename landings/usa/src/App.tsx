@@ -80,10 +80,13 @@ const App = () => (
         <QuizProvider>
           <Routes>
             <Route path="/" element={<Index />} />
-            {/* Legacy 45-screen quiz route, replaced by the QuizOverlay. Kept as a
-                redirect (not a 404) so old bookmarks/pixels/ads land on the
-                overlay-driven experience instead of the retired flow. */}
-            <Route path="/quiz" element={<Navigate to="/" replace />} />
+            {/* /quiz renders the landing with the quiz overlay open on top of it
+                (QuizProvider derives isOpen from this path). A dedicated route
+                rather than an in-place flag makes the quiz shareable, keeps the
+                URL and browser history coherent, and carries the analytics query
+                string. Same element as "/" — the overlay is what differs. */}
+            <Route path="/quiz" element={<Index />} />
+            {/* Retired result page — send old bookmarks/pixels to the live flow. */}
             <Route path="/quiz/result" element={<Navigate to="/" replace />} />
             <Route path="/paywall" element={<Paywall />} />
             <Route path="/checkout/success" element={<CheckoutSuccess />} />

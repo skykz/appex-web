@@ -21,6 +21,33 @@ import { getApiBaseUrl } from './landing-api'
 /** Bump when the quiz flow changes, so cohorts stay comparable. */
 export const QUIZ_VERSION = 'v1.0.0'
 
+/**
+ * Builds the query string carried on the `/quiz` URL so the quiz run is
+ * shareable and legible in analytics/support the way jobescape's `/chat-v3`
+ * link is. Everything here is ALREADY tracked elsewhere — this only surfaces it
+ * in the address bar; it is not a new source of truth.
+ *
+ * Deliberately excludes email and any other PII: the address bar leaks into
+ * browser history, server logs, and the Referer header, so personal data must
+ * never ride in it.
+ */
+export function buildQuizQuery(stepNo: number, utmButton?: string): string {
+  const params = new URLSearchParams()
+  // First-touch attribution + identity, straight from the analytics envelope.
+  for (const [key, value] of Object.entries(getAttributionParams())) {
+    if (value) params.set(key, value)
+  }
+  params.set('landing_version', getAttribution().landing_version ?? LANDING_VERSION)
+  params.set('quiz_version', QUIZ_VERSION)
+  // Step position, so a link deep-links to where the user was — our analogue of
+  // jobescape's quiz_page_id. Our "pages" are React steps, not DB rows, so this
+  // is simply the 1-based step index.
+  params.set('quiz_page_id', String(stepNo))
+  // Which CTA opened the quiz, if known (hero / navbar / features / …).
+  if (utmButton) params.set('utm_button', utmButton)
+  return params.toString()
+}
+
 const FLUSH_AFTER = 4
 const FLUSH_INTERVAL_MS = 5000
 const MAX_BUFFER = 50
