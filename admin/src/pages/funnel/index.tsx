@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { TrendingDown, Users, Mail, CheckCircle2, Clock, LogOut, Smartphone, Monitor, Tablet } from 'lucide-react'
+import { TrendingDown, Users, Mail, CheckCircle2, Clock, LogOut, Smartphone, Monitor, Tablet, ArrowDown, SkipForward } from 'lucide-react'
 import { funnelApi, type FunnelFilters, type FunnelStep } from '@features/funnel/api'
 import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
@@ -345,7 +345,7 @@ export function FunnelPage() {
             /* Centred funnel: each screen is a band whose width is the share of
                visitors still present. A cliff is visible as a sudden narrowing,
                which a flat list of numbers does not convey. */
-            <div className="space-y-px p-4">
+            <div className="space-y-0.5 p-3">
               {steps.map((s) => {
                 const width = Math.max(3, (s.reached / maxReached) * 100)
                 const sev = severityOf(s, medianDrop)
@@ -354,15 +354,15 @@ export function FunnelPage() {
                     key={s.step_id}
                     type="button"
                     onClick={() => setExpanded(expanded === s.step_id ? null : s.step_id)}
-                    className="group flex w-full items-center gap-3 rounded px-1 py-0.5 hover:bg-muted/40"
+                    className="group flex w-full items-center gap-2 rounded px-1 py-px hover:bg-muted/40"
                     title={`${s.step_id} — ${s.reached} reached, ${s.dropped} left`}
                   >
-                    <span className="w-7 shrink-0 text-right text-[10px] text-muted-foreground tabular-nums">
+                    <span className="w-6 shrink-0 text-right text-[9px] text-muted-foreground tabular-nums">
                       {s.step_order}
                     </span>
                     <span className="flex flex-1 justify-center">
                       <span
-                        className={`flex h-7 items-center justify-center rounded-sm text-[11px] font-medium text-white transition-all ${
+                        className={`flex h-4 items-center justify-center rounded-sm text-[10px] font-medium text-white transition-all ${
                           sev === 'high'
                             ? 'bg-red-500'
                             : sev === 'medium'
@@ -374,7 +374,7 @@ export function FunnelPage() {
                         {width > 18 ? `${s.step_id} · ${s.reached}` : s.reached}
                       </span>
                     </span>
-                    <span className="w-12 shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                    <span className="w-10 shrink-0 text-[9px] text-muted-foreground tabular-nums">
                       {s.conversion_from_start}%
                     </span>
                   </button>
@@ -450,6 +450,17 @@ export function FunnelPage() {
             </div>
           ) : (
             <div className="divide-y">
+              {/* Column headers — the row below is five bare numbers (%, −1,
+                  "7 skip", time) with no labels, unreadable without this. */}
+              <div className="flex items-center gap-2 border-b bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="w-6 shrink-0" />
+                <span className="w-36 shrink-0">Step</span>
+                <span className="flex-1">Reached</span>
+                <span className="w-11 shrink-0 text-right">Conv.</span>
+                <span className="w-14 shrink-0 text-right">Dropped</span>
+                <span className="hidden w-14 shrink-0 text-right sm:block">Skipped</span>
+                <span className="hidden w-14 shrink-0 text-right sm:block">Time</span>
+              </div>
               {steps.map((s) => {
                 const sev = severityOf(s, medianDrop)
                 const width = Math.max(2, (s.reached / maxReached) * 100)
@@ -459,45 +470,50 @@ export function FunnelPage() {
                     <button
                       type="button"
                       onClick={() => setExpanded(isOpen ? null : s.step_id)}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50"
+                      className="flex w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted/50"
                     >
-                      <span className="w-7 shrink-0 text-xs text-muted-foreground tabular-nums">
+                      <span className="w-6 shrink-0 text-[11px] text-muted-foreground tabular-nums">
                         {s.step_order}
                       </span>
 
-                      <span className="w-44 shrink-0 truncate text-sm font-medium">{s.step_id}</span>
+                      <span className="w-36 shrink-0 truncate text-[13px] font-medium">{s.step_id}</span>
 
                       {/* Bar */}
-                      <span className="relative h-6 flex-1 overflow-hidden rounded bg-muted">
+                      <span className="relative h-4 flex-1 overflow-hidden rounded bg-muted">
                         <span
                           className={`absolute inset-y-0 left-0 ${SECTION_COLOR[s.section ?? ''] ?? 'bg-slate-400'}`}
                           style={{ width: `${width}%` }}
                         />
-                        <span className="absolute inset-y-0 left-2 flex items-center text-xs font-medium text-foreground/80">
+                        <span className="absolute inset-y-0 left-2 flex items-center text-[11px] font-medium text-foreground/80">
                           {s.reached}
                         </span>
                       </span>
 
-                      <span className="w-14 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                      <span
+                        className="w-11 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums"
+                        title="Conversion from the first step"
+                      >
                         {s.conversion_from_start}%
                       </span>
 
                       <span
-                        className={`w-20 shrink-0 text-right text-xs font-semibold tabular-nums ${
+                        className={`flex w-14 shrink-0 items-center justify-end gap-0.5 text-right text-[11px] font-semibold tabular-nums ${
                           sev === 'high'
                             ? 'text-red-600'
                             : sev === 'medium'
                               ? 'text-amber-600'
                               : 'text-muted-foreground'
                         }`}
+                        title="Sessions that dropped off here"
                       >
-                        {s.dropped > 0 ? `−${s.dropped}` : '—'}
+                        {s.dropped > 0 && <ArrowDown className="size-3 shrink-0" />}
+                        {s.dropped > 0 ? s.dropped : '—'}
                       </span>
 
                       {/* Saw it, never answered it. A screen can look fine on drop
                           rate while being skipped by most of its audience. */}
                       <span
-                        className={`hidden w-16 shrink-0 text-right text-xs tabular-nums sm:block ${
+                        className={`hidden w-14 shrink-0 items-center justify-end gap-0.5 text-right text-[11px] tabular-nums sm:flex ${
                           s.viewed_not_answered > 0 && s.reached > 0 && s.viewed_not_answered / s.reached > 0.3
                             ? 'font-semibold text-amber-600'
                             : 'text-muted-foreground'
@@ -506,13 +522,21 @@ export function FunnelPage() {
                       >
                         {s.step_type === 'question'
                           ? s.viewed_not_answered > 0
-                            ? `${s.viewed_not_answered} skip`
+                            ? (
+                              <>
+                                <SkipForward className="size-3 shrink-0" />
+                                {s.viewed_not_answered}
+                              </>
+                            )
                             : '—'
                           : ''}
                       </span>
 
-                      <span className="hidden w-16 shrink-0 items-center justify-end gap-1 text-xs text-muted-foreground tabular-nums sm:flex">
-                        <Clock className="size-3" />
+                      <span
+                        className="hidden w-14 shrink-0 items-center justify-end gap-0.5 text-[11px] text-muted-foreground tabular-nums sm:flex"
+                        title="Median time on screen"
+                      >
+                        <Clock className="size-3 shrink-0" />
                         {s.median_seconds != null ? `${s.median_seconds}s` : '—'}
                       </span>
                     </button>

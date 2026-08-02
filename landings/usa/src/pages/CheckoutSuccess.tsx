@@ -8,7 +8,9 @@ import {
 import { trackPurchase } from "@/lib/meta-pixel";
 import { ga4Purchase } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
+import { trackFunnelEvent } from "@/lib/quiz-tracker";
 import { PAYWALL_PLANS, PAYWALL_DEFAULT_INDEX } from "@/lib/paywall-plans";
+import ConfettiBurst from "@/components/ConfettiBurst";
 
 /**
  * Value reported when the stored checkout value is unavailable — the default
@@ -62,6 +64,16 @@ function firePurchaseOnce(sessionId: string): void {
       // by intro / exit / expired when reconciling.
       ...(c.discount_tier ? { discount_tier: c.discount_tier } : {}),
     });
+    // Closes our own funnel (quiz_events): FUNNEL_ORDER already reserves
+    // purchase=110 as the last step, but nothing called this until now — the
+    // paywall→purchase conversion was only visible in GA4/Meta, never in our
+    // own data.
+    trackFunnelEvent("purchase", {
+      plan: c.plan,
+      value,
+      currency,
+      discount_tier: c.discount_tier,
+    });
   } catch {
     /* never block the success page on tracking */
   }
@@ -77,8 +89,23 @@ type PagePhase = "loading" | "form" | "submitting" | "error" | "missing_session"
 /**
  * Post-payment success page: waits for account provisioning, then collects password
  * and redirects the learner into the main app while E1/E2 emails send in parallel.
+ *
+ * ConfettiBurst is mounted here, OUTSIDE the phase branches in
+ * CheckoutSuccessContent, so it survives the loading→form transition instead of
+ * being unmounted and restarting from scratch: each `if (phase === ...)` below
+ * returns a distinct JSX tree, so a burst placed inside one of them would
+ * remount (and visibly restart) the moment provisioning finishes.
  */
 export default function CheckoutSuccess() {
+  return (
+    <>
+      <ConfettiBurst />
+      <CheckoutSuccessContent />
+    </>
+  );
+}
+
+function CheckoutSuccessContent() {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id")?.trim() ?? "";
 

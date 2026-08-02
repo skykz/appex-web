@@ -1220,12 +1220,12 @@ function S19() {
         </div>
       </div>
       <Heading>Become a certified Claude master with Appex</Heading>
-      <Sub>Don't just learn AI — prove it. Complete the Appex course, pass the certification, and add an official credential to your resume and LinkedIn. In 7 days, you go from "interested in AI" to "certified AI professional."</Sub>
+      <Sub>Don't just learn AI — prove it. Complete the Appex course, pass the certification, and add an official credential to your resume and LinkedIn. In 4 weeks, you go from "interested in AI" to "certified AI professional."</Sub>
       <GreenCheckList items={[
         "Official Claude mastery certification by Appex",
         "Recognized credential for your resume and LinkedIn",
         "Validates real, practical AI skills — not just theory",
-        "Complete in 7 days — 15 minutes per day",
+        "Complete in 4 weeks — 15 minutes per day",
       ]} />
       <StickyButton onClick={next}>Continue</StickyButton>
     </StepShell>

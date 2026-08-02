@@ -315,9 +315,9 @@ export function trackFunnelEvent(
     answer_value: props.value ?? props.plan ?? null,
     props,
   })
-  // The paywall is the last thing many visitors see, so don't wait for the
-  // buffer to fill — a tab closed right after is otherwise a lost event.
-  if (name.endsWith('_abandon') || name === 'checkout_error') flush(true)
+  // The paywall/success page is the last thing many visitors see, so don't wait
+  // for the buffer to fill — a tab closed right after is otherwise a lost event.
+  if (name.endsWith('_abandon') || name === 'checkout_error' || name === 'purchase') flush(true)
 }
 
 /** Records leaving mid-quiz. Called from the exit handler below. */

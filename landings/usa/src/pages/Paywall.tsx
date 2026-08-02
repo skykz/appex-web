@@ -625,7 +625,7 @@ export default function Paywall() {
     if (checkoutLoading) return;
     if (!quizEmail) {
       window.alert("Please complete the quiz so we can set up your account.");
-      window.location.href = "/quiz";
+      window.location.href = "/";
       return;
     }
     shownTierRef.current = discountState;
@@ -683,7 +683,7 @@ export default function Paywall() {
     // orphan Stripe session with an empty email — send them to collect an email.
     if (!quizEmail) {
       window.alert("Please complete the quiz so we can set up your account.");
-      window.location.href = "/quiz";
+      window.location.href = "/";
       return;
     }
     const plan = PAYWALL_PLANS[selected];

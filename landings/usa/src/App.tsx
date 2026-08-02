@@ -1,12 +1,10 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
-import Quiz from "./pages/Quiz.tsx";
-import QuizResult from "./pages/QuizResult.tsx";
 import Paywall from "./pages/Paywall.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import RoleDetail from "./pages/RoleDetail.tsx";
@@ -82,8 +80,11 @@ const App = () => (
         <QuizProvider>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/quiz" element={<Quiz />} />
-            <Route path="/quiz/result" element={<QuizResult />} />
+            {/* Legacy 45-screen quiz route, replaced by the QuizOverlay. Kept as a
+                redirect (not a 404) so old bookmarks/pixels/ads land on the
+                overlay-driven experience instead of the retired flow. */}
+            <Route path="/quiz" element={<Navigate to="/" replace />} />
+            <Route path="/quiz/result" element={<Navigate to="/" replace />} />
             <Route path="/paywall" element={<Paywall />} />
             <Route path="/checkout/success" element={<CheckoutSuccess />} />
             {/* Target of the "Confirm email" link in the lead confirmation mail. */}
