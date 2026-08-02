@@ -291,6 +291,11 @@ export function setQuizEmail(email: string): void {
  * without colliding with quiz steps if the quiz ever grows.
  */
 const FUNNEL_ORDER: Record<string, number> = {
+  // The discount wheel sits between the plan reveal (last quiz step) and the
+  // paywall, so it takes 90-92: past the quiz's 0-33 but ahead of paywall_view.
+  wheel_view: 90,
+  wheel_spin: 91,
+  wheel_result: 92,
   paywall_view: 100,
   plan_select: 101,
   checkout_modal_view: 102,

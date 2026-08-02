@@ -338,6 +338,21 @@ export function ga4PlanView(): void {
   event('plan_view')
 }
 
+/** wheel_view — discount wheel shown, between the plan reveal and the paywall. */
+export function ga4WheelView(): void {
+  event('wheel_view')
+}
+
+/** wheel_spin — user tapped to spin the discount wheel. */
+export function ga4WheelSpin(): void {
+  event('wheel_spin')
+}
+
+/** wheel_result — wheel landed and the discount popup was shown. */
+export function ga4WheelResult(params?: { discount_percent?: number }): void {
+  event('wheel_result', params)
+}
+
 /** paywall_view — paywall screen shown (spec funnel step 38). */
 export function ga4PaywallView(params?: { discount_tier?: string }): void {
   event('paywall_view', params)

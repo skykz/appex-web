@@ -40,7 +40,15 @@ type Action =
   | { type: "GOTO"; step: number }
   | { type: "RESET_STEP" };
 
-export const TOTAL_STEPS = 33;
+export const TOTAL_STEPS = 34;
+
+/**
+ * The quiz proper ends at the personal-plan reveal; step 34 is the discount
+ * wheel, a paywall-funnel screen that happens to live inside the overlay.
+ * `quiz_complete` stays pinned here so the metric keeps meaning "finished the
+ * quiz" and stays comparable with data from before the wheel existed.
+ */
+const QUIZ_COMPLETE_STEP = 33;
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -152,7 +160,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
 
   // quiz_complete when the last overlay step is reached.
   useEffect(() => {
-    if (quizCompleteFired.current || state.step < TOTAL_STEPS) return;
+    if (quizCompleteFired.current || state.step < QUIZ_COMPLETE_STEP) return;
     quizCompleteFired.current = true;
     try {
       sessionStorage.setItem("appexOverlayCompleteFired", "1");
@@ -162,7 +170,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     trackQuizComplete();
     ga4QuizComplete();
     pushToDataLayer("quiz_complete");
-    trackQuizEvent({ event_name: "quiz_complete", step_id: "quiz_complete", step_order: TOTAL_STEPS + 1, section: "plan", step_type: "milestone" });
+    trackQuizEvent({ event_name: "quiz_complete", step_id: "quiz_complete", step_order: QUIZ_COMPLETE_STEP + 1, section: "plan", step_type: "milestone" });
   }, [state.step]);
 
   // Persist answers to sessionStorage whenever answers change (for paywall personalization)

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft, X, ChevronRight, Sparkles, Briefcase, Target, TrendingUp,
@@ -14,11 +15,13 @@ import { submitLandingQuiz } from "@/lib/landing-api";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
-import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView } from "@/lib/ga4";
+import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView, ga4WheelView, ga4WheelSpin, ga4WheelResult } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
-import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText, trackQuizEvent } from "@/lib/quiz-tracker";
+import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText, trackQuizEvent, trackFunnelEvent } from "@/lib/quiz-tracker";
+import DiscountWheel from "@/components/quiz/DiscountWheel";
+import ConfettiBurst from "@/components/ConfettiBurst";
 import { loadRemoteQuiz } from "@/lib/quiz-content";
 import mentorImg from "@/assets/quiz-mentor.jpg";
 import skillsCollageImg from "@/assets/quiz-skills-collage.webp";
@@ -45,7 +48,7 @@ function phaseInfo(step: number) {
   if (step <= 11) return { phase: 0, idx: step, total: 11 };
   if (step <= 17) return { phase: 1, idx: step - 11, total: 6 };
   if (step <= 28) return { phase: 2, idx: step - 17, total: 11 };
-  return { phase: 3, idx: step - 28, total: 5 };
+  return { phase: 3, idx: step - 28, total: 6 };
 }
 
 const PHASE_LABELS = ["My profile", "Challenges", "Personalization"];
@@ -109,7 +112,7 @@ function QuizMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 // Steps that show only the logo (no back button, no menu, no tabs)
-const LOGO_ONLY_STEPS = new Set([2, 8, 11, 14, 17, 23, 25, 28, 29, 30, 31, 32, 33]);
+const LOGO_ONLY_STEPS = new Set([2, 8, 11, 14, 17, 23, 25, 28, 29, 30, 31, 32, 33, 34]);
 
 function TopBar() {
   const { step, prev } = useQuiz();
@@ -1571,10 +1574,9 @@ function S24() {
 }
 
 function S25() {
-  const { answers, close } = useQuiz();
-  const navigate = useNavigate();
+  const { answers, next } = useQuiz();
 
-  // plan_view — the personal-plan reveal, last screen before the paywall.
+  // plan_view — the personal-plan reveal, last screen before the discount wheel.
   useEffect(() => {
     ga4PlanView();
     pushToDataLayer("plan_view");
@@ -1592,7 +1594,8 @@ function S25() {
     "Validates real, practical AI skills — not just theory",
     "Complete in 4 weeks — 15 minutes per day",
   ];
-  const go = () => { close(); navigate("/paywall"); };
+  // Advances to the discount wheel (S26) rather than jumping to the paywall.
+  const go = () => next();
   return (
     <StepShell>
       <h2 className="text-[28px] font-extrabold leading-tight mb-5" style={{ color: C.text }}>
@@ -1655,6 +1658,104 @@ function S25() {
         ))}
       </ul>
       <StickyButton onClick={go}>Continue</StickyButton>
+    </StepShell>
+  );
+}
+
+/**
+ * S26 — discount wheel, between the personal plan and the paywall.
+ *
+ * The wheel always lands on 61%: that is the intro discount the paywall already
+ * applies for everyone, so this reveals the existing offer rather than deciding
+ * it. Nothing here is written to the checkout — the paywall's own discount state
+ * machine remains the single source of truth for what the customer is charged.
+ */
+function S26() {
+  const { close } = useQuiz();
+  const navigate = useNavigate();
+  const [won, setWon] = useState<number | null>(null);
+
+  useEffect(() => {
+    ga4WheelView();
+    pushToDataLayer("wheel_view");
+    trackFunnelEvent("wheel_view");
+  }, []);
+
+  const handleSpinStart = useCallback(() => {
+    ga4WheelSpin();
+    pushToDataLayer("wheel_spin");
+    trackFunnelEvent("wheel_spin");
+  }, []);
+
+  const handleResult = useCallback((percent: number) => {
+    setWon(percent);
+    ga4WheelResult({ discount_percent: percent });
+    pushToDataLayer("wheel_result", { discount_percent: percent });
+    trackFunnelEvent("wheel_result", { value: percent });
+  }, []);
+
+  const claim = () => { close(); navigate("/paywall"); };
+
+  return (
+    <StepShell>
+      <div className="rounded-2xl border px-5 py-7" style={{ borderColor: C.border }}>
+        <h2 className="text-center text-[26px] font-extrabold leading-tight" style={{ color: C.text }}>
+          Spin &amp; Unlock Your
+        </h2>
+        <p className="text-center text-[24px] font-extrabold leading-tight mb-3" style={{ color: "#3B5BFF" }}>
+          Claude Certification Plan
+        </p>
+        <p className="text-center text-[15px] mb-7" style={{ color: C.text }}>
+          Don&apos;t miss your chance to master Claude with a personalized offer 🎁
+        </p>
+        <DiscountWheel onSpinStart={handleSpinStart} onResult={handleResult} />
+      </div>
+
+      {won !== null &&
+        createPortal(
+          // Portaled to document.body: StepShell's own fadeUp animation makes it
+          // a CSS containing block for `position: fixed` descendants (any
+          // ancestor with an active transform does), so a fixed overlay nested
+          // inside it doesn't actually cover the viewport — it gets confined to
+          // StepShell's box instead, which is what made this render as a faint
+          // partial-height tint instead of a full-screen backdrop.
+          <>
+            <ConfettiBurst />
+            <div
+              className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+              style={{ background: "rgba(17,17,17,0.55)" }}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="wheel-win-title"
+            >
+              <div className="w-full max-w-[380px] rounded-2xl bg-white px-6 py-7 animate-[fadeUp_0.3s_ease-out]">
+                <h3 id="wheel-win-title" className="text-center text-[22px] font-extrabold mb-5" style={{ color: C.text }}>
+                  Woo hoo! 🥳
+                </h3>
+                <div className="rounded-xl px-4 py-6 mb-5 text-center" style={{ background: "#E4EAFF" }}>
+                  <p className="text-[15px] font-semibold mb-2" style={{ color: C.text }}>
+                    You won a discount
+                  </p>
+                  <p className="text-[38px] font-extrabold leading-none" style={{ color: "#3B5BFF" }}>
+                    {won}% off!
+                  </p>
+                </div>
+                <p className="text-center text-[14px] mb-6" style={{ color: C.muted }}>
+                  It will be applied automatically
+                </p>
+                <button
+                  type="button"
+                  onClick={claim}
+                  className="w-full rounded-full py-4 text-white font-bold text-[15px] uppercase tracking-wide"
+                  style={{ background: "#3B5BFF" }}
+                >
+                  Claim my discount
+                </button>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </StepShell>
   );
 }
@@ -2176,7 +2277,7 @@ const STEPS: Record<number, React.FC> = {
   18: SLearnPace, 19: S15, 20: SApproach, 21: SPortfolio, 22: S16,
   23: S17, 24: S18, 25: S19,
   26: SCareerGoal, 27: STimeHorizon, 28: SGoalCard,
-  29: SLoadingFlow, 30: S22, 31: S23, 32: S24, 33: S25,
+  29: SLoadingFlow, 30: S22, 31: S23, 32: S24, 33: S25, 34: S26,
 };
 
 export default function QuizOverlay() {
