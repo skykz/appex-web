@@ -1730,13 +1730,19 @@ function S26() {
           <>
             <ConfettiBurst />
             <div
-              className="z-[60] flex items-center justify-center px-6"
+              className="flex items-center justify-center px-6"
               style={{
                 position: "fixed",
                 top: 0,
                 left: 0,
                 width: "100dvw",
                 height: "100dvh",
+                // Above the quiz overlay itself (zIndex 9999). The popup is
+                // portaled to document.body, a sibling of that overlay, so a
+                // lower z-index (the old z-[60]) left it rendered but painted
+                // UNDERNEATH the quiz — present in the DOM, visible per CSS, yet
+                // covered. This is why every state log fired yet nothing showed.
+                zIndex: 10000,
                 background: "rgba(17,17,17,0.55)",
               }}
               role="dialog"

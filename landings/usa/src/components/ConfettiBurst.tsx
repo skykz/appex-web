@@ -114,10 +114,15 @@ export default function ConfettiBurst() {
   }, []);
 
   return (
+    // z-index above full-screen overlays (the quiz overlay sits at 9999 and the
+    // win popup at 10000) so the confetti actually rains over them rather than
+    // behind. It is pointer-events-none and decorative, so sitting on top is
+    // harmless on pages without those overlays (e.g. the checkout success page).
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-50"
+      className="pointer-events-none fixed inset-0"
+      style={{ zIndex: 10001 }}
     />
   );
 }
