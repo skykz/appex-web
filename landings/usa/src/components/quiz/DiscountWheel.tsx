@@ -11,66 +11,49 @@ const SEG_ANGLE = 360 / SEGMENTS.length;
 
 /* ---------------------------- Spin physics -------------------------------- */
 /*
- * A real wheel does two things an easing curve does not: it takes time to get
- * up to speed, and it slows under roughly constant friction rather than
- * asymptotically. A cubic ease-out gets both wrong — it starts at full speed
- * on frame one and then crawls for the last ~700ms.
+ * Stateful, step-integrated physics rather than a closed-form angle(t) curve —
+ * because the wheel is interactive: every tap on the button while it's still
+ * spinning adds angular velocity, the way flicking a real wheel again mid-spin
+ * does. A time-parameterised profile can't express "the user just added energy
+ * at an arbitrary moment", so instead each frame advances angle by the current
+ * velocity and bleeds that velocity off under constant friction.
  *
- * So the motion is integrated from an actual velocity profile:
- *   0..SPIN_UP_MS   quadratic ramp 0 -> PEAK_DPS   (a hand accelerating it)
- *   then            constant deceleration DECEL_DPS2 down to a dead stop
- *
- * The free-running distance that produces is then scaled by a fraction of a
- * percent so the wheel lands exactly on the winning segment. Scaling the whole
- * profile keeps the velocity SHAPE intact, where snapping the last few degrees
- * would reintroduce the artificial stop this replaces.
+ *   spin/tap:   velocity += KICK_DPS   (capped at MAX_DPS)
+ *   each frame: angle    += velocity · dt
+ *               velocity -= FRICTION_DPS2 · dt
+ *   when velocity drops below LAND_VELOCITY, hand off to a short easing that
+ *   settles exactly onto the winning segment (see landing logic in the loop).
  */
-/** Time spent accelerating from rest, ms. */
-const SPIN_UP_MS = 300;
-/** Peak angular velocity, deg/s. Sized so the free spin is ~7 turns. */
-const PEAK_DPS = 1400;
-/** Constant angular deceleration, deg/s². */
-const DECEL_DPS2 = 400;
+/** Velocity added per tap (first spin and every extra flick), deg/s. */
+const KICK_DPS = 900;
+/** Hard ceiling on velocity, so mashing the button can't spin it absurdly, deg/s. */
+const MAX_DPS = 2600;
+/** Constant friction deceleration, deg/s². */
+const FRICTION_DPS2 = 380;
+/** Below this speed the free spin ends and the landing ease begins, deg/s. */
+const LAND_VELOCITY = 260;
+/** Duration of the final ease onto the winning segment, ms. */
+const LAND_MS = 900;
+/** Peak velocity used only to normalise blur/kick strength to a 0..1 range. */
+const PEAK_DPS = MAX_DPS;
 
-const SPIN_UP_S = SPIN_UP_MS / 1000;
-/** Seconds spent decelerating from PEAK_DPS to zero. */
-const DECEL_S = PEAK_DPS / DECEL_DPS2;
-/** Total spin duration, ms. */
-const SPIN_MS = (SPIN_UP_S + DECEL_S) * 1000;
-/** Distance covered while accelerating: ∫ PEAK·(t/T)² dt = PEAK·T/3. */
-const ACCEL_DEG = (PEAK_DPS * SPIN_UP_S) / 3;
-/** Distance covered while decelerating: v²/2a. */
-const DECEL_DEG = (PEAK_DPS * PEAK_DPS) / (2 * DECEL_DPS2);
-const FREE_DEG = ACCEL_DEG + DECEL_DEG;
-/** Where the winning segment must end up, mod 360. */
+/** Where the winning segment sits under the top pointer, mod 360. */
 const TARGET_MOD = (-WINNING_INDEX * SEG_ANGLE + 360) % 360;
-/** Nearest whole-turn multiple of the free distance that lands on target. */
-const TOTAL_DEG = Math.round((FREE_DEG - TARGET_MOD) / 360) * 360 + TARGET_MOD;
-/** Correction factor, ~0.4% — small enough not to distort the deceleration. */
-const SCALE = TOTAL_DEG / FREE_DEG;
 
-/** Angular position at time t (ms), following the profile above. */
-function angleAt(ms: number): number {
-  const t = Math.min(ms, SPIN_MS) / 1000;
-  if (t <= SPIN_UP_S) {
-    // ∫ PEAK·(t/T)² dt = PEAK·t³/(3T²)
-    return (SCALE * (PEAK_DPS * t * t * t)) / (3 * SPIN_UP_S * SPIN_UP_S);
-  }
-  const td = t - SPIN_UP_S;
-  return SCALE * (ACCEL_DEG + PEAK_DPS * td - 0.5 * DECEL_DPS2 * td * td);
+/** Smallest rotation ≥ `from` that lands the winning segment under the pointer,
+ *  plus `extraTurns` full turns so the final ease still visibly travels. */
+function landingTargetFrom(from: number, extraTurns: number): number {
+  const base = Math.ceil((from - TARGET_MOD) / 360) * 360 + TARGET_MOD;
+  const withGap = base < from + 1 ? base + 360 : base;
+  return withGap + extraTurns * 360;
 }
 
-/** Angular velocity at time t (ms), deg/s — drives blur and pointer kicks. */
-function velocityAt(ms: number): number {
-  const t = Math.min(ms, SPIN_MS) / 1000;
-  if (t <= SPIN_UP_S) return SCALE * PEAK_DPS * (t / SPIN_UP_S) ** 2;
-  return SCALE * Math.max(0, PEAK_DPS - DECEL_DPS2 * (t - SPIN_UP_S));
-}
-
-const BLUE = "#3B5BFF";
-const BLUE_DARK = "#1E3AE0";
-const SEG_LIGHT = "#DCE4FF";
-const SEG_DARK = "#C8D4FF";
+// Brand primary (matches C.primary in QuizOverlay.tsx / --primary in index.css)
+// instead of an unrelated blue, so the wheel reads as part of the same product.
+const PRIMARY = "#F97316";
+const PRIMARY_DARK = "#C2410C";
+const SEG_LIGHT = "#FFEDD5";
+const SEG_DARK = "#FED7AA";
 
 // Pre-negated via calc(): `-min(22vw, 88px)` is invalid CSS (a bare minus
 // can't negate a min()/max() function), and an invalid value anywhere inside
@@ -97,7 +80,7 @@ function Pointer({ deflection }: { deflection: number }) {
       {/* Mounting pin, so the flag reads as hinged to the rim rather than floating. */}
       <div
         className="absolute left-1/2 top-0 size-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{ background: BLUE_DARK, boxShadow: "0 1px 2px rgba(0,0,0,0.35)" }}
+        style={{ background: PRIMARY_DARK, boxShadow: "0 1px 2px rgba(0,0,0,0.35)" }}
       />
       <div
         style={{
@@ -118,7 +101,7 @@ function Pointer({ deflection }: { deflection: number }) {
             height: 0,
             borderLeft: "10px solid transparent",
             borderRight: "10px solid transparent",
-            borderTop: `36px solid ${BLUE_DARK}`,
+            borderTop: `36px solid ${PRIMARY_DARK}`,
           }}
         />
       </div>
@@ -152,6 +135,14 @@ export default function DiscountWheel({
   const rafRef = useRef<number | null>(null);
   const timerRef = useRef<number | null>(null);
 
+  // Live simulation state, kept in refs so the rAF loop mutates it without
+  // triggering React renders (only the derived visuals — rotation/blur/
+  // deflection — are state). `velocity` is what a tap adds to.
+  const angleRef = useRef(0);
+  const velocityRef = useRef(0);
+  const phaseRef = useRef<"idle" | "free" | "landing">("idle");
+  const lastFrameRef = useRef(0);
+
   useEffect(
     () => () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -160,87 +151,103 @@ export default function DiscountWheel({
     []
   );
 
+  const finish = useCallback(() => {
+    setSpinning(false);
+    setBlur(0);
+    setDeflection(0);
+    setDone(true);
+    // Let the wheel visually come to rest before the popup covers it.
+    timerRef.current = window.setTimeout(() => onResult?.(SEGMENTS[WINNING_INDEX]), 450);
+  }, [onResult]);
+
   const spin = useCallback(() => {
-    if (spinning || done) return;
+    if (done) return;
+
+    // A tap always adds energy, whether starting or already spinning — this is
+    // what makes repeated taps flick the wheel faster. Once it's in the landing
+    // ease, though, further taps are ignored: the result is locked in and
+    // re-accelerating would fight the settle.
+    if (phaseRef.current === "landing") return;
+
+    velocityRef.current = Math.min(MAX_DPS, velocityRef.current + KICK_DPS);
+
+    if (phaseRef.current !== "idle") return; // already running; the kick above is the whole effect
+
     setSpinning(true);
     onSpinStart?.();
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      setRotation(TOTAL_DEG);
-      setSpinning(false);
-      setDone(true);
-      onResult?.(SEGMENTS[WINNING_INDEX]);
+      const target = landingTargetFrom(angleRef.current, 0);
+      angleRef.current = target;
+      setRotation(target);
+      finish();
       return;
     }
 
-    let settled = false;
-    const settle = (withDelay: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      setRotation(TOTAL_DEG);
-      setBlur(0);
-      setDeflection(0);
-      setSpinning(false);
-      setDone(true);
-      if (withDelay) {
-        // Let the wheel visually come to rest before the popup covers it.
-        timerRef.current = window.setTimeout(
-          () => onResult?.(SEGMENTS[WINNING_INDEX]),
-          450
-        );
-      } else {
-        onResult?.(SEGMENTS[WINNING_INDEX]);
-      }
-    };
+    phaseRef.current = "free";
+    lastFrameRef.current = performance.now();
 
-    const start = performance.now();
-    // Tracks which divider was last under the pointer, so each one produces
-    // exactly one kick no matter how many frames it spans.
-    let lastDividerIndex = Math.floor(angleAt(0) / SEG_ANGLE);
-    // Deflection decays frame to frame; a kick adds to it, springing back to 0.
+    // Landing ease state, populated at the free→landing handoff.
+    let landStart = 0;
+    let landFrom = 0;
+    let landTarget = 0;
+    let lastDividerIndex = Math.floor(angleRef.current / SEG_ANGLE);
     let currentDeflection = 0;
 
     const step = (now: number) => {
-      const elapsed = now - start;
-      const angle = angleAt(elapsed);
-      const velocity = velocityAt(elapsed);
+      const dt = Math.min(0.05, (now - lastFrameRef.current) / 1000); // clamp: a long frame gap can't teleport the wheel
+      lastFrameRef.current = now;
 
+      if (phaseRef.current === "free") {
+        angleRef.current += velocityRef.current * dt;
+        velocityRef.current = Math.max(0, velocityRef.current - FRICTION_DPS2 * dt);
+
+        if (velocityRef.current <= LAND_VELOCITY) {
+          // Hand off to a fixed-duration ease that ends exactly on 61%. One
+          // extra turn keeps the landing from looking like an abrupt halt.
+          phaseRef.current = "landing";
+          landStart = now;
+          landFrom = angleRef.current;
+          landTarget = landingTargetFrom(landFrom, 1);
+        }
+      } else {
+        // Landing: ease-out cubic from landFrom to landTarget over LAND_MS.
+        const t = Math.min(1, (now - landStart) / LAND_MS);
+        const eased = 1 - Math.pow(1 - t, 3);
+        angleRef.current = landFrom + (landTarget - landFrom) * eased;
+        if (t >= 1) {
+          angleRef.current = landTarget;
+          setRotation(landTarget);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+          finish();
+          return;
+        }
+      }
+
+      const angle = angleRef.current;
       setRotation(angle);
 
-      // Motion blur proportional to speed. Capped low: past ~2px the segment
-      // labels turn to mush and it stops reading as a wheel at all.
-      setBlur(Math.min(2.2, (velocity / PEAK_DPS) * 2.2));
+      // Blur and pointer kicks scale with current speed. In the landing phase
+      // velocityRef is frozen near LAND_VELOCITY, so derive speed from the
+      // per-frame delta instead to keep both fading out smoothly.
+      const speed =
+        phaseRef.current === "free" ? velocityRef.current : Math.abs((landTarget - landFrom) / (LAND_MS / 1000));
+      setBlur(Math.min(2.2, (velocityRef.current / PEAK_DPS) * 2.2));
 
-      // Each divider that sweeps past the pointer knocks it aside; the kick is
-      // proportional to speed, so it's violent at the start and a gentle nudge
-      // by the end — which is exactly how the wheel's own motion is changing.
       const dividerIndex = Math.floor(angle / SEG_ANGLE);
       if (dividerIndex !== lastDividerIndex) {
         lastDividerIndex = dividerIndex;
-        currentDeflection = Math.min(14, (velocity / PEAK_DPS) * 16);
+        currentDeflection = Math.min(14, (speed / PEAK_DPS) * 16);
       }
-      // Spring back toward rest between kicks.
       currentDeflection *= 0.82;
       setDeflection(currentDeflection);
 
-      if (elapsed < SPIN_MS) {
-        rafRef.current = requestAnimationFrame(step);
-      } else {
-        settle(true);
-      }
+      rafRef.current = requestAnimationFrame(step);
     };
     rafRef.current = requestAnimationFrame(step);
-
-    // Safety net: browsers throttle or fully suspend rAF in a backgrounded
-    // tab (switched app, minimized window), which would otherwise strand the
-    // wheel mid-spin with the button disabled forever. setTimeout still fires
-    // (throttled, not frozen) in that state, so this guarantees the spin
-    // resolves — skipping the settle flourish, but landing correctly — even if
-    // the tab never becomes visible again during the animation.
-    window.setTimeout(() => settle(false), SPIN_MS + 2000);
-  }, [spinning, done, onSpinStart, onResult]);
+  }, [done, onSpinStart, finish]);
 
   return (
     <div className="flex flex-col items-center">
@@ -251,8 +258,8 @@ export default function DiscountWheel({
         <div
           className="absolute inset-0 rounded-full"
           style={{
-            background: BLUE,
-            boxShadow: "0 10px 30px rgba(59,91,255,0.35), inset 0 -3px 8px rgba(0,0,0,0.15)",
+            background: PRIMARY,
+            boxShadow: "0 10px 30px rgba(249,115,22,0.35), inset 0 -3px 8px rgba(0,0,0,0.15)",
           }}
         />
         {Array.from({ length: 12 }).map((_, i) => (
@@ -327,10 +334,10 @@ export default function DiscountWheel({
                 transform: `translate(-50%, -50%) rotate(${i * SEG_ANGLE}deg) translateY(${LABEL_RADIUS_NEG}) rotate(${-i * SEG_ANGLE}deg)`,
               }}
             >
-              <span className="text-[19px] font-extrabold leading-none" style={{ color: BLUE_DARK }}>
+              <span className="text-[19px] font-extrabold leading-none" style={{ color: PRIMARY_DARK }}>
                 {pct}%
               </span>
-              <span className="text-[11px] font-semibold leading-none mt-0.5" style={{ color: BLUE_DARK }}>
+              <span className="text-[11px] font-semibold leading-none mt-0.5" style={{ color: PRIMARY_DARK }}>
                 off
               </span>
             </div>
@@ -341,20 +348,22 @@ export default function DiscountWheel({
         <div
           className="absolute left-1/2 top-1/2 z-10 size-[58px] -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
-            background: "#EEF2FF",
+            background: "#FFF7ED",
             boxShadow: "0 2px 6px rgba(0,0,0,0.18), inset 0 1px 2px rgba(255,255,255,0.9)",
           }}
         />
       </div>
 
+      {/* Stays enabled while spinning: each tap adds another flick (see spin()).
+          Only disabled once the wheel has settled and the result is locked. */}
       <button
         type="button"
         onClick={spin}
-        disabled={spinning || done}
+        disabled={done}
         className="mt-8 w-full rounded-full py-4 text-white font-semibold text-[16px] transition-opacity disabled:opacity-60"
-        style={{ background: BLUE }}
+        style={{ background: PRIMARY }}
       >
-        {spinning ? "Spinning…" : done ? "Done!" : "Start Wheel"}
+        {done ? "Done!" : spinning ? "Spin faster!" : "Start Wheel"}
       </button>
     </div>
   );

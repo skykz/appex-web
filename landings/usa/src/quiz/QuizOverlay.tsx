@@ -1702,7 +1702,7 @@ function S26() {
         <h2 className="text-center text-[26px] font-extrabold leading-tight" style={{ color: C.text }}>
           Spin &amp; Unlock Your
         </h2>
-        <p className="text-center text-[24px] font-extrabold leading-tight mb-3" style={{ color: "#3B5BFF" }}>
+        <p className="text-center text-[24px] font-extrabold leading-tight mb-3" style={{ color: C.primary }}>
           Claude Certification Plan
         </p>
         <p className="text-center text-[15px] mb-7" style={{ color: C.text }}>
@@ -1713,17 +1713,32 @@ function S26() {
 
       {won !== null &&
         createPortal(
-          // Portaled to document.body: StepShell's own fadeUp animation makes it
-          // a CSS containing block for `position: fixed` descendants (any
-          // ancestor with an active transform does), so a fixed overlay nested
-          // inside it doesn't actually cover the viewport — it gets confined to
-          // StepShell's box instead, which is what made this render as a faint
-          // partial-height tint instead of a full-screen backdrop.
+          // Portaled to document.body for two reasons: StepShell's fadeUp
+          // animation makes it a containing block for fixed descendants, and
+          // the popup must escape it. BUT document.body itself is unreliable as
+          // a fixed-positioning reference here: while the quiz is open, body
+          // carries `.overlay-open { position: fixed; width: 100% }` (the iOS
+          // scroll-lock). On iOS Safari a `position: fixed` body becomes the
+          // containing block for its fixed children, and since that body has no
+          // height, `inset-0`'s `bottom: 0` resolves against a zero-height box —
+          // the backdrop collapses and the dialog never shows. Chromium doesn't
+          // do this, which is why it looked fine everywhere except a real phone.
+          //
+          // Fix: size the overlay from the viewport directly (100dvw/100dvh at
+          // top/left 0) instead of `inset-0`, so it no longer depends on the
+          // containing block's dimensions at all.
           <>
             <ConfettiBurst />
             <div
-              className="fixed inset-0 z-[60] flex items-center justify-center px-6"
-              style={{ background: "rgba(17,17,17,0.55)" }}
+              className="z-[60] flex items-center justify-center px-6"
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                width: "100dvw",
+                height: "100dvh",
+                background: "rgba(17,17,17,0.55)",
+              }}
               role="dialog"
               aria-modal="true"
               aria-labelledby="wheel-win-title"
@@ -1732,11 +1747,11 @@ function S26() {
                 <h3 id="wheel-win-title" className="text-center text-[22px] font-extrabold mb-5" style={{ color: C.text }}>
                   Woo hoo! 🥳
                 </h3>
-                <div className="rounded-xl px-4 py-6 mb-5 text-center" style={{ background: "#E4EAFF" }}>
+                <div className="rounded-xl px-4 py-6 mb-5 text-center" style={{ background: "#FFF7ED" }}>
                   <p className="text-[15px] font-semibold mb-2" style={{ color: C.text }}>
                     You won a discount
                   </p>
-                  <p className="text-[38px] font-extrabold leading-none" style={{ color: "#3B5BFF" }}>
+                  <p className="text-[38px] font-extrabold leading-none" style={{ color: C.primary }}>
                     {won}% off!
                   </p>
                 </div>
@@ -1747,7 +1762,7 @@ function S26() {
                   type="button"
                   onClick={claim}
                   className="w-full rounded-full py-4 text-white font-bold text-[15px] uppercase tracking-wide"
-                  style={{ background: "#3B5BFF" }}
+                  style={{ background: C.primary }}
                 >
                   Claim my discount
                 </button>

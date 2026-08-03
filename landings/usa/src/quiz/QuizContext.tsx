@@ -276,9 +276,17 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     trackQuizEvent({ event_name: "quiz_start", step_id: "quiz_start", step_order: 0, section: "intro", step_type: "milestone" });
   }, []);
 
-  // quiz_complete when the last overlay step is reached.
+  // quiz_complete when the last overlay step is reached — but only for a
+  // visitor who actually answered something. Without the answers check, a
+  // deep link straight to /quiz?quiz_page_id=33 (or later, e.g. a shared/
+  // bookmarked URL, or someone editing the query by hand) fires quiz_complete
+  // for a session that never engaged, inflating the metric this exists to
+  // measure. Before /quiz supported deep-linking this couldn't happen: the
+  // overlay only ever reached this step by walking through every one before
+  // it, each of which requires an answer to advance.
   useEffect(() => {
     if (quizCompleteFired.current || state.step < QUIZ_COMPLETE_STEP) return;
+    if (Object.keys(state.answers).length === 0) return;
     quizCompleteFired.current = true;
     try {
       sessionStorage.setItem("appexOverlayCompleteFired", "1");
@@ -289,7 +297,10 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     ga4QuizComplete();
     pushToDataLayer("quiz_complete");
     trackQuizEvent({ event_name: "quiz_complete", step_id: "quiz_complete", step_order: QUIZ_COMPLETE_STEP + 1, section: "plan", step_type: "milestone" });
-  }, [state.step]);
+    // state.answers is intentionally in the deps: a deep link to step 33 with
+    // zero answers must re-check once the visitor answers something on that
+    // very screen, not just on step changes.
+  }, [state.step, state.answers]);
 
   // Persist answers to sessionStorage whenever answers change (for paywall personalization)
   useEffect(() => {
