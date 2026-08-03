@@ -28,24 +28,34 @@ const SEG_ANGLE = 360 / SEGMENTS.length;
 const KICK_DPS = 900;
 /** Hard ceiling on velocity, so mashing the button can't spin it absurdly, deg/s. */
 const MAX_DPS = 2600;
-/** Constant friction deceleration, deg/s². */
+/** Constant friction deceleration during the free spin, deg/s². */
 const FRICTION_DPS2 = 380;
-/** Below this speed the free spin ends and the landing ease begins, deg/s. */
-const LAND_VELOCITY = 260;
-/** Duration of the final ease onto the winning segment, ms. */
-const LAND_MS = 900;
+/**
+ * Speed at which the free spin hands off to the landing glide, deg/s. Kept low
+ * so the wheel is already crawling before it commits to a target — the glide
+ * then continues at exactly this speed (no jump) and eases the last stretch to
+ * a stop. Earlier this handed off to a fixed-duration ease whose implied start
+ * speed was 4-9x this value, so the wheel lurched forward right at the end.
+ */
+const LAND_VELOCITY = 200;
 /** Peak velocity used only to normalise blur/kick strength to a 0..1 range. */
 const PEAK_DPS = MAX_DPS;
 
 /** Where the winning segment sits under the top pointer, mod 360. */
 const TARGET_MOD = (-WINNING_INDEX * SEG_ANGLE + 360) % 360;
 
-/** Smallest rotation ≥ `from` that lands the winning segment under the pointer,
- *  plus `extraTurns` full turns so the final ease still visibly travels. */
-function landingTargetFrom(from: number, extraTurns: number): number {
-  const base = Math.ceil((from - TARGET_MOD) / 360) * 360 + TARGET_MOD;
-  const withGap = base < from + 1 ? base + 360 : base;
-  return withGap + extraTurns * 360;
+/**
+ * Picks the landing target: the winning-segment angle nearest to where the
+ * wheel would coast to a stop on its own, so the glide neither jerks forward
+ * nor snaps backward. `naturalStop` is the free-fall stopping point
+ * (from + v²/2·friction); we round that to the closest angle that puts 61%
+ * under the pointer, but never less than a minimum travel so the glide is
+ * always visible.
+ */
+function landingTargetFrom(from: number, naturalStop: number): number {
+  const nearest = Math.round((naturalStop - TARGET_MOD) / 360) * 360 + TARGET_MOD;
+  const minTravel = from + SEG_ANGLE; // at least most of a segment of glide
+  return nearest < minTravel ? nearest + 360 : nearest;
 }
 
 // Brand primary (matches C.primary in QuizOverlay.tsx / --primary in index.css)
@@ -188,10 +198,10 @@ export default function DiscountWheel({
     phaseRef.current = "free";
     lastFrameRef.current = performance.now();
 
-    // Landing ease state, populated at the free→landing handoff.
-    let landStart = 0;
+    // Landing-glide state, populated at the free→landing handoff.
     let landFrom = 0;
     let landTarget = 0;
+    let landEntryVel = 0; // speed at handoff — the glide starts here, no jump
     let lastDividerIndex = Math.floor(angleRef.current / SEG_ANGLE);
     let currentDeflection = 0;
 
@@ -204,19 +214,34 @@ export default function DiscountWheel({
         velocityRef.current = Math.max(0, velocityRef.current - FRICTION_DPS2 * dt);
 
         if (velocityRef.current <= LAND_VELOCITY) {
-          // Hand off to a fixed-duration ease that ends exactly on 61%. One
-          // extra turn keeps the landing from looking like an abrupt halt.
+          // Commit to a target near where the wheel would coast to on its own,
+          // so the glide continues at the CURRENT speed with no discontinuity.
           phaseRef.current = "landing";
-          landStart = now;
+          landEntryVel = velocityRef.current;
           landFrom = angleRef.current;
-          landTarget = landingTargetFrom(landFrom, 1);
+          const naturalStop = landFrom + (landEntryVel * landEntryVel) / (2 * FRICTION_DPS2);
+          landTarget = landingTargetFrom(landFrom, naturalStop);
         }
       } else {
-        // Landing: ease-out cubic from landFrom to landTarget over LAND_MS.
-        const t = Math.min(1, (now - landStart) / LAND_MS);
-        const eased = 1 - Math.pow(1 - t, 3);
-        angleRef.current = landFrom + (landTarget - landFrom) * eased;
-        if (t >= 1) {
+        // Landing glide: constant deceleration from landEntryVel to a dead stop
+        // exactly on landTarget. Speed is continuous at the handoff (starts at
+        // landEntryVel) AND reaches zero in finite time — unlike an exponential
+        // approach, which never quite arrives and needs a speed floor that reads
+        // as the wheel crawling for a second before it stops. Decel solved from
+        // v² = 2·a·dist so the stop lands precisely on target.
+        const dist = landTarget - landFrom;
+        if (dist <= 0 || landTarget - angleRef.current <= 0.1) {
+          angleRef.current = landTarget;
+          setRotation(landTarget);
+          if (rafRef.current) cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+          finish();
+          return;
+        }
+        const glideDecel = (landEntryVel * landEntryVel) / (2 * dist);
+        landEntryVel = Math.max(0, landEntryVel - glideDecel * dt);
+        angleRef.current += landEntryVel * dt;
+        if (landEntryVel <= 0 || angleRef.current >= landTarget) {
           angleRef.current = landTarget;
           setRotation(landTarget);
           if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -229,12 +254,11 @@ export default function DiscountWheel({
       const angle = angleRef.current;
       setRotation(angle);
 
-      // Blur and pointer kicks scale with current speed. In the landing phase
-      // velocityRef is frozen near LAND_VELOCITY, so derive speed from the
-      // per-frame delta instead to keep both fading out smoothly.
-      const speed =
-        phaseRef.current === "free" ? velocityRef.current : Math.abs((landTarget - landFrom) / (LAND_MS / 1000));
-      setBlur(Math.min(2.2, (velocityRef.current / PEAK_DPS) * 2.2));
+      // Blur and pointer kicks scale with current speed. In the glide phase
+      // landEntryVel IS the live speed (it's decremented each frame above), so
+      // both fade out naturally as the wheel slows to its stop.
+      const speed = phaseRef.current === "free" ? velocityRef.current : landEntryVel;
+      setBlur(Math.min(2.2, (speed / PEAK_DPS) * 2.2));
 
       const dividerIndex = Math.floor(angle / SEG_ANGLE);
       if (dividerIndex !== lastDividerIndex) {
