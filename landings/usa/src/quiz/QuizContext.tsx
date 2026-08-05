@@ -5,6 +5,8 @@ import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import { trackStepAnswer, getQuestionText, trackQuizEvent, buildQuizQuery } from "@/lib/quiz-tracker";
+import { useFunnel } from "./useFunnel";
+import { checkpointAt, stepIdAt, QuizFlow } from "./flows";
 
 /** The one route the quiz overlay lives on. */
 export const QUIZ_PATH = "/quiz";
@@ -103,6 +105,13 @@ interface Ctx {
   next: () => void;
   prev: () => void;
   goto: (n: number) => void;
+  /** Named funnel stage for a step_id in the active flow, or undefined. Lets the
+   *  overlay stamp `checkpoint` on step_view events without holding the flow. */
+  checkpointForStep: (stepId: string) => string | undefined;
+  /** The active flow. The overlay renders the component for the step_id at the
+   *  current 1-based position; positions past the flow (e.g. the discount wheel)
+   *  fall back to the index-based STEPS registry. */
+  flow: QuizFlow;
 }
 
 const QuizCtx = createContext<Ctx | null>(null);
@@ -116,6 +125,13 @@ const FREE_TEXT_KEYS = new Set<string>(["email", "name"]);
 export function QuizProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
+  // Resolve the creative (?c=) once per run: product + flow + A/B arm, and stamp
+  // those dimensions on every event. Held in a ref so commitAnswer can read the
+  // current flow without being rebuilt (and re-running each screen's effects)
+  // when the async upgrade lands.
+  const funnel = useFunnel();
+  const funnelRef = useRef(funnel);
+  funnelRef.current = funnel;
   // Lazy init reads sessionStorage AND the URL once, synchronously, before
   // first paint — this is what makes a refresh or a shared
   // /quiz?quiz_page_id=N link work at all. Doing this in an effect instead (as
@@ -246,6 +262,10 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       step_id: meta.id,
       section: meta.section,
       step_type: meta.type,
+      // Named funnel stage for this screen, from the active flow — the signal
+      // that makes creatives of different lengths comparable. Undefined on the
+      // many screens that don't sit on a checkpoint.
+      checkpoint: checkpointAt(funnelRef.current.flow, meta.id),
       // The answer key is recorded separately from the screen id: on screens
       // that collect several fields they differ, and the key is what identifies
       // the actual question answered.
@@ -354,10 +374,12 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: "SET", key: k, value: v });
     },
     commitAnswer,
+    checkpointForStep: (stepId: string) => checkpointAt(funnelRef.current.flow, stepId),
+    flow: funnel.flow,
     next: () => dispatch({ type: "NEXT" }),
     prev: () => dispatch({ type: "PREV" }),
     goto: (n) => dispatch({ type: "GOTO", step: n }),
-  }), [isOpen, open, close, state, fireQuizStartOnce, commitAnswer]);
+  }), [isOpen, open, close, state, fireQuizStartOnce, commitAnswer, funnel]);
 
   return <QuizCtx.Provider value={value}>{children}</QuizCtx.Provider>;
 }

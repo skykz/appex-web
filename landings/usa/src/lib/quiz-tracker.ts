@@ -70,6 +70,12 @@ export interface QuizEvent {
   answer_value?: unknown
   ms_on_step?: number
   ms_in_quiz?: number
+  /**
+   * Named funnel stage this event reaches, when it reaches one. The only sound
+   * cross-creative comparison signal — see migration 042. Left undefined on the
+   * many events that don't land on a checkpoint.
+   */
+  checkpoint?: string
   props?: Record<string, unknown>
 }
 
@@ -103,6 +109,79 @@ let quizStartedAt = 0
 let stepEnteredAt = 0
 /** Set once the visitor gives it, then attached to later events. */
 let knownEmail: string | undefined
+
+/**
+ * The active funnel's dimensions, stamped on every event so reports can slice by
+ * creative, product, flow version and A/B arm without a join.
+ *
+ * These map 1:1 to the columns migration 042 added to quiz_events. Set once (and
+ * refined once) per run by useFunnel; default to the built-in flow so events fire
+ * correctly even if the resolver never ran — the tracker must never depend on the
+ * funnel layer being wired, or analytics could silently go blank.
+ */
+type FunnelDims = {
+  productSlug: string
+  funnelSlug: string
+  flowVersion: string
+  abBucket: string
+}
+
+const DEFAULT_FUNNEL_DIMS: FunnelDims = {
+  productSlug: 'claude_automation',
+  funnelSlug: 'default',
+  flowVersion: QUIZ_VERSION,
+  abBucket: 'control',
+}
+
+const FUNNEL_DIMS_KEY = 'appexFunnelDims'
+
+/**
+ * Recovers funnel dimensions persisted by an earlier screen.
+ *
+ * The paywall/checkout lives on a different route than the quiz, and a full
+ * reload wipes this module's in-memory state. Persisting to sessionStorage lets
+ * the checkout still stamp the correct product/creative onto the Stripe session
+ * after such a reload, instead of falling back to the default product and
+ * mis-routing the buyer post-purchase.
+ */
+function loadFunnelDims(): FunnelDims {
+  try {
+    const raw = sessionStorage.getItem(FUNNEL_DIMS_KEY)
+    if (!raw) return DEFAULT_FUNNEL_DIMS
+    const parsed = JSON.parse(raw) as Partial<FunnelDims>
+    return {
+      productSlug: parsed.productSlug || DEFAULT_FUNNEL_DIMS.productSlug,
+      funnelSlug: parsed.funnelSlug || DEFAULT_FUNNEL_DIMS.funnelSlug,
+      flowVersion: parsed.flowVersion || DEFAULT_FUNNEL_DIMS.flowVersion,
+      abBucket: parsed.abBucket || DEFAULT_FUNNEL_DIMS.abBucket,
+    }
+  } catch {
+    return DEFAULT_FUNNEL_DIMS
+  }
+}
+
+let funnelDims: FunnelDims = loadFunnelDims()
+
+/** Overwrites the funnel dimensions attached to subsequent events, and persists
+ *  them so a later route (paywall/checkout) recovers them across a reload. */
+export function setFunnelDimensions(dims: FunnelDims): void {
+  funnelDims = dims
+  try {
+    sessionStorage.setItem(FUNNEL_DIMS_KEY, JSON.stringify(dims))
+  } catch {
+    /* storage disabled — in-memory value still holds for this page life */
+  }
+}
+
+/**
+ * The active funnel's product/creative, for the checkout call to stamp onto the
+ * Stripe session. Read from the same module-level state the events use, so the
+ * purchase is attributed to exactly the funnel the visitor ran — no separate
+ * plumbing through the paywall.
+ */
+export function getFunnelDimensions(): FunnelDims {
+  return funnelDims
+}
 
 /** UUID for the idempotency key; falls back where crypto.randomUUID is absent. */
 function newEventId(): string {
@@ -236,6 +315,12 @@ export function trackQuizEvent(event: QuizEvent): void {
       ...event,
       ms_in_quiz: event.ms_in_quiz ?? now - quizStartedAt,
       quiz_version: QUIZ_VERSION,
+      // Funnel dimensions (migration 042 columns). Spread from the module-level
+      // state so every event carries them without each call site having to.
+      product_slug: funnelDims.productSlug,
+      funnel_slug: funnelDims.funnelSlug,
+      flow_version: funnelDims.flowVersion,
+      ab_bucket: funnelDims.abBucket,
       // Its own column, not just an attribution key: the landing and the quiz
       // ship independently, so reports need to slice by either one alone.
       landing_version: getAttribution().landing_version ?? LANDING_VERSION,
@@ -272,6 +357,7 @@ export function trackStepView(meta: {
   section?: string
   step_type?: string
   question_text?: string
+  checkpoint?: string
 }): void {
   const now = Date.now()
   stepEnteredAt = now
@@ -288,6 +374,7 @@ export function trackStepAnswer(meta: {
   question_text?: string
   answer_label?: string
   answer_value?: unknown
+  checkpoint?: string
 }): void {
   trackQuizEvent({
     event_name: 'step_answer',

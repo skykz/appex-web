@@ -8,6 +8,7 @@ import {
   isLandingCheckoutSession,
   provisionFromLandingCheckoutSession,
 } from './landing-checkout-provision.service.js'
+import { getProductPostPurchasePath } from './quiz-funnel.service.js'
 
 export type LandingCheckoutStatus = {
   status: 'pending' | 'ready'
@@ -194,6 +195,22 @@ export async function completeLandingCheckoutAccount(args: {
     refresh_token: signInData.session.refresh_token,
   }).toString()
 
+  // Route the buyer to their product's surface after sign-in. The checkout
+  // stamped product_slug on the session; resolve it to the product's
+  // post_purchase_path and pass it as ?next. Null (unknown product or none set)
+  // means the callback falls back to /home — the pre-flex behaviour, unchanged
+  // for the single-product funnel.
+  //
+  // ?next rides in the QUERY string, before the #hash: the callback strips the
+  // hash (the tokens) via replaceState but preserves search, so next survives.
+  const productSlug = session.metadata?.product_slug
+  const nextPath = productSlug
+    ? await getProductPostPurchasePath(productSlug)
+    : null
+  const query = nextPath
+    ? `?next=${encodeURIComponent(nextPath)}`
+    : ''
+
   return {
     accessToken: signInData.session.access_token,
     refreshToken: signInData.session.refresh_token,
@@ -202,6 +219,6 @@ export async function completeLandingCheckoutAccount(args: {
       email: profile?.email ?? email,
       name: profile?.name ?? trimmedName ?? null,
     },
-    redirectUrl: `${appBase}/auth/callback#${hash}`,
+    redirectUrl: `${appBase}/auth/callback${query}#${hash}`,
   }
 }

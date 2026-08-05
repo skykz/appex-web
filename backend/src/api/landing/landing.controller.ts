@@ -16,6 +16,7 @@ import {
   attachEmailToQuizEvents,
 } from '../../services/quiz-events.service.js'
 import { getActiveQuiz } from '../../services/quiz-content.service.js'
+import { resolveFunnel } from '../../services/quiz-funnel.service.js'
 import { sendLeadGuidebookEmailAsync } from '../../services/lead-magnet-email.service.js'
 import { confirmLeadEmail, sendLeadConfirmEmailAsync } from '../../services/lead-confirm.service.js'
 
@@ -367,8 +368,16 @@ const landingCheckoutSchema = z.object({
   variant: z.string().max(64).optional(),
   utm_source: z.string().max(200).optional(),
   utm_campaign: z.string().max(200).optional(),
+  // Ad-set / ad ids — utm_ad identifies the creative that made the sale.
+  utm_adset: z.string().max(200).optional(),
+  utm_ad: z.string().max(200).optional(),
   // Google Ads click id — for server-side Google Ads conversion attribution.
   gclid: z.string().max(500).optional(),
+  // Flex-quiz product/creative, stamped on the Stripe session so post-purchase
+  // routing can send the buyer to the right surface. Optional: a single-product
+  // checkout omits them and the buyer lands on the default surface.
+  product_slug: z.string().max(60).optional(),
+  funnel_slug: z.string().max(80).optional(),
 })
 
 /**
@@ -390,8 +399,10 @@ export async function createLandingCheckout(
     let variant = body.variant
     let utmSource = body.utm_source
     let utmCampaign = body.utm_campaign
+    let utmAdset = body.utm_adset
+    let utmAd = body.utm_ad
     let gclid = body.gclid
-    if (!variant || !utmSource || !utmCampaign || !gclid) {
+    if (!variant || !utmSource || !utmCampaign || !utmAdset || !utmAd || !gclid) {
       // maybeSingle() + ignored error keeps checkout on the happy path even if
       // this best-effort attribution lookup fails — never block a real payment.
       const { data: lead } = await supabaseAdmin
@@ -404,6 +415,8 @@ export async function createLandingCheckout(
       variant = variant || stored.variant
       utmSource = utmSource || stored.utm_source
       utmCampaign = utmCampaign || stored.utm_campaign
+      utmAdset = utmAdset || stored.utm_adset
+      utmAd = utmAd || stored.utm_ad
       gclid = gclid || stored.gclid
     }
 
@@ -432,7 +445,9 @@ export async function createLandingCheckout(
         fbc: body.fbc,
       },
       ga4: { clientId: body.ga4_client_id },
-      attribution: { variant, utmSource, utmCampaign, gclid },
+      attribution: { variant, utmSource, utmCampaign, utmAdset, utmAd, gclid },
+      productSlug: body.product_slug,
+      funnelSlug: body.funnel_slug,
     })
 
     res.json({ url })
@@ -519,6 +534,13 @@ const quizEventSchema = z.object({
   props: z.record(z.unknown()).optional(),
   landing: z.enum(LANDING_IDS).optional(),
   device: z.string().max(20).optional(),
+  // Funnel routing dimensions (migration 042). Optional so pre-flex clients
+  // validate unchanged; bounded like the other slugs to cap a hostile payload.
+  product_slug: z.string().max(60).optional(),
+  funnel_slug: z.string().max(80).optional(),
+  flow_version: z.string().max(40).optional(),
+  ab_bucket: z.string().max(60).optional(),
+  checkpoint: z.string().max(40).optional(),
 })
 
 // Batched: the client buffers steps and flushes periodically, so one request
@@ -593,6 +615,48 @@ export async function getQuizContent(
     // sits in front of the first paint of the funnel.
     res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
     res.json({ quiz })
+  } catch (err) {
+    next(err)
+  }
+}
+
+const funnelQuerySchema = z.object({
+  /** Creative slug from the ad URL's `?c=`. */
+  c: z.string().min(1).max(80),
+  /** Visitor's stable id (anon_id), so their A/B arm sticks across reloads. */
+  anon_id: z.string().max(128).optional(),
+})
+
+/**
+ * Resolves `?c=<creative>` into the product + flow + A/B arm for this visitor.
+ *
+ * Sits at the very top of paid traffic, so it is deliberately forgiving: a bad or
+ * unknown slug returns `{ funnel: null }` (200, not an error) and the client runs
+ * its built-in flow. The A/B arm is chosen server-side from the visitor's anon_id
+ * so it is sticky and unforgeable.
+ *
+ * NOT cached at the CDN by (visitor), because the arm varies per anon_id; a short
+ * private cache only, so a reload within the window doesn't re-query.
+ */
+export async function getQuizFunnel(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const parsed = funnelQuerySchema.safeParse(req.query)
+    if (!parsed.success) {
+      // Malformed request → tell the client to use its default, don't 4xx the
+      // first paint of the funnel.
+      res.json({ funnel: null })
+      return
+    }
+    const { c, anon_id } = parsed.data
+    const funnel = await resolveFunnel(c, anon_id ?? '')
+    // Private + short: the response is visitor-specific (their arm), so it must
+    // not be shared by a CDN across visitors.
+    res.set('Cache-Control', 'private, max-age=60')
+    res.json(funnel ? { ...funnel } : { funnel: null })
   } catch (err) {
     next(err)
   }

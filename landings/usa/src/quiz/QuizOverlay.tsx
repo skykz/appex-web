@@ -11,13 +11,14 @@ import {
 } from "lucide-react";
 import quizClaudeLaptop from "@/assets/quiz-claude-laptop.webp";
 import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
+import { stepIdAt } from "./flows";
 import { submitLandingQuiz } from "@/lib/landing-api";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
 import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView, ga4WheelView, ga4WheelSpin, ga4WheelResult } from "@/lib/ga4";
 import { pushToDataLayer } from "@/lib/gtm";
-import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
+import { overlayStepByIndex, OVERLAY_QUIZ_STEPS } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
 import { trackStepView, installQuizFlushOnExit, setQuizEmail, trackQuizAbandon, registerQuestionText, trackQuizEvent, trackFunnelEvent } from "@/lib/quiz-tracker";
 import DiscountWheel from "@/components/quiz/DiscountWheel";
@@ -2301,8 +2302,33 @@ const STEPS: Record<number, React.FC> = {
   29: SLoadingFlow, 30: S22, 31: S23, 32: S24, 33: S25, 34: S26,
 };
 
+/**
+ * step_id → the component that draws it, for the flexible flow engine.
+ *
+ * Built from STEPS + OVERLAY_QUIZ_STEPS rather than hand-written, so it cannot
+ * drift from the index-based registry above: whatever screen index N renders is
+ * exactly what step_id N is registered under. The engine looks a screen up by
+ * step_id (from the active flow) instead of by a fixed integer, which is what
+ * lets two flows share components while ordering them differently.
+ *
+ * Index 34 (the discount wheel, S26) is intentionally absent: it is a
+ * paywall-funnel screen, not a quiz step, and has no step_id in the taxonomy.
+ */
+export const STEP_COMPONENTS_BY_ID: Record<string, React.FC> = (() => {
+  const map: Record<string, React.FC> = {};
+  for (const [indexStr, Component] of Object.entries(STEPS)) {
+    const meta = OVERLAY_QUIZ_STEPS[Number(indexStr)];
+    if (meta) map[meta.id] = Component;
+  }
+  // Creative-specific screens with no legacy integer index are registered by
+  // step_id directly here (e.g. `map["office_time_lost"] = SExcelHook`). A flow
+  // referencing an unregistered step_id safely falls back to the default (see
+  // resolveFunnel). None ship yet.
+  return map;
+})();
+
 export default function QuizOverlay() {
-  const { isOpen, step, answers } = useQuiz();
+  const { isOpen, step, answers, checkpointForStep, flow } = useQuiz();
 
   useEffect(() => {
     if (isOpen) {
@@ -2338,6 +2364,7 @@ export default function QuizOverlay() {
       step_id: meta.id,
       section: meta.section,
       step_type: meta.type,
+      checkpoint: checkpointForStep(meta.id),
     });
   }, [isOpen, step]);
 
@@ -2428,7 +2455,18 @@ export default function QuizOverlay() {
   }, [isOpen, step, answers]);
 
   if (!isOpen) return null;
-  const Step = STEPS[step] || S1;
+  // Flow-aware render. `step` is the 1-based cursor. Within the flow's length,
+  // render the component registered for the step_id at that position; this makes
+  // a different flow (excel/studio) render its own screens through the same
+  // engine. For the built-in claude flow the step_id at position N is exactly the
+  // component STEPS[N] would pick, so live behaviour is unchanged.
+  //
+  // Positions past the flow (the discount wheel is step 34, one beyond the
+  // 33-step flow) and any step_id without a registered component fall back to the
+  // index-based STEPS registry — never to a blank screen.
+  const flowStepId = step <= flow.steps.length ? stepIdAt(flow, step - 1) : null;
+  const Step =
+    (flowStepId && STEP_COMPONENTS_BY_ID[flowStepId]) || STEPS[step] || S1;
   return (
     <div
       className="fixed inset-0 bg-white overflow-y-auto"

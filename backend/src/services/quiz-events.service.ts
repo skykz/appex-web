@@ -42,6 +42,14 @@ export interface QuizEventInput {
   props?: Record<string, unknown>
   landing?: string
   device?: string
+  /** Funnel routing dimensions (migration 042). Present once the flex quiz ships;
+   *  older clients omit them and the columns stay null. */
+  product_slug?: string
+  funnel_slug?: string
+  flow_version?: string
+  ab_bucket?: string
+  /** Named funnel stage; only on the events that reach one. */
+  checkpoint?: string
 }
 
 /** Postgres unique_violation — a duplicate event, not a failure. */
@@ -93,6 +101,13 @@ export async function recordQuizEvents(events: QuizEventInput[]): Promise<number
     props: e.props ?? {},
     landing: e.landing ?? 'usa',
     device: e.device ?? null,
+    // Funnel dimensions. Null-tolerant: pre-flex clients don't send them, and the
+    // columns are nullable, so old and new payloads both write cleanly.
+    product_slug: e.product_slug ?? null,
+    funnel_slug: e.funnel_slug ?? null,
+    flow_version: e.flow_version ?? null,
+    ab_bucket: e.ab_bucket ?? null,
+    checkpoint: e.checkpoint ?? null,
   }))
 
   // upsert + ignoreDuplicates, not insert: a plain insert is one statement, so a

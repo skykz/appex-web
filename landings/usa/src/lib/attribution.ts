@@ -42,6 +42,16 @@ export type Attribution = {
   utm_medium?: string
   utm_content?: string
   utm_term?: string
+  /**
+   * Ad-set and ad ids (`?utm_adset=` / `?utm_ad=`), carrying Meta's
+   * `{{adset.id}}` / `{{ad.id}}`. These are the two levels below campaign that
+   * plain UTMs don't have a slot for, and `ad.id` is the only value that
+   * identifies the CREATIVE a purchase came from — utm_content historically held
+   * `{{adset.name}}`, which is the ad set, not the ad, and a renamed set breaks
+   * the join. Ids over names on purpose: an id survives a rename, a name doesn't.
+   */
+  utm_adset?: string
+  utm_ad?: string
   /** Meta click id from `?fbclid=` (first touch). */
   fbclid?: string
   /** Epoch ms when fbclid was first captured — needed to synthesize `_fbc`. */
@@ -62,6 +72,8 @@ const ATTR_KEYS: (keyof Attribution)[] = [
   'utm_medium',
   'utm_content',
   'utm_term',
+  'utm_adset',
+  'utm_ad',
   'fbclid',
   'gclid',
   'wbraid',
@@ -89,7 +101,7 @@ function readFromUrl(): Attribution {
     // Always set, falling back to the build's own version: a null here would
     // drop organic visitors out of every version-sliced report.
     attr.landing_version = (params.get('landing_version') ?? LANDING_VERSION).slice(0, 40)
-    for (const key of ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term'] as const) {
+    for (const key of ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'utm_adset', 'utm_ad'] as const) {
       const val = params.get(key)
       if (val) attr[key] = val.slice(0, 200)
     }

@@ -1,6 +1,7 @@
 import type { Answers } from "@/quiz/QuizContext";
 import { getLearnerAppUrl } from "@/lib/checkout-redirect";
 import { getAttributionParams, getSessionId } from "@/lib/attribution";
+import { getFunnelDimensions } from "@/lib/quiz-tracker";
 
 const LANDING_ID = "usa";
 
@@ -199,6 +200,7 @@ export async function createLandingCheckout(args: {
   }
 
   const attribution = getAttributionParams();
+  const funnelDims = getFunnelDimensions();
   try {
     const res = await fetch(`${base}/landing/checkout`, {
       method: "POST",
@@ -218,7 +220,13 @@ export async function createLandingCheckout(args: {
         variant: attribution.variant || undefined,
         utm_source: attribution.utm_source || undefined,
         utm_campaign: attribution.utm_campaign || undefined,
+        utm_adset: attribution.utm_adset || undefined,
+        utm_ad: attribution.utm_ad || undefined,
         gclid: attribution.gclid || undefined,
+        // Flex-quiz product/creative (recovered from sessionStorage on the paywall
+        // route) → Stripe metadata → post-purchase routing to the right surface.
+        product_slug: funnelDims.productSlug || undefined,
+        funnel_slug: funnelDims.funnelSlug || undefined,
       }),
     });
 

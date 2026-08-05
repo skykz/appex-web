@@ -267,9 +267,21 @@ export interface LandingCheckoutInput {
     variant?: string
     utmSource?: string
     utmCampaign?: string
+    /** Ad-set and ad ids — `utmAd` is the creative that made the sale. */
+    utmAdset?: string
+    utmAd?: string
     /** Google Ads click id — for server-side Google Ads conversion attribution. */
     gclid?: string
   }
+  /**
+   * Which product/creative this purchase is for, from the flex quiz. Stamped on
+   * the Stripe session so post-purchase routing can send the buyer to the right
+   * surface — the video studio is a different app page than the courses, and this
+   * slug is the only thing that survives the redirect to say which one. Optional:
+   * a pre-flex checkout omits them and the buyer lands on the default surface.
+   */
+  productSlug?: string
+  funnelSlug?: string
 }
 
 /**
@@ -400,7 +412,13 @@ export async function createLandingCheckoutSession(
       ...(input.attribution?.variant ? { variant: input.attribution.variant } : {}),
       ...(input.attribution?.utmSource ? { utm_source: input.attribution.utmSource } : {}),
       ...(input.attribution?.utmCampaign ? { utm_campaign: input.attribution.utmCampaign } : {}),
+      ...(input.attribution?.utmAdset ? { utm_adset: input.attribution.utmAdset } : {}),
+      ...(input.attribution?.utmAd ? { utm_ad: input.attribution.utmAd } : {}),
       ...(input.attribution?.gclid ? { gclid: input.attribution.gclid } : {}),
+      // Flex-quiz product/creative, so post-purchase routing knows which surface
+      // to send the buyer to, and Purchase events can be split by product.
+      ...(input.productSlug ? { product_slug: input.productSlug } : {}),
+      ...(input.funnelSlug ? { funnel_slug: input.funnelSlug } : {}),
     },
     subscription_data: {
       metadata: {
@@ -408,6 +426,8 @@ export async function createLandingCheckoutSession(
         landing,
         interval: input.interval,
         email,
+        ...(input.productSlug ? { product_slug: input.productSlug } : {}),
+        ...(input.funnelSlug ? { funnel_slug: input.funnelSlug } : {}),
       },
     },
     discounts: discounts.length ? discounts : undefined,

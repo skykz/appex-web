@@ -6,8 +6,27 @@ import { useAuthStore } from '@entities/user'
 import { userApi } from '@entities/user/api/user-api'
 
 /**
- * Completes Supabase magic-link sign-in by reading tokens from the URL hash
- * and storing them in the learner app session before redirecting to /home.
+ * A `next` destination is only honored if it is a same-origin internal PATH:
+ * starts with a single "/", not "//" (protocol-relative) and not "/\" — either of
+ * which browsers treat as an absolute URL to another host. This is the standard
+ * open-redirect guard: a purchase flow must never be steerable to an off-site URL
+ * via a crafted link. Anything else falls back to /home.
+ */
+function safeNextPath(raw: string | null): string {
+  if (!raw) return '/home'
+  if (!raw.startsWith('/')) return '/home'
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '/home'
+  return raw
+}
+
+/**
+ * Completes Supabase magic-link sign-in by reading tokens from the URL hash and
+ * storing them in the learner app session, then redirects to `?next=` (a
+ * validated internal path) or /home.
+ *
+ * `next` carries the flex quiz's product surface: a video-studio buyer is sent to
+ * a different page than a course buyer. It rides in the query string, not the
+ * hash, so it survives the history.replaceState below that strips the tokens.
  */
 export default function AuthCallbackPage() {
   const navigate = useNavigate()
@@ -22,6 +41,10 @@ export default function AuthCallbackPage() {
       const params = new URLSearchParams(hash)
       const accessToken = params.get('access_token')
       const refreshToken = params.get('refresh_token')
+      // Read before replaceState strips the hash; search is preserved by it.
+      const nextPath = safeNextPath(
+        new URLSearchParams(window.location.search).get('next')
+      )
 
       window.history.replaceState(
         null,
@@ -65,7 +88,7 @@ export default function AuthCallbackPage() {
 
         if (cancelled) return
         setAuth(user, accessToken, refreshToken)
-        navigate('/home', { replace: true })
+        navigate(nextPath, { replace: true })
       } catch (err) {
         if (cancelled) return
         const message =
