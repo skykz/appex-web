@@ -911,7 +911,7 @@ export async function sendPaymentConfirmedForInvoice(
   const email = renderPaymentConfirmedEmail({
     firstName: firstNameFrom(profile.name ?? ''),
     planLabel: planLabelFromBillingInterval(
-      sub?.billing_interval as 'week_1' | 'week_4' | 'year' | null,
+      sub?.billing_interval as 'day_1' | 'week_1' | 'week_4' | 'week_12' | 'year' | null,
       sub?.plan_name as string | null
     ),
     paidDateIso,

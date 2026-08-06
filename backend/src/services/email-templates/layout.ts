@@ -376,14 +376,20 @@ export function formatRenewalDate(iso: string): string {
  * Short plan label for E7 receipt rows (e.g. "4 Weeks").
  */
 export function planDisplayLabel(
-  interval: 'week_1' | 'week_4' | 'year' | null | undefined,
+  interval: 'day_1' | 'week_1' | 'week_4' | 'week_12' | 'year' | null | undefined,
   fallback = 'Premium'
 ): string {
   switch (interval) {
     case 'week_4':
       return '4 Weeks'
+    case 'week_12':
+      return '12 Weeks'
     case 'week_1':
       return '1 Week'
+    // Entry offers bill on the 4-week cadence, so that is the plan the customer
+    // is actually on by the time any of these emails go out.
+    case 'day_1':
+      return '4 Weeks'
     case 'year':
       return 'Yearly'
     default:

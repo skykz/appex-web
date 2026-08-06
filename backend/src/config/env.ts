@@ -91,13 +91,26 @@ const envSchema = z.object({
    */
   STRIPE_PRICE_1WEEK_INTRO: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * 12-week plan price. Unlike day_1/week_1 — which are sold on the 4-week price
+   * with a one-off coupon — this plan renews on its own 12-week cadence, so it
+   * needs a real recurring price of its own.
+   */
+  STRIPE_PRICE_12WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_PRICE_YEARLY: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Stripe coupon for the first-cycle intro price on the 4-week plan (legacy single-coupon fallback). */
   STRIPE_INTRO_COUPON_ID: z.string().optional().transform((v) => (v ? v : undefined)),
   /** Per-plan intro coupons (USA paywall, 61% off). Fall back to STRIPE_INTRO_COUPON_ID for week_4 when unset. */
   STRIPE_INTRO_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_INTRO_COUPON_12WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_INTRO_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * 1-day entry coupon. A FIXED-AMOUNT coupon, not a percentage: the plan charges
+   * $0.99 against the $38.95 4-week base, and no round percentage lands exactly
+   * on that figure.
+   */
+  STRIPE_INTRO_COUPON_1DAY: z.string().optional().transform((v) => (v ? v : undefined)),
   /**
    * Per-plan exit-intent coupons (USA paywall, 71% off). When a plan has no exit
    * coupon configured, the checkout silently falls back to its 61% intro coupon —
@@ -105,7 +118,10 @@ const envSchema = z.object({
    */
   STRIPE_EXIT_COUPON_1WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_EXIT_COUPON_4WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
+  STRIPE_EXIT_COUPON_12WEEK: z.string().optional().transform((v) => (v ? v : undefined)),
   STRIPE_EXIT_COUPON_YEAR: z.string().optional().transform((v) => (v ? v : undefined)),
+  /** 1-day entry exit-intent coupon — fixed amount, same reason as the intro one. */
+  STRIPE_EXIT_COUPON_1DAY: z.string().optional().transform((v) => (v ? v : undefined)),
 
   /**
    * Where billing alerts that need a human are emailed (e.g. a "1 Week" plan

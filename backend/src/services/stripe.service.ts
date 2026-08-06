@@ -59,13 +59,26 @@ export async function getOrCreateCustomer(
 }
 
 /** Supported subscription billing cadences (maps to Stripe price ids in env). */
-export type BillingInterval = 'week_1' | 'week_4' | 'year'
+export type BillingInterval = 'day_1' | 'week_1' | 'week_4' | 'week_12' | 'year'
 
-/** Map our internal billing-interval key to the configured Stripe price id. */
+/**
+ * Map our internal billing-interval key to the configured Stripe price id.
+ *
+ * `day_1` deliberately resolves to the 4-WEEK price: like `week_1`, it is an
+ * entry offer, not its own cadence — the subscription is created on the 4-week
+ * price and the $0.99 first payment comes from a one-off coupon. That way
+ * Stripe's own checkout page states the real renewal terms ($38.95 every 4
+ * weeks) instead of promising a cadence we don't actually bill.
+ *
+ * `week_12` is the opposite case: it renews on its own 12-week cadence, so it
+ * has a real price of its own.
+ */
 export function resolvePriceId(interval: BillingInterval): string {
   const ids: Record<BillingInterval, string | undefined> = {
+    day_1: env.STRIPE_PRICE_4WEEK,
     week_1: env.STRIPE_PRICE_1WEEK,
     week_4: env.STRIPE_PRICE_4WEEK,
+    week_12: env.STRIPE_PRICE_12WEEK,
     year: env.STRIPE_PRICE_YEARLY,
   }
   const id = ids[interval]
@@ -75,12 +88,21 @@ export function resolvePriceId(interval: BillingInterval): string {
   return id
 }
 
-/** Inverse of resolvePriceId — used when syncing data back from Stripe. */
+/**
+ * Inverse of resolvePriceId — used when syncing data back from Stripe.
+ *
+ * Deliberately NOT a perfect inverse: `day_1` (and a `week_1` sold under the
+ * current flow) both live on the 4-week price, so a subscription on that price
+ * reads back as `week_4`. That is the truthful answer — what the customer is
+ * billed going forward is the 4-week plan; which entry offer got them there is
+ * recorded in the checkout session metadata, not in the price.
+ */
 export function intervalFromPriceId(
   priceId: string | null | undefined
 ): BillingInterval | null {
   if (!priceId) return null
   if (priceId === env.STRIPE_PRICE_YEARLY) return 'year'
+  if (priceId === env.STRIPE_PRICE_12WEEK) return 'week_12'
   if (priceId === env.STRIPE_PRICE_4WEEK) return 'week_4'
   if (priceId === env.STRIPE_PRICE_1WEEK) return 'week_1'
   return null
@@ -91,10 +113,14 @@ export function planNameFromInterval(interval: BillingInterval | null): string {
   switch (interval) {
     case 'year':
       return 'Yearly plan'
+    case 'week_12':
+      return '12-week subscription'
     case 'week_4':
       return '4-week subscription'
     case 'week_1':
       return '1-week subscription'
+    case 'day_1':
+      return '1-day intro subscription'
     default:
       return 'Premium subscription'
   }
@@ -105,10 +131,14 @@ export function invoiceDescriptionFromInterval(interval: BillingInterval | null)
   switch (interval) {
     case 'year':
       return 'Yearly subscription'
+    case 'week_12':
+      return '12 week subscription plan'
     case 'week_4':
       return '4 week subscription plan'
     case 'week_1':
       return '1 week subscription plan'
+    case 'day_1':
+      return '1 day intro subscription plan'
     default:
       return 'Subscription plan'
   }
@@ -152,8 +182,10 @@ export type DiscountTier = 'intro' | 'exit' | 'expired'
 /** Resolves the Stripe coupon id for a first-time intro checkout on the given plan. */
 export function introCouponIdForInterval(interval: BillingInterval): string | undefined {
   const byPlan: Record<BillingInterval, string | undefined> = {
+    day_1: env.STRIPE_INTRO_COUPON_1DAY,
     week_1: env.STRIPE_INTRO_COUPON_1WEEK,
     week_4: env.STRIPE_INTRO_COUPON_4WEEK ?? env.STRIPE_INTRO_COUPON_ID,
+    week_12: env.STRIPE_INTRO_COUPON_12WEEK,
     year: env.STRIPE_INTRO_COUPON_YEAR,
   }
   return byPlan[interval]
@@ -162,8 +194,10 @@ export function introCouponIdForInterval(interval: BillingInterval): string | un
 /** Resolves the 71% exit-intent coupon id for the given plan, if configured. */
 export function exitCouponIdForInterval(interval: BillingInterval): string | undefined {
   const byPlan: Record<BillingInterval, string | undefined> = {
+    day_1: env.STRIPE_EXIT_COUPON_1DAY,
     week_1: env.STRIPE_EXIT_COUPON_1WEEK,
     week_4: env.STRIPE_EXIT_COUPON_4WEEK,
+    week_12: env.STRIPE_EXIT_COUPON_12WEEK,
     year: env.STRIPE_EXIT_COUPON_YEAR,
   }
   return byPlan[interval]
@@ -282,6 +316,12 @@ export interface LandingCheckoutInput {
    */
   productSlug?: string
   funnelSlug?: string
+  /**
+   * Paywall pricing A/B arm. Stamped on the session so revenue — not just
+   * conversion rate — can be split by arm: an entry-price test moves average
+   * order value the opposite way to conversion, so the money is what decides it.
+   */
+  pricingVariant?: string
 }
 
 /**
@@ -360,29 +400,32 @@ export async function createLandingCheckoutSession(
   }
 
   const landing = input.landing ?? 'usa'
-  // The "1 Week" paywall option advertises "$X today, then $38.95 every 4 weeks",
-  // so the subscription is created directly on the 4-week price and the reduced
-  // first payment comes from a one-off coupon.
+  // ENTRY PLANS ("1 Day", "1 Week") advertise "$X today, then $38.95 every 4
+  // weeks", so the subscription is created directly on the 4-week price and the
+  // reduced first payment comes from a one-off coupon.
   //
-  // It used to be created on a $17.77/week price and converted to 4-week billing
-  // by a Subscription Schedule attached afterwards by the webhook. That schedule
-  // is applied only AFTER payment, so Stripe's own checkout page still stated
-  // "then $17.77 per week" — contradicting the paywall the customer had just
-  // agreed to. Billing on the real renewal price from the start makes the
+  // week_1 used to be created on a $17.77/week price and converted to 4-week
+  // billing by a Subscription Schedule attached afterwards by the webhook. That
+  // schedule is applied only AFTER payment, so Stripe's own checkout page still
+  // stated "then $17.77 per week" — contradicting the paywall the customer had
+  // just agreed to. Billing on the real renewal price from the start makes the
   // checkout page truthful and removes a conversion step that could fail and
-  // leave someone renewing weekly forever.
-  const isWeek1On4WeekPrice = input.interval === 'week_1' && Boolean(env.STRIPE_PRICE_4WEEK)
-  const checkoutPriceId = isWeek1On4WeekPrice
+  // leave someone renewing weekly forever. day_1 is built the same way from the
+  // start, which is also why it has no price of its own.
+  const ENTRY_INTERVALS: BillingInterval[] = ['day_1', 'week_1']
+  const isEntryOn4WeekPrice =
+    ENTRY_INTERVALS.includes(input.interval) && Boolean(env.STRIPE_PRICE_4WEEK)
+  const checkoutPriceId = isEntryOn4WeekPrice
     ? (env.STRIPE_PRICE_4WEEK as string)
     : priceId
 
   // The coupon amounts are computed against the price the subscription is
-  // created on, so a week_1 checkout billed on the 4-week price needs the
+  // created on, so an entry checkout billed on the 4-week price needs the
   // coupons that were recalculated for that base. Logged because the failure is
   // silent otherwise: a stale coupon still applies, the customer is simply
   // charged more today than the paywall promised.
-  if (isWeek1On4WeekPrice) {
-    paymentLog.info('checkout.week1_on_4week_price', {
+  if (isEntryOn4WeekPrice) {
+    paymentLog.info('checkout.entry_plan_on_4week_price', {
       reqId: input.reqId,
       priceId: checkoutPriceId,
       couponId: tierCoupon ?? null,
@@ -419,6 +462,7 @@ export async function createLandingCheckoutSession(
       // to send the buyer to, and Purchase events can be split by product.
       ...(input.productSlug ? { product_slug: input.productSlug } : {}),
       ...(input.funnelSlug ? { funnel_slug: input.funnelSlug } : {}),
+      ...(input.pricingVariant ? { pricing_variant: input.pricingVariant } : {}),
     },
     subscription_data: {
       metadata: {

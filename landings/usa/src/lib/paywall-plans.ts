@@ -8,6 +8,28 @@ import type { BillingInterval } from "./checkout-redirect";
  */
 export type DiscountState = "intro" | "exit" | "expired";
 
+/** localStorage key holding the absolute ms timestamp the intro offer expires. */
+export const PAYWALL_DEADLINE_KEY = "appexPaywallDeadline";
+
+/**
+ * Clears any stored offer deadline so the paywall starts a brand-new countdown
+ * on its next mount, putting a returning visitor back on the intro (61%) tier
+ * even if their previous countdown had already burned out.
+ *
+ * Called when the discount wheel is claimed: the wheel always awards 61%, so
+ * winning it must actually restore that discount — otherwise the wheel promises
+ * 61% and the paywall then charges full price for anyone who returns within the
+ * offer-reset window of an expired timer, contradicting the popup they just saw.
+ */
+export function resurrectIntroOffer(): void {
+  try {
+    localStorage.removeItem(PAYWALL_DEADLINE_KEY);
+    sessionStorage.removeItem(PAYWALL_DEADLINE_KEY);
+  } catch {
+    /* storage disabled — the paywall falls back to a fresh in-memory timer anyway */
+  }
+}
+
 /** Single paywall plan row — intro/renewal amounts match FTC disclosure copy. */
 export type PaywallPlan = {
   id: BillingInterval;
@@ -27,11 +49,20 @@ export type PaywallPlan = {
   renewUnit: string;
   popular?: boolean;
   /**
-   * Temporarily withheld from sale. The row stays in PAYWALL_PLANS so the
-   * index→id mapping in landing-api.planIndexToId keeps working; only the
-   * rendered list is filtered. Flip back to false to re-list the plan.
+   * Temporarily withheld from sale. The row stays in PAYWALL_PLANS so that
+   * plan ids and any stored selections keep resolving; only the rendered list is
+   * filtered. Flip back to false to re-list the plan.
    */
   hidden?: boolean;
+  /**
+   * Replaces the "Save NN%" badge with fixed copy.
+   *
+   * Needed for entry plans whose price isn't a percentage off this plan's own
+   * full price: `day_1` charges $0.99 against a $38.95 base, so the shared
+   * DISCOUNT_LABEL ("61%") would be simply wrong on that card, and the true
+   * figure (97%) reads as a scam. Naming the price instead is honest and clearer.
+   */
+  badgeOverride?: string;
 };
 
 /** Discount percentage label per state (drives badges + headline copy). */
@@ -49,6 +80,30 @@ export const DISCOUNT_LABEL: Record<DiscountState, string> = {
  * deliberate — it must stay spelled out verbatim in the FTC disclosure.
  */
 export const PAYWALL_PLANS: PaywallPlan[] = [
+  {
+    /**
+     * $0.99 one-day entry, tested against `week_1` as the cheap way in
+     * (PRICING_VARIANTS below). Mechanically the same two-phase trick as week_1:
+     * the subscription is created on the 4-week price and the tiny first payment
+     * comes from a one-off coupon, so after the first day it bills the standard
+     * $38.95 every 4 weeks like every other plan.
+     *
+     * Prices are set explicitly rather than derived from the 61%/71% ladder: at
+     * this price point the ladder inverts — 71% off $38.95 is $11.30, i.e. the
+     * "better" exit offer would cost MORE than the $0.99 intro. Exit is therefore
+     * pinned below intro by hand.
+     */
+    id: "day_1",
+    label: "1 Day",
+    days: 1,
+    fullPrice: "38.95",
+    introPrice: "0.99",
+    exitPrice: "0.49",
+    renewalPrice: "38.95",
+    renewalCadence: "every 4 weeks",
+    renewUnit: "4 weeks",
+    badgeOverride: "Try for $0.99",
+  },
   {
     id: "week_1",
     label: "1 Week",
@@ -76,6 +131,26 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
     popular: true,
   },
   {
+    /**
+     * 12-week plan. Unlike day_1/week_1, this one renews on its OWN cadence
+     * (every 12 weeks) rather than converting to the 4-week price, so it needs
+     * its own Stripe Price — see STRIPE_PRICE_12WEEK.
+     *
+     * $37.49 intro is 61% off $96.13, keeping it on the same discount ladder as
+     * week_4/year; it works out to $0.45/day, the lowest per-day figure short of
+     * the annual plan.
+     */
+    id: "week_12",
+    label: "12 Weeks",
+    days: 84,
+    fullPrice: "96.13",
+    introPrice: "37.49",
+    exitPrice: "27.88",
+    renewalPrice: "96.13",
+    renewalCadence: "every 12 weeks",
+    renewUnit: "12 weeks",
+  },
+  {
     id: "year",
     label: "Annual",
     days: 365,
@@ -88,18 +163,64 @@ export const PAYWALL_PLANS: PaywallPlan[] = [
   },
 ];
 
-export const PAYWALL_DEFAULT_INDEX = 1;
+/**
+ * Index of the plan pre-selected on arrival — the 4-week plan, which is also the
+ * "Most popular" card.
+ *
+ * Derived by id rather than written as a literal: this used to be `1`, and
+ * inserting a plan above it silently moved the default onto a different (cheaper)
+ * plan. Looking it up keeps the default pinned to the intended plan no matter how
+ * the array is ordered.
+ */
+export const PAYWALL_DEFAULT_INDEX = PAYWALL_PLANS.findIndex((p) => p.id === "week_4");
 
 /**
- * Plans actually offered for sale, paired with their index in PAYWALL_PLANS.
+ * Which plans each A/B arm puts on sale, in display order.
+ *
+ * The test compares the two cheap ways in — a $6.93 week against a $0.99 day —
+ * holding everything else equal: both arms show the same number of cards, the
+ * same 4-week default, the same "Most popular" badge. Only the entry plan
+ * differs, so a difference in the result is attributable to it.
+ *
+ * Listing ids per arm (rather than a `hidden` flag) keeps every plan in
+ * PAYWALL_PLANS permanently — nothing is deleted, an arm just doesn't list it —
+ * and makes each arm's shelf readable at a glance.
+ */
+export const PRICING_VARIANTS = {
+  /** Today's paywall, unchanged. */
+  control: ["week_1", "week_4", "week_12", "year"],
+  /** Same shelf with the $0.99 one-day entry in place of the one-week entry. */
+  day_entry: ["day_1", "week_4", "week_12", "year"],
+} as const satisfies Record<string, readonly BillingInterval[]>;
+
+export type PricingVariant = keyof typeof PRICING_VARIANTS;
+
+/** Arm used when nothing has assigned one (direct hits, storage disabled). */
+export const DEFAULT_PRICING_VARIANT: PricingVariant = "control";
+
+/**
+ * Plans on sale for an arm, paired with each plan's index in PAYWALL_PLANS.
  *
  * Render from this — never from PAYWALL_PLANS directly — but keep using the
- * paired `index` for selection, because landing-api.planIndexToId maps a plan's
- * position in the FULL array to its billing id. Filtering the array in place
- * would shift those positions and silently sell the wrong plan.
+ * paired `index` for selection: a selection is carried around as an index into
+ * the FULL array, so filtering in place would renumber the cards and sell the
+ * wrong plan.
+ */
+export function visiblePlansFor(
+  variant: PricingVariant = DEFAULT_PRICING_VARIANT
+): { plan: PaywallPlan; index: number }[] {
+  const allowed = PRICING_VARIANTS[variant] ?? PRICING_VARIANTS[DEFAULT_PRICING_VARIANT];
+  return PAYWALL_PLANS.map((plan, index) => ({ plan, index })).filter(
+    ({ plan }) => !plan.hidden && (allowed as readonly string[]).includes(plan.id)
+  );
+}
+
+/**
+ * Control-arm shelf. Kept as a named export so existing callers and tests that
+ * don't care about the experiment keep working unchanged.
  */
 export const VISIBLE_PAYWALL_PLANS: { plan: PaywallPlan; index: number }[] =
-  PAYWALL_PLANS.map((plan, index) => ({ plan, index })).filter(({ plan }) => !plan.hidden);
+  visiblePlansFor(DEFAULT_PRICING_VARIANT);
 
 export const PAYWALL_FEATURES = [
   "Build real projects — websites, apps, and more",

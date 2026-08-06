@@ -96,7 +96,7 @@ export function renderPaymentConfirmedEmail(args: {
  * Maps a stored billing interval to the short receipt label shown in E7.
  */
 export function planLabelFromBillingInterval(
-  interval: 'week_1' | 'week_4' | 'year' | null | undefined,
+  interval: 'day_1' | 'week_1' | 'week_4' | 'week_12' | 'year' | null | undefined,
   planName?: string | null
 ): string {
   return planDisplayLabel(interval, planName?.trim() || 'Premium')

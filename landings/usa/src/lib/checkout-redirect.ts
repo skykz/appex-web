@@ -1,4 +1,4 @@
-export type BillingInterval = "week_1" | "week_4" | "year";
+export type BillingInterval = "day_1" | "week_1" | "week_4" | "week_12" | "year";
 
 /** Live learner platform origin — the landing is appexme.com, the app is app.appexme.com. */
 const PROD_APP_URL = "https://app.appexme.com";
