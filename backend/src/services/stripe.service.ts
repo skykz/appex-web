@@ -472,6 +472,10 @@ export async function createLandingCheckoutSession(
         email,
         ...(input.productSlug ? { product_slug: input.productSlug } : {}),
         ...(input.funnelSlug ? { funnel_slug: input.funnelSlug } : {}),
+        // Invoice.parent.subscription_details snapshots this metadata, so the
+        // billing ledger can attribute the initial charge without guessing from
+        // an email address.
+        ...(input.pricingVariant ? { pricing_variant: input.pricingVariant } : {}),
       },
     },
     discounts: discounts.length ? discounts : undefined,
@@ -1056,6 +1060,9 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
   const { couponLabel, promoCode } = discountLabelsFromStripe(
     fullInvoice.discounts as Stripe.Discount[] | undefined
   )
+  // Stripe snapshots subscription metadata on an invoice when it is finalized.
+  // Unlike customer-level fields, this remains tied to this exact charge.
+  const pricingVariant = invoice.parent?.subscription_details?.metadata?.pricing_variant ?? null
 
   const { error } = await supabaseAdmin.from('billing_history').upsert(
     {
@@ -1073,6 +1080,8 @@ export async function recordInvoicePayment(invoice: Stripe.Invoice): Promise<voi
       invoice_url: invoice.hosted_invoice_url ?? null,
       invoice_pdf: invoice.invoice_pdf ?? null,
       status: invoice.status ?? null,
+      pricing_variant: pricingVariant,
+      billing_reason: invoice.billing_reason ?? null,
     },
     { onConflict: 'stripe_invoice_id' }
   )

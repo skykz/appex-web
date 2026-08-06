@@ -131,7 +131,7 @@ describe('aggregateArms', () => {
         ),
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'A@x.com' }),
       ],
-      new Map([['a@x.com', 20]])
+      new Map([['control:a@x.com', 20]])
     )
     const arm = armOf(r, 'control')
     expect(arm.revenue).toBe(20)
@@ -143,9 +143,21 @@ describe('aggregateArms', () => {
   it('matches emails case-insensitively', () => {
     const r = aggregateArms(
       [row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'MiXeD@X.CoM' })],
-      new Map([['mixed@x.com', 9.99]])
+      new Map([['control:mixed@x.com', 9.99]])
     )
     expect(armOf(r, 'control').revenue).toBe(9.99)
+  })
+
+  it('does not credit an arm with a payment recorded for another arm', () => {
+    const r = aggregateArms(
+      [
+        row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'control@x.com' }),
+        row({ step_id: 'purchase', pricing_variant: 'day_entry', session_id: 's2', email: 'entry@x.com' }),
+      ],
+      new Map([['day_entry:entry@x.com', 0.99]])
+    )
+    expect(armOf(r, 'control').revenue).toBe(0)
+    expect(armOf(r, 'day_entry').revenue).toBe(0.99)
   })
 
   it('reports an unmatched purchase when no payment is found', () => {
@@ -177,7 +189,7 @@ describe('aggregateArms', () => {
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'dup@x.com' }),
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's2', email: 'dup@x.com' }),
       ],
-      new Map([['dup@x.com', 30]])
+      new Map([['control:dup@x.com', 30]])
     )
     expect(r.unmatched_purchases).toBe(0)
     expect(armOf(r, 'control')).toMatchObject({ paying_users: 1, revenue: 30, matched_share: 100 })
@@ -191,7 +203,7 @@ describe('aggregateArms', () => {
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: null }),
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'late@x.com' }),
       ],
-      new Map([['late@x.com', 12]])
+      new Map([['control:late@x.com', 12]])
     )
     expect(r.unmatched_purchases).toBe(0)
     expect(armOf(r, 'control')).toMatchObject({ paying_users: 1, matched_share: 100 })
@@ -205,7 +217,7 @@ describe('aggregateArms', () => {
         row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'both@x.com' }),
         row({ step_id: 'purchase', pricing_variant: 'day_entry', session_id: 's2', email: 'both@x.com' }),
       ],
-      new Map([['both@x.com', 50]])
+      new Map([['control:both@x.com', 50], ['day_entry:both@x.com', 50]])
     )
     expect(armOf(r, 'control').revenue).toBe(0)
     expect(armOf(r, 'day_entry').revenue).toBe(0)
@@ -216,7 +228,7 @@ describe('aggregateArms', () => {
   it('never divides by zero on an arm with no paywall views', () => {
     const r = aggregateArms(
       [row({ step_id: 'purchase', pricing_variant: 'control', session_id: 's1', email: 'a@x.com' })],
-      new Map([['a@x.com', 10]])
+      new Map([['control:a@x.com', 10]])
     )
     const arm = armOf(r, 'control')
     expect(arm.revenue_per_visitor).toBe(0)

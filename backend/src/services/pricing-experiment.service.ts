@@ -117,26 +117,26 @@ const money = (n: number) => Math.round(n * 100) / 100
 /**
  * Resolves the money each arm actually took, keyed by the emails that bought.
  *
- * THE JOIN IS LOSSY AND THAT IS NOT FIXABLE HERE.
- * `billing_history` carries no pricing_variant — the arm is written into the
- * Stripe checkout-session metadata but never persisted to Postgres. So the only
- * bridge is the email on the quiz event:
+ * The join is still lossy: buyers without an email on the client event cannot
+ * be matched. But the A/B arm comes from `billing_history.pricing_variant`,
+ * copied from Stripe's immutable invoice metadata snapshot, rather than being
+ * inferred from an email. That prevents renewals or another checkout by the
+ * same customer from being credited to the arm being viewed today.
  *
  *   quiz_events.email → users.email → users.id → billing_history.user_id
  *
- * `quiz_events.user_id` exists but is never populated (only email is backfilled,
- * by attachEmailToQuizEvents), so it cannot be used. A buyer who paid with a
- * different address than they typed into the quiz, or who never reached the
- * email step, is invisible here — which is why the caller reports match rate
- * alongside revenue rather than presenting the total as complete.
+ * The report intentionally includes only `subscription_create` invoices. A/B
+ * entry pricing is decided on the initial charge; renewal timing differs by
+ * plan and would bias a fixed date-range comparison toward older cohorts.
  */
 async function joinRevenue(
-  emails: string[],
+  emailsByVariant: Map<string, string[]>,
   from: string,
   to: string
 ): Promise<Map<string, number>> {
-  const byEmail = new Map<string, number>()
-  if (!emails.length) return byEmail
+  const byVariantEmail = new Map<string, number>()
+  const emails = [...new Set([...emailsByVariant.values()].flat())]
+  if (!emails.length) return byVariantEmail
 
   // Chunked: `in` lists go into the URL, and a wide range can carry more emails
   // than a query string will hold.
@@ -159,34 +159,43 @@ async function joinRevenue(
     }
   }
 
-  const userIds = [...userIdToEmail.keys()]
-  for (let i = 0; i < userIds.length; i += CHUNK) {
-    const slice = userIds.slice(i, i + CHUNK)
-    const { data, error } = await supabaseAdmin
-      .from('billing_history')
-      .select('user_id, amount, paid_at, status')
-      .in('user_id', slice)
-      .gte('paid_at', from)
-      .lte('paid_at', to)
-      .limit(100_000)
+  for (const [variant, variantEmails] of emailsByVariant) {
+    const variantEmailSet = new Set(variantEmails)
+    const userIds = [...userIdToEmail.entries()]
+      .filter(([, email]) => variantEmailSet.has(email))
+      .map(([userId]) => userId)
 
-    if (error) {
-      quizLog.error('pricing_experiment.billing_lookup_failed', { message: error.message })
-      continue
-    }
-    for (const b of data ?? []) {
-      // Only money that actually settled. Draft/open/uncollectible invoices are
-      // an intention to pay, and counting them would credit an arm for revenue
-      // it never received.
-      if (b.status && b.status !== 'paid') continue
-      const email = userIdToEmail.get(b.user_id as string)
-      if (!email) continue
-      // `amount` is stored in DOLLARS (stripe.service divides by 100 on write).
-      byEmail.set(email, (byEmail.get(email) ?? 0) + Number(b.amount ?? 0))
+    for (let i = 0; i < userIds.length; i += CHUNK) {
+      const slice = userIds.slice(i, i + CHUNK)
+      const { data, error } = await supabaseAdmin
+        .from('billing_history')
+        .select('user_id, amount, paid_at, status')
+        .in('user_id', slice)
+        .eq('pricing_variant', variant)
+        .eq('billing_reason', 'subscription_create')
+        .gte('paid_at', from)
+        .lte('paid_at', to)
+        .limit(100_000)
+
+      if (error) {
+        quizLog.error('pricing_experiment.billing_lookup_failed', { message: error.message })
+        continue
+      }
+      for (const b of data ?? []) {
+        // Only money that actually settled. Draft/open/uncollectible invoices are
+        // an intention to pay, and counting them would credit an arm for revenue
+        // it never received.
+        if (b.status && b.status !== 'paid') continue
+        const email = userIdToEmail.get(b.user_id as string)
+        if (!email) continue
+        // `amount` is stored in DOLLARS (stripe.service divides by 100 on write).
+        const key = `${variant}:${email}`
+        byVariantEmail.set(key, (byVariantEmail.get(key) ?? 0) + Number(b.amount ?? 0))
+      }
     }
   }
 
-  return byEmail
+  return byVariantEmail
 }
 
 /**
@@ -239,13 +248,17 @@ export async function getPricingExperiment(
  * Applies the same test-traffic filter as the aggregation so we never look up
  * billing rows for our own synthetic sessions.
  */
-function collectBuyerEmails(rows: EventRow[]): string[] {
-  const out = new Set<string>()
+function collectBuyerEmails(rows: EventRow[]): Map<string, string[]> {
+  const out = new Map<string, Set<string>>()
   for (const r of rows) {
     if (isTestRow(r)) continue
-    if (r.step_id === 'purchase' && r.email) out.add(r.email.toLowerCase())
+    if (r.step_id === 'purchase' && r.email && r.pricing_variant) {
+      const emails = out.get(r.pricing_variant) ?? new Set<string>()
+      emails.add(r.email.toLowerCase())
+      out.set(r.pricing_variant, emails)
+    }
   }
-  return [...out]
+  return new Map([...out].map(([variant, emails]) => [variant, [...emails]]))
 }
 
 /**
@@ -379,7 +392,7 @@ export function aggregateArms(
       for (const email of arm.buyerEmails) {
         // Skip buyers seen in more than one arm — see emailArms above.
         if ((emailArms.get(email)?.size ?? 0) > 1) continue
-        const amount = revenueByEmail.get(email)
+        const amount = revenueByEmail.get(`${variant}:${email}`)
         if (amount === undefined) continue
         revenue += amount
         matched++

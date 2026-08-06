@@ -20,6 +20,9 @@ describe('CLAUDE_AUTOMATION_FLOW parity with the live step taxonomy', () => {
     const taxonomy = Object.keys(OVERLAY_QUIZ_STEPS)
       .map(Number)
       .sort((a, b) => a - b)
+      // The wheel is tracked in the overlay taxonomy but is deliberately outside
+      // the quiz flow: it happens after completion and has paywall side effects.
+      .filter((i) => OVERLAY_QUIZ_STEPS[i].type !== 'wheel')
       .map((i) => OVERLAY_QUIZ_STEPS[i].id)
 
     const flowIds = CLAUDE_AUTOMATION_FLOW.steps.map((s) => s.stepId)
@@ -27,6 +30,11 @@ describe('CLAUDE_AUTOMATION_FLOW parity with the live step taxonomy', () => {
     // Same length (the wheel, step 34, is intentionally not a flow step).
     expect(flowIds.length).toBe(taxonomy.length)
     expect(flowIds).toEqual(taxonomy)
+  })
+
+  it('keeps the post-quiz wheel out of the quiz flow', () => {
+    expect(OVERLAY_QUIZ_STEPS[34]).toMatchObject({ id: 'spin_wheel', type: 'wheel' })
+    expect(CLAUDE_AUTOMATION_FLOW.steps.map((s) => s.stepId)).not.toContain('spin_wheel')
   })
 
   it('every flow step_id is unique', () => {
@@ -87,6 +95,7 @@ describe('flow position helpers', () => {
     // live step index, stepIdAt(flow, step-1) must equal the taxonomy id — this
     // is the exact translation the render path relies on.
     for (const [indexStr, meta] of Object.entries(OVERLAY_QUIZ_STEPS)) {
+      if (meta.type === 'wheel') continue
       const step = Number(indexStr)
       expect(stepIdAt(DEFAULT_FLOW, step - 1)).toBe(meta.id)
     }
