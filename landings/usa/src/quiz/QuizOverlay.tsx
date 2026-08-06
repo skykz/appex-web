@@ -10,7 +10,7 @@ import {
   ClipboardList, PenSquare, Flag,
 } from "lucide-react";
 import quizClaudeLaptop from "@/assets/quiz-claude-laptop.webp";
-import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
+import { useQuiz, Answers, TOTAL_STEPS, QUIZ_COMPLETE_STEP } from "./QuizContext";
 import { stepIdAt } from "./flows";
 import { submitLandingQuiz } from "@/lib/landing-api";
 import { resurrectIntroOffer } from "@/lib/paywall-plans";
@@ -2021,7 +2021,15 @@ function SLoadingFlow() {
       {/* Auto-sliding review */}
       <div className="overflow-hidden rounded-xl border" style={{ borderColor: '#E5E5E5' }}>
         <div className="p-4" style={{ transform: reviewExiting ? 'translateX(-40px)' : 'translateX(0)', opacity: reviewExiting ? 0 : 1, transition: 'transform 320ms ease, opacity 320ms ease' }}>
-          <div className="flex gap-0.5 mb-1">{"★★★★★".split("").map((s, i) => <span key={i} style={{ color: '#F59E0B', fontSize: 14 }}>{s}</span>)}</div>
+          <div className="flex items-center gap-1.5 mb-1">
+            {Array.from({ length: 5 }, (_, i) => (
+              <svg key={i} width="14" height="14" viewBox="0 0 18 18" aria-hidden>
+                <rect width="18" height="18" rx="1" fill="#00B67A" />
+                <path d="M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z" fill="white" />
+              </svg>
+            ))}
+            <span className="text-[11px] font-semibold ml-0.5" style={{ color: '#00B67A' }}>Trustpilot</span>
+          </div>
           <p className="text-[12px] mb-1" style={{ color: '#9CA3AF' }}>{review.name} | {review.loc}</p>
           <p className="text-[14px] font-semibold mb-1" style={{ color: '#111' }}>{review.title}</p>
           <p className="text-[13px]" style={{ color: '#555' }}>{review.body}</p>
@@ -2424,8 +2432,12 @@ export default function QuizOverlay() {
 
     const report = (reason: string) => {
       if (abandonFired.current) return;
-      // Finishing the quiz is not abandonment — quiz_complete covers that.
-      if (step >= TOTAL_STEPS) return;
+      // Finishing the quiz is not abandonment — quiz_complete covers that, and
+      // it fires at QUIZ_COMPLETE_STEP (the plan reveal), not TOTAL_STEPS (the
+      // wheel that follows it). Gating on TOTAL_STEPS let a completed visitor
+      // who backgrounded on the plan step ALSO fire quiz_abandon, double-counting
+      // them as both completed and abandoned.
+      if (step >= QUIZ_COMPLETE_STEP) return;
       abandonFired.current = true;
       const meta = overlayStepByIndex(step);
       const payload = {

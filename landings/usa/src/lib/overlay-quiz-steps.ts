@@ -3,19 +3,20 @@
  * real users actually take, since every landing CTA (`<a href="/quiz">`) is
  * intercepted by quiz/QuizContext and opens the overlay instead of navigating.
  *
- * Mirrors the `STEPS` registry in QuizOverlay.tsx (1..33). Slugs are derived from
- * each screen's component, so the drop-off funnel reads meaningfully in GA4.
+ * Mirrors the `STEPS` registry in QuizOverlay.tsx (1..34, where 34 is the
+ * post-quiz discount wheel). Slugs are derived from each screen's component, so
+ * the drop-off funnel reads meaningfully in GA4.
  *
  * Note: the separate 45-step quiz at the /quiz route has its own map in
  * quiz-steps.ts. Both feed the same `quiz_step` / `quiz_answer` event names, so
  * report on them together with `quiz_variant` to tell them apart.
  */
 
-export type OverlayStepType = 'question' | 'info' | 'loader' | 'milestone'
+export type OverlayStepType = 'question' | 'info' | 'loader' | 'milestone' | 'wheel'
 
 export type OverlayStepMeta = {
   id: string
-  section: 'intro' | 'profile' | 'pain' | 'value' | 'goals' | 'plan' | 'signup'
+  section: 'intro' | 'profile' | 'pain' | 'value' | 'goals' | 'plan' | 'signup' | 'paywall'
   type: OverlayStepType
 }
 
@@ -57,6 +58,12 @@ export const OVERLAY_QUIZ_STEPS: Record<number, OverlayStepMeta> = {
   31: { id: 'email_capture', section: 'signup', type: 'milestone' }, // S23
   32: { id: 'name_capture', section: 'signup', type: 'milestone' }, // S24
   33: { id: 'plan_reveal', section: 'plan', type: 'milestone' }, // S25
+  // Step 34 is the discount wheel — a paywall-funnel screen inside the overlay,
+  // not a quiz question. Mapped explicitly so its step_view/abandon rows read as
+  // `spin_wheel`/`paywall`/`wheel` instead of the fallback's mislabeled
+  // `step_34`/`goals`/`question`. Its own wheel_view/wheel_spin/wheel_result
+  // funnel events are separate (trackFunnelEvent, always section `paywall`).
+  34: { id: 'spin_wheel', section: 'paywall', type: 'wheel' }, // S26
 }
 
 /** Metadata for an overlay step index, with a safe fallback for unknown steps. */

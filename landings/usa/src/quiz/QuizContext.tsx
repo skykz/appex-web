@@ -71,7 +71,17 @@ export const TOTAL_STEPS = 34;
  * `quiz_complete` stays pinned here so the metric keeps meaning "finished the
  * quiz" and stays comparable with data from before the wheel existed.
  */
-const QUIZ_COMPLETE_STEP = 33;
+export const QUIZ_COMPLETE_STEP = 33;
+
+/**
+ * Highest step a URL is allowed to deep-link to. The discount wheel (step 34)
+ * is reachable ONLY by walking forward through the quiz — never by a shared
+ * link, a hand-edited quiz_page_id, or Back/Forward — because the wheel claims
+ * a discount and mutates persistent offer state (resurrectIntroOffer). A cold
+ * visitor landing straight on it would trigger those side effects without ever
+ * doing the quiz. Deep links past this cap clamp to step 1.
+ */
+const MAX_DEEPLINK_STEP = QUIZ_COMPLETE_STEP;
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -147,8 +157,15 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     if (window.location.pathname !== QUIZ_PATH) return { step: 1, answers };
     const raw = new URLSearchParams(window.location.search).get("quiz_page_id");
     const step = Number(raw);
+    // The wheel (34) is restorable on refresh only if the quiz was completed
+    // this session — otherwise a cold /quiz?quiz_page_id=34 clamps to step 1.
+    // See MAX_DEEPLINK_STEP.
+    const reachedWheel =
+      typeof sessionStorage !== "undefined" &&
+      sessionStorage.getItem("appexOverlayCompleteFired") === "1";
+    const cap = reachedWheel ? TOTAL_STEPS : MAX_DEEPLINK_STEP;
     return {
-      step: Number.isInteger(step) && step >= 1 && step <= TOTAL_STEPS ? step : 1,
+      step: Number.isInteger(step) && step >= 1 && step <= cap ? step : 1,
       answers,
     };
   });
@@ -167,6 +184,13 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   const quizCompleteFired = useRef<boolean>(
     typeof sessionStorage !== "undefined" && sessionStorage.getItem("appexOverlayCompleteFired") === "1"
   );
+  // True once this provider has observed a step BEFORE the completion step —
+  // i.e. the visitor actually walked through the quiz rather than deep-linking
+  // straight onto the plan reveal. quiz_complete requires this so that landing
+  // on /quiz?quiz_page_id=33 with answers restored from a prior partial session
+  // can't fire a bogus completion. The answers-count guard alone can't tell a
+  // genuine finish from a restored-answers deep-link.
+  const walkedThroughQuiz = useRef(false);
 
   const open = useCallback(
     (utmButton?: string) => {
@@ -235,7 +259,17 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       if (window.location.pathname !== QUIZ_PATH) return;
       const raw = new URLSearchParams(window.location.search).get("quiz_page_id");
       const target = raw ? Number(raw) : NaN;
-      if (Number.isInteger(target) && target >= 1 && target <= TOTAL_STEPS) {
+      // Same cap as the deep-link init, EXCEPT the wheel (34) is allowed here
+      // when the quiz was genuinely completed this session (Forward after
+      // walking to it). A cold visitor can't reach that Forward entry — they'd
+      // never have pushed step 34 onto history — so this can't be spoofed by a
+      // hand-typed ?quiz_page_id=34, which arrives with no history entry to
+      // Forward into and no completion flag set.
+      const reachedWheel =
+        typeof sessionStorage !== "undefined" &&
+        sessionStorage.getItem("appexOverlayCompleteFired") === "1";
+      const cap = reachedWheel ? TOTAL_STEPS : MAX_DEEPLINK_STEP;
+      if (Number.isInteger(target) && target >= 1 && target <= cap) {
         dispatch({ type: "GOTO", step: target });
       }
     };
@@ -305,8 +339,17 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
   // overlay only ever reached this step by walking through every one before
   // it, each of which requires an answer to advance.
   useEffect(() => {
+    // Record having genuinely passed through the quiz body. Must run before the
+    // early-returns below so a normal walk (…31 → 32 → 33) sets the flag on the
+    // step-32 render, then fires completion on the step-33 render.
+    if (state.step < QUIZ_COMPLETE_STEP) walkedThroughQuiz.current = true;
+
     if (quizCompleteFired.current || state.step < QUIZ_COMPLETE_STEP) return;
     if (Object.keys(state.answers).length === 0) return;
+    // A deep link / bookmark straight to step 33+ never touched an earlier step,
+    // so this stays false and the (possibly restored) answers don't fake a
+    // completion.
+    if (!walkedThroughQuiz.current) return;
     quizCompleteFired.current = true;
     try {
       sessionStorage.setItem("appexOverlayCompleteFired", "1");

@@ -162,6 +162,10 @@ export default function DiscountWheel({
   );
 
   const finish = useCallback(() => {
+    // Clear any prior pending timer before scheduling a new one, so a second
+    // finish() can never orphan a timeout that would fire onResult twice or
+    // survive unmount (the cleanup effect only tracks the latest timerRef).
+    if (timerRef.current) window.clearTimeout(timerRef.current);
     setSpinning(false);
     setBlur(0);
     setDeflection(0);
@@ -188,6 +192,12 @@ export default function DiscountWheel({
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
+      // Advance the phase SYNCHRONOUSLY before finishing. `done` is async React
+      // state, so without this a rapid second tap (before the re-render) would
+      // still see phase "idle" and done=false, pass every guard above, and run
+      // this branch again — a second finish() and a second onResult/timer. The
+      // "landing" guard (top of spin) now rejects that second tap.
+      phaseRef.current = "landing";
       const target = landingTargetFrom(angleRef.current, 0);
       angleRef.current = target;
       setRotation(target);
