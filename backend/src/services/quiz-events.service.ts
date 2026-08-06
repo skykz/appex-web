@@ -50,6 +50,8 @@ export interface QuizEventInput {
   ab_bucket?: string
   /** Named funnel stage; only on the events that reach one. */
   checkpoint?: string
+  /** Paywall pricing A/B arm; distinct from ab_bucket (the quiz-flow arm). */
+  pricing_variant?: string
 }
 
 /** Postgres unique_violation — a duplicate event, not a failure. */
@@ -108,6 +110,7 @@ export async function recordQuizEvents(events: QuizEventInput[]): Promise<number
     flow_version: e.flow_version ?? null,
     ab_bucket: e.ab_bucket ?? null,
     checkpoint: e.checkpoint ?? null,
+    pricing_variant: e.pricing_variant ?? null,
   }))
 
   // upsert + ignoreDuplicates, not insert: a plain insert is one statement, so a

@@ -124,6 +124,15 @@ type FunnelDims = {
   funnelSlug: string
   flowVersion: string
   abBucket: string
+  /**
+   * Paywall pricing A/B arm ("control" | "day_entry").
+   *
+   * Its OWN dimension rather than reusing `abBucket`: that one names the quiz
+   * FLOW arm, and a visitor is in both experiments at once. Folding two arms into
+   * one column would make each test's results depend on the other's split, so
+   * neither could be read.
+   */
+  pricingVariant: string
 }
 
 const DEFAULT_FUNNEL_DIMS: FunnelDims = {
@@ -131,6 +140,7 @@ const DEFAULT_FUNNEL_DIMS: FunnelDims = {
   funnelSlug: 'default',
   flowVersion: QUIZ_VERSION,
   abBucket: 'control',
+  pricingVariant: 'control',
 }
 
 const FUNNEL_DIMS_KEY = 'appexFunnelDims'
@@ -154,6 +164,7 @@ function loadFunnelDims(): FunnelDims {
       funnelSlug: parsed.funnelSlug || DEFAULT_FUNNEL_DIMS.funnelSlug,
       flowVersion: parsed.flowVersion || DEFAULT_FUNNEL_DIMS.flowVersion,
       abBucket: parsed.abBucket || DEFAULT_FUNNEL_DIMS.abBucket,
+      pricingVariant: parsed.pricingVariant || DEFAULT_FUNNEL_DIMS.pricingVariant,
     }
   } catch {
     return DEFAULT_FUNNEL_DIMS
@@ -162,15 +173,27 @@ function loadFunnelDims(): FunnelDims {
 
 let funnelDims: FunnelDims = loadFunnelDims()
 
-/** Overwrites the funnel dimensions attached to subsequent events, and persists
- *  them so a later route (paywall/checkout) recovers them across a reload. */
-export function setFunnelDimensions(dims: FunnelDims): void {
-  funnelDims = dims
+function persistFunnelDims(): void {
   try {
-    sessionStorage.setItem(FUNNEL_DIMS_KEY, JSON.stringify(dims))
+    sessionStorage.setItem(FUNNEL_DIMS_KEY, JSON.stringify(funnelDims))
   } catch {
     /* storage disabled — in-memory value still holds for this page life */
   }
+}
+
+/**
+ * Updates the funnel dimensions attached to subsequent events, and persists them
+ * so a later route (paywall/checkout) recovers them across a reload.
+ *
+ * MERGES rather than replaces. Different surfaces own different dimensions — the
+ * quiz sets product/funnel/flow, the paywall sets the pricing arm — and they run
+ * on separate routes. A wholesale replace meant whichever ran last wiped the
+ * other's fields, so a purchase would report a default pricing arm no matter
+ * which shelf the buyer actually saw.
+ */
+export function setFunnelDimensions(dims: Partial<FunnelDims>): void {
+  funnelDims = { ...funnelDims, ...dims }
+  persistFunnelDims()
 }
 
 /**
@@ -321,6 +344,7 @@ export function trackQuizEvent(event: QuizEvent): void {
       funnel_slug: funnelDims.funnelSlug,
       flow_version: funnelDims.flowVersion,
       ab_bucket: funnelDims.abBucket,
+      pricing_variant: funnelDims.pricingVariant,
       // Its own column, not just an attribution key: the landing and the quiz
       // ship independently, so reports need to slice by either one alone.
       landing_version: getAttribution().landing_version ?? LANDING_VERSION,

@@ -21,7 +21,7 @@ import { sendLeadGuidebookEmailAsync } from '../../services/lead-magnet-email.se
 import { confirmLeadEmail, sendLeadConfirmEmailAsync } from '../../services/lead-confirm.service.js'
 
 const LANDING_IDS = ['usa'] as const
-const PLAN_IDS = ['week_1', 'week_4', 'year'] as const
+const PLAN_IDS = ['day_1', 'week_1', 'week_4', 'week_12', 'year'] as const
 
 const submitQuizSchema = z.object({
   email: z.string().email().max(320),
@@ -378,6 +378,8 @@ const landingCheckoutSchema = z.object({
   // checkout omits them and the buyer lands on the default surface.
   product_slug: z.string().max(60).optional(),
   funnel_slug: z.string().max(80).optional(),
+  /** Paywall pricing A/B arm, so revenue can be split by arm in Stripe. */
+  pricing_variant: z.string().max(40).optional(),
 })
 
 /**
@@ -448,6 +450,7 @@ export async function createLandingCheckout(
       attribution: { variant, utmSource, utmCampaign, utmAdset, utmAd, gclid },
       productSlug: body.product_slug,
       funnelSlug: body.funnel_slug,
+      pricingVariant: body.pricing_variant,
     })
 
     res.json({ url })
@@ -541,6 +544,8 @@ const quizEventSchema = z.object({
   flow_version: z.string().max(40).optional(),
   ab_bucket: z.string().max(60).optional(),
   checkpoint: z.string().max(40).optional(),
+  /** Paywall pricing A/B arm — separate from ab_bucket, which names the quiz-flow arm. */
+  pricing_variant: z.string().max(40).optional(),
 })
 
 // Batched: the client buffers steps and flushes periodically, so one request
