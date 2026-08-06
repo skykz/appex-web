@@ -149,14 +149,23 @@ const FUNNEL_DIMS_KEY = 'appexFunnelDims'
  * Recovers funnel dimensions persisted by an earlier screen.
  *
  * The paywall/checkout lives on a different route than the quiz, and a full
- * reload wipes this module's in-memory state. Persisting to sessionStorage lets
- * the checkout still stamp the correct product/creative onto the Stripe session
- * after such a reload, instead of falling back to the default product and
- * mis-routing the buyer post-purchase.
+ * reload wipes this module's in-memory state. Persisting them lets the checkout
+ * still stamp the correct product/creative onto the Stripe session after such a
+ * reload, instead of falling back to the default product and mis-routing the
+ * buyer post-purchase.
+ *
+ * localStorage FIRST, sessionStorage only as a fallback — the same pattern
+ * `appexCheckout` uses, for the same reason. The `purchase` event fires on
+ * /checkout/success after a round-trip through Stripe, and mobile and in-app
+ * browsers routinely return in a NEW TAB, where sessionStorage is empty. On
+ * sessionStorage alone those purchases fell back to the defaults, silently
+ * crediting every `day_entry` sale to `control` — a one-directional bias, which
+ * is the worst kind: the experiment would look conclusive and be wrong.
  */
 function loadFunnelDims(): FunnelDims {
   try {
-    const raw = sessionStorage.getItem(FUNNEL_DIMS_KEY)
+    const raw =
+      localStorage.getItem(FUNNEL_DIMS_KEY) ?? sessionStorage.getItem(FUNNEL_DIMS_KEY)
     if (!raw) return DEFAULT_FUNNEL_DIMS
     const parsed = JSON.parse(raw) as Partial<FunnelDims>
     return {
@@ -174,8 +183,16 @@ function loadFunnelDims(): FunnelDims {
 let funnelDims: FunnelDims = loadFunnelDims()
 
 function persistFunnelDims(): void {
+  const raw = JSON.stringify(funnelDims)
   try {
-    sessionStorage.setItem(FUNNEL_DIMS_KEY, JSON.stringify(funnelDims))
+    // Written to BOTH: localStorage is what survives the Stripe round-trip
+    // returning in a new tab, sessionStorage keeps the older readers working.
+    localStorage.setItem(FUNNEL_DIMS_KEY, raw)
+  } catch {
+    /* storage disabled — the sessionStorage write below may still land */
+  }
+  try {
+    sessionStorage.setItem(FUNNEL_DIMS_KEY, raw)
   } catch {
     /* storage disabled — in-memory value still holds for this page life */
   }
