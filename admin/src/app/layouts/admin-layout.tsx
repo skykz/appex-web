@@ -17,6 +17,7 @@ import {
   Undo2,
   AlertTriangle,
   TrendingDown,
+  FlaskConical,
 } from 'lucide-react'
 import { cn, signedInDisplayLines } from '@shared/lib'
 import { useAdminAuthStore } from '@entities/admin-auth/model/auth-store'
@@ -31,6 +32,7 @@ const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/categories', label: 'Categories', icon: FolderTree },
   { to: '/funnel', label: 'Funnel', icon: TrendingDown },
+  { to: '/experiments', label: 'Experiments', icon: FlaskConical },
   { to: '/courses', label: 'Courses', icon: BookOpen },
   { to: '/users', label: 'Users', icon: Users },
   { to: '/billing', label: 'Billing', icon: CreditCard },

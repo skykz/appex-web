@@ -54,6 +54,7 @@ import {
   getFunnelReport,
   getStepBreakdown,
 } from './funnel.controller.js'
+import { getPricingExperimentReport } from './pricing-experiment.controller.js'
 import { getLessonEngagement } from './lesson-engagement.controller.js'
 import { uploadLessonAsset } from './uploads.controller.js'
 
@@ -101,6 +102,7 @@ router.get('/billing-history', ...guard, listAdminBillingHistory)
 router.get('/refunds', ...guard, listAdminRefunds)
 router.get('/funnel', ...guard, getFunnelReport)
 router.get('/funnel/step/:stepId', ...guard, getStepBreakdown)
+router.get('/pricing-experiment', ...guard, getPricingExperimentReport)
 router.get('/billing-alerts/open-count', ...guard, getBillingAlertsOpenCount)
 router.get('/billing-alerts', ...guard, listBillingAlerts)
 router.patch('/billing-alerts/:id', ...guard, patchBillingAlert)

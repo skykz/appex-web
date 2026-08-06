@@ -1,3 +1,5 @@
 export { cn } from './cn'
+export { RANGE_OPTIONS, resolveRange } from './date-ranges'
+export type { DateRange, RangeKey } from './date-ranges'
 export { maskEmail, signedInDisplayLines } from './privacy-format'
 export type { SessionUserLike } from './privacy-format'
