@@ -12,6 +12,33 @@ export type DiscountState = "intro" | "exit" | "expired";
 export const PAYWALL_DEADLINE_KEY = "appexPaywallDeadline";
 
 /**
+ * localStorage flag: "1" once the visitor has unlocked the 71% exit-intent
+ * tier. Persisted (not just in React state) so a reload — or the discount wheel
+ * clearing the timer — can't silently drop them from 71% back to 61%. The wheel
+ * awards 61%, so without this a user who already earned 71% would be downgraded
+ * and charged more than the better offer they were shown.
+ */
+export const PAYWALL_EXIT_UNLOCKED_KEY = "appexPaywallExitUnlocked";
+
+/** True if the 71% exit-intent tier was unlocked earlier and should persist. */
+export function isExitOfferUnlocked(): boolean {
+  try {
+    return localStorage.getItem(PAYWALL_EXIT_UNLOCKED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Records that the 71% exit-intent tier is unlocked, durably across reloads. */
+export function markExitOfferUnlocked(): void {
+  try {
+    localStorage.setItem(PAYWALL_EXIT_UNLOCKED_KEY, "1");
+  } catch {
+    /* storage disabled — the in-memory state still holds for this page life */
+  }
+}
+
+/**
  * Clears any stored offer deadline so the paywall starts a brand-new countdown
  * on its next mount, putting a returning visitor back on the intro (61%) tier
  * even if their previous countdown had already burned out.
@@ -20,6 +47,11 @@ export const PAYWALL_DEADLINE_KEY = "appexPaywallDeadline";
  * winning it must actually restore that discount — otherwise the wheel promises
  * 61% and the paywall then charges full price for anyone who returns within the
  * offer-reset window of an expired timer, contradicting the popup they just saw.
+ *
+ * Deliberately does NOT touch the exit-unlock flag: a visitor already on the
+ * 71% tier keeps it after the wheel (the paywall reads the persisted flag and
+ * resolves to `exit`), so the wheel can restore 61% without ever downgrading a
+ * better offer.
  */
 export function resurrectIntroOffer(): void {
   try {
@@ -187,13 +219,35 @@ export const PAYWALL_DEFAULT_INDEX = PAYWALL_PLANS.findIndex((p) => p.id === "we
  * and makes each arm's shelf readable at a glance.
  */
 export const PRICING_VARIANTS = {
-  /** Today's paywall, unchanged. */
-  control: ["week_1", "week_4", "week_12", "year"],
-  /** Same shelf with the $0.99 one-day entry in place of the one-week entry. */
+  /**
+   * Exactly what production sells today — no 12-week plan, and rendered with the
+   * old card layout (see `usesPerDayLayout`). This is the honest baseline: the
+   * arm has to match the current paywall in every respect, or the experiment
+   * measures the difference against something no visitor has ever seen.
+   */
+  control: ["week_1", "week_4", "year"],
+  /**
+   * Everything new at once: the $0.99 one-day entry replacing the one-week
+   * entry, the 12-week plan, and the per-day card layout.
+   *
+   * This is a PACKAGE test, not a single-variable one. A win says "the new
+   * paywall beats the old one" — it cannot say which of the three changes did
+   * the work. That is the deliberate trade for shipping one test instead of
+   * three sequential ones; split it later if the winner needs explaining.
+   */
   day_entry: ["day_1", "week_4", "week_12", "year"],
 } as const satisfies Record<string, readonly BillingInterval[]>;
 
 export type PricingVariant = keyof typeof PRICING_VARIANTS;
+
+/**
+ * Whether an arm renders the per-day card layout (big "$0.45 per day" figure)
+ * rather than the cycle price. Tied to the arm, not to a plan, because the
+ * layout is part of what this experiment is testing.
+ */
+export function usesPerDayLayout(variant: PricingVariant): boolean {
+  return variant !== "control";
+}
 
 /** Arm used when nothing has assigned one (direct hits, storage disabled). */
 export const DEFAULT_PRICING_VARIANT: PricingVariant = "control";

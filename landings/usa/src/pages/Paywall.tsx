@@ -23,6 +23,7 @@ import { goalLabel, fearLabel, timeCommitmentLabel } from "@/lib/answer-labels";
 import {
   PAYWALL_PLANS,
   visiblePlansFor,
+  usesPerDayLayout,
   PAYWALL_DEFAULT_INDEX,
   PAYWALL_FEATURES,
   DISCOUNT_LABEL,
@@ -31,6 +32,8 @@ import {
   perDayFor,
   perDayWasFor,
   PAYWALL_DEADLINE_KEY,
+  isExitOfferUnlocked,
+  markExitOfferUnlocked,
   type PaywallPlan,
   type DiscountState,
 } from "@/lib/paywall-plans";
@@ -166,7 +169,7 @@ function Laurel({ side }: { side: "left" | "right" }) {
   );
 }
 
-/* Trustpilot star — temporarily disabled (kept in code)
+/* Trustpilot star, used by TrustpilotBadge below (static placeholder — no live widget/script yet). */
 function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
   const starPath =
     "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
@@ -186,7 +189,31 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
     </svg>
   );
 }
-*/
+
+/**
+ * Static Trustpilot-style rating badge — a placeholder visual, not the real
+ * embedded widget/script. Swap for the actual Trustpilot embed once we have
+ * real review data and the widget snippet.
+ */
+function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; reviews?: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 flex-wrap">
+      <div className="flex items-center gap-[3px]">
+        {Array.from({ length: 5 }, (_, i) => {
+          const filled = rating - i;
+          const half = filled > 0 && filled < 1;
+          return <TrustpilotStar key={i} half={half} clipId={`tp-star-${i}`} />;
+        })}
+      </div>
+      <span className="text-[13px] font-semibold" style={{ color: BLACK }}>
+        {rating.toFixed(1)}
+      </span>
+      <span className="text-[12px]" style={{ color: '#64748B' }}>
+        · {reviews.toLocaleString()} reviews on <b>Trustpilot</b>
+      </span>
+    </div>
+  );
+}
 
 /**
  * The "Certificate of Mastery" artwork, matching the quiz's certification step
@@ -276,11 +303,14 @@ function PricingRow({
   selected,
   onClick,
   state,
+  perDayLayout,
 }: {
   plan: PaywallPlan;
   selected: boolean;
   onClick: () => void;
   state: DiscountState;
+  /** Per-day headline (new arm) vs cycle price (control). Part of the A/B. */
+  perDayLayout: boolean;
 }) {
   const price = priceFor(plan, state);
   const discounted = state !== "expired";
@@ -331,54 +361,78 @@ function PricingRow({
               </span>
             )}
           </div>
-          {/* Cycle price under the label: "was → now". The headline number on the
-              right is the per-day figure, so the amount actually charged has to be
-              stated plainly here — per-day is a comparison aid, not the charge. */}
+          {/* Sub-line under the label. In the per-day layout the headline number
+              on the right is a derived figure, so the amount actually charged has
+              to be stated plainly here. In the control layout the headline IS the
+              charge, so this line carries the renewal terms instead — matching
+              the paywall currently in production. */}
           <p className="text-[12px] leading-tight" style={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#6B7280' }}>
-            {discounted && !plan.badgeOverride && (
+            {perDayLayout ? (
               <>
-                <span className="line-through" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#94A3B8' }}>${plan.fullPrice}</span>
-                <span className="mx-1">→</span>
+                {discounted && !plan.badgeOverride && (
+                  <>
+                    <span className="line-through" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#94A3B8' }}>${plan.fullPrice}</span>
+                    <span className="mx-1">→</span>
+                  </>
+                )}
+                <span className="font-semibold" style={{ color: isDark ? 'white' : BLACK }}>${price}</span>
+                {/* Entry plans state what happens next right on the card: the
+                    price they're agreeing to is not the price they'll keep paying. */}
+                {plan.badgeOverride && (
+                  <span>, then ${plan.renewalPrice} {plan.renewalCadence}</span>
+                )}
               </>
-            )}
-            <span className="font-semibold" style={{ color: isDark ? 'white' : BLACK }}>${price}</span>
-            {/* Entry plans state what happens next right on the card: the price
-                they're agreeing to is not the price they'll keep paying. */}
-            {plan.badgeOverride && (
-              <span>, then ${plan.renewalPrice} {plan.renewalCadence}</span>
+            ) : (
+              <>${price} now, then auto-renews ${plan.renewalPrice} {plan.renewalCadence}</>
             )}
           </p>
         </div>
       </div>
-      {/* Price tag — the per-day figure, so plans of different lengths compare at
-          a glance ($0.45/day vs $0.99/day). Shaped as a tag with a notched left
-          edge (clip-path) to read as a price label rather than plain text. */}
-      <div
-        className="flex-shrink-0 text-center py-2 pl-5 pr-3 -mr-1"
-        style={{
-          background: isDark ? 'rgba(255,255,255,0.12)' : selected ? '#FFEDD5' : '#F3F4F6',
-          clipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%)',
-        }}
-      >
-        {/* Struck-through per-day "was" figure. Suppressed on plans whose full
-            price spans a different period than one cycle of this plan: day_1's
-            full price is the $38.95 4-week base, so dividing it by its 1 day
-            would advertise "was $38.95/day", which is nonsense and reads as a
-            lie. Those plans carry a badgeOverride instead. */}
-        {discounted && !plan.badgeOverride && (
-          <p className="text-[12px] line-through leading-none mb-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>
-            ${perDayWasFor(plan)}
+      {perDayLayout ? (
+        /* Price tag — the per-day figure, so plans of different lengths compare at
+           a glance ($0.45/day vs $0.99/day). Shaped as a tag with a notched left
+           edge (clip-path) to read as a price label rather than plain text. */
+        <div
+          className="flex-shrink-0 text-center py-2 pl-5 pr-3 -mr-1"
+          style={{
+            background: isDark ? 'rgba(255,255,255,0.12)' : selected ? '#FFEDD5' : '#F3F4F6',
+            clipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%)',
+          }}
+        >
+          {/* Struck-through per-day "was" figure. Suppressed on plans whose full
+              price spans a different period than one cycle of this plan: day_1's
+              full price is the $38.95 4-week base, so dividing it by its 1 day
+              would advertise "was $38.95/day", which is nonsense and reads as a
+              lie. Those plans carry a badgeOverride instead. */}
+          {discounted && !plan.badgeOverride && (
+            <p className="text-[12px] line-through leading-none mb-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>
+              ${perDayWasFor(plan)}
+            </p>
+          )}
+          <p className="font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
+            <span className="text-[15px]">$</span>
+            <span className="text-[27px]">{perDay.whole}</span>
+            <span className="text-[15px]">.{perDay.cents}</span>
           </p>
-        )}
-        <p className="font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
-          <span className="text-[15px]">$</span>
-          <span className="text-[27px]">{perDay.whole}</span>
-          <span className="text-[15px]">.{perDay.cents}</span>
-        </p>
-        <p className="text-[10px] leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>
-          per day
-        </p>
-      </div>
+          <p className="text-[10px] leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>
+            per day
+          </p>
+        </div>
+      ) : (
+        /* Control layout: the cycle price as the headline with the struck-through
+           full price beneath — the paywall as it ships today, kept byte-for-byte
+           so the arm is a true baseline. */
+        <div className="flex-shrink-0 text-right pl-2">
+          <p className="text-[22px] font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
+            ${price}
+          </p>
+          {discounted && (
+            <p className="text-[12px] line-through leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#94A3B8' }}>
+              ${plan.fullPrice}
+            </p>
+          )}
+        </div>
+      )}
     </button>
   );
 
@@ -416,6 +470,7 @@ function PricingBlock({
   checkoutLoading,
   state,
   visiblePlans,
+  perDayLayout,
 }: {
   onGetPlan: () => void;
   onSignIn: () => void;
@@ -426,6 +481,8 @@ function PricingBlock({
   state: DiscountState;
   /** Plans this visitor's A/B arm puts on sale, with their PAYWALL_PLANS index. */
   visiblePlans: { plan: PaywallPlan; index: number }[];
+  /** Per-day card layout — on for the new arm, off for control. */
+  perDayLayout: boolean;
 }) {
   const plan = PAYWALL_PLANS[selected];
 
@@ -446,7 +503,7 @@ function PricingBlock({
       {/* Pricing cards — the shelf for this visitor's A/B arm. */}
       <div className="space-y-2 mb-3">
         {visiblePlans.map(({ plan: p, index: i }) => (
-          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => onSelectPlan(i)} state={state} />
+          <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => onSelectPlan(i)} state={state} perDayLayout={perDayLayout} />
         ))}
       </div>
 
@@ -510,6 +567,9 @@ export default function Paywall() {
     return variant;
   });
   const visiblePlans = useMemo(() => visiblePlansFor(pricingVariant), [pricingVariant]);
+  // Card layout is part of the arm, not a separate toggle: control must look
+  // exactly like today's production paywall for the comparison to mean anything.
+  const perDayLayout = usesPerDayLayout(pricingVariant);
   // Never start on a plan this arm doesn't sell — otherwise checkout could be
   // opened for a card that was never on screen.
   const [selected, setSelected] = useState(() => {
@@ -524,7 +584,11 @@ export default function Paywall() {
   // Discount state machine: intro (61%) → exit-intent upgrade (71%) → expired (full price).
   // `expired` always wins: once the countdown runs out the offer is gone, and the
   // deadline is persisted so a reload can't resurrect it.
-  const [exitUnlocked, setExitUnlocked] = useState(false);
+  //
+  // `exitUnlocked` is seeded from persisted storage so the 71% tier survives a
+  // reload (and the discount wheel clearing the timer). Purely in-memory before,
+  // it silently downgraded returning 71% users back to 61%.
+  const [exitUnlocked, setExitUnlocked] = useState(isExitOfferUnlocked);
   const discountState: DiscountState = timer.expired
     ? "expired"
     : exitUnlocked
@@ -533,6 +597,7 @@ export default function Paywall() {
 
   const handleExitIntent = useCallback(() => {
     setExitUnlocked(true);
+    markExitOfferUnlocked();
     // Spec §6: report the moment the 71% offer is revealed.
     ga4PaywallExitIntentShown();
     pushToDataLayer("paywall_exit_intent_shown", { discount_tier: "exit" });
@@ -921,6 +986,7 @@ export default function Paywall() {
             checkoutLoading={checkoutLoading}
             state={discountState}
             visiblePlans={visiblePlans}
+            perDayLayout={perDayLayout}
           />
         </section>
 
@@ -930,23 +996,26 @@ export default function Paywall() {
             The badge, padding and type all scale back up from `md`. The address is
             a real mailto rather than the inert <button> it used to be — the copy
             tells people to email, so the control should do it. */}
-        <section className="mb-6 lg:mb-8">
-          <div className="flex justify-center -mb-5 lg:-mb-7 relative z-10">
-            <div className="w-10 h-10 lg:w-14 lg:h-14 flex items-center justify-center rounded-full border-[3px] lg:border-4 border-white shadow-md" style={{ background: '#10B981' }}>
-              <svg className="w-[18px] h-[18px] lg:w-6 lg:h-6" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+        <section className="mb-4 lg:mb-5">
+          <div className="flex justify-center -mb-3 lg:-mb-4 relative z-10">
+            <div className="w-6 h-6 lg:w-8 lg:h-8 flex items-center justify-center rounded-full border-2 border-white shadow-md" style={{ background: '#10B981' }}>
+              <svg className="w-[11px] h-[11px] lg:w-3.5 lg:h-3.5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
           </div>
-          <div className="rounded-2xl lg:rounded-3xl px-4 py-4 pt-8 lg:p-7 lg:pt-12 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
-            <h2 className="text-[17px] lg:text-[24px] font-extrabold mb-1.5 lg:mb-3" style={{ color: BLACK }}>Money-back guarantee</h2>
-            <p className="text-[13px] lg:text-[14px] leading-snug lg:leading-relaxed mb-3 lg:mb-5" style={{ color: '#475569' }}>
+          <div className="rounded-xl lg:rounded-2xl px-2.5 py-2.5 pt-5 lg:p-4 lg:pt-7 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
+            <div className="mb-2 lg:mb-2.5">
+              <TrustpilotBadge />
+            </div>
+            <h2 className="text-[10px] lg:text-[14px] font-extrabold mb-1 lg:mb-1.5" style={{ color: BLACK }}>Money-back guarantee</h2>
+            <p className="text-[8px] lg:text-[8px] leading-snug lg:leading-relaxed mb-1.5 lg:mb-3" style={{ color: '#475569' }}>
               Not happy after really giving the course a go? Email us and we'll refund you.
             </p>
             <a
               href="mailto:hello@appexme.com"
-              className="inline-flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 rounded-full text-white font-semibold text-[13px] lg:text-[14px] no-underline"
+              className="inline-flex items-center gap-1 px-2.5 lg:px-3.5 py-1 lg:py-1.5 rounded-full text-white font-semibold text-[8px] lg:text-[8px] no-underline"
               style={{ background: BLACK }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
               Risk-free learning
             </a>
           </div>
