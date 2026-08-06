@@ -28,6 +28,7 @@
  */
 
 import { getEventEnvelope } from './attribution'
+import { getFunnelDimensions } from './quiz-tracker'
 
 type GtagFn = (...args: unknown[]) => void
 
@@ -96,9 +97,29 @@ export function initGa4(): void {
   first?.parentNode?.insertBefore(script, first)
 }
 
-/** Stamps the standard envelope (anon_id/session_id/timestamp + attribution). */
+/**
+ * Stamps the standard envelope (anon_id/session_id/timestamp + attribution) plus
+ * the funnel dimensions.
+ *
+ * The dimensions are added HERE rather than at each call site so every GA4 event
+ * carries them automatically and can't be forgotten on a new one. Without them
+ * GA4 would merge both A/B arms — and both quiz flows, once a second one ships —
+ * into one set of numbers, while our own store reports them split. Two sources
+ * disagreeing is worse than one being absent, because both look authoritative.
+ *
+ * Registered in GA4 as custom dimensions to be usable as report breakdowns.
+ */
 function withAttribution(params?: Record<string, unknown>): Record<string, unknown> {
-  return { ...getEventEnvelope(), ...(params ?? {}) }
+  const dims = getFunnelDimensions()
+  return {
+    ...getEventEnvelope(),
+    pricing_variant: dims.pricingVariant,
+    product_slug: dims.productSlug,
+    funnel_slug: dims.funnelSlug,
+    flow_version: dims.flowVersion,
+    ab_bucket: dims.abBucket,
+    ...(params ?? {}),
+  }
 }
 
 /** Fires a GA4 event via gtag; no-op when disabled or gtag isn't ready. */

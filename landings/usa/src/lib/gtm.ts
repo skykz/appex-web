@@ -18,6 +18,7 @@
  */
 
 import { getEventEnvelope } from './attribution'
+import { getFunnelDimensions } from './quiz-tracker'
 
 declare global {
   interface Window {
@@ -35,7 +36,20 @@ export function pushToDataLayer(event: string, params?: Record<string, unknown>)
   if (typeof window === 'undefined') return
   try {
     window.dataLayer = window.dataLayer || []
-    window.dataLayer.push({ event, ...getEventEnvelope(), ...(params ?? {}) })
+    // Funnel dimensions ride on every push so a GTM trigger can segment by A/B
+    // arm, creative or product without a code change — and so Google Ads
+    // conversions fired from here can be split the same way our own reports are.
+    const dims = getFunnelDimensions()
+    window.dataLayer.push({
+      event,
+      ...getEventEnvelope(),
+      pricing_variant: dims.pricingVariant,
+      product_slug: dims.productSlug,
+      funnel_slug: dims.funnelSlug,
+      flow_version: dims.flowVersion,
+      ab_bucket: dims.abBucket,
+      ...(params ?? {}),
+    })
   } catch {
     /* analytics must never break the funnel */
   }
