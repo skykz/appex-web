@@ -13,6 +13,7 @@ import quizClaudeLaptop from "@/assets/quiz-claude-laptop.webp";
 import { useQuiz, Answers, TOTAL_STEPS } from "./QuizContext";
 import { stepIdAt } from "./flows";
 import { submitLandingQuiz } from "@/lib/landing-api";
+import { resurrectIntroOffer } from "@/lib/paywall-plans";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
@@ -1698,7 +1699,15 @@ function S26() {
     trackFunnelEvent("wheel_result", { value: percent });
   }, []);
 
-  const claim = () => { close(); navigate("/paywall"); };
+  const claim = () => {
+    // The wheel always awards 61%, so claiming it must actually restore that
+    // discount. Clearing any burned-out deadline drops the returning visitor
+    // back onto the intro (61%) tier instead of the paywall showing full price
+    // and contradicting the popup they just saw.
+    resurrectIntroOffer();
+    close();
+    navigate("/paywall");
+  };
 
   return (
     <StepShell>

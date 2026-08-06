@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { LegalLink } from "@/components/legal/LegalLink";
 import CheckoutModal from "@/components/paywall/CheckoutModal";
 import { planIndexToId, submitLandingQuiz, createLandingCheckout } from "@/lib/landing-api";
@@ -16,17 +16,21 @@ import {
   ga4PaywallAbandon,
   getGa4ClientId,
 } from "@/lib/ga4";
+import { getPricingVariant } from "@/lib/pricing-variant";
 import { pushToDataLayer } from "@/lib/gtm";
-import { trackFunnelEvent } from "@/lib/quiz-tracker";
+import { trackFunnelEvent, setFunnelDimensions } from "@/lib/quiz-tracker";
 import { goalLabel, fearLabel, timeCommitmentLabel } from "@/lib/answer-labels";
 import {
   PAYWALL_PLANS,
-  VISIBLE_PAYWALL_PLANS,
+  visiblePlansFor,
   PAYWALL_DEFAULT_INDEX,
   PAYWALL_FEATURES,
   DISCOUNT_LABEL,
   ftcDisclosure,
   priceFor,
+  perDayFor,
+  perDayWasFor,
+  PAYWALL_DEADLINE_KEY,
   type PaywallPlan,
   type DiscountState,
 } from "@/lib/paywall-plans";
@@ -65,8 +69,8 @@ function useCountdown(minutes: number) {
       // Migrate any deadline written by the previous sessionStorage version so a
       // visitor mid-countdown at deploy time doesn't get the clock reset.
       const stored =
-        localStorage.getItem("appexPaywallDeadline") ??
-        sessionStorage.getItem("appexPaywallDeadline");
+        localStorage.getItem(PAYWALL_DEADLINE_KEY) ??
+        sessionStorage.getItem(PAYWALL_DEADLINE_KEY);
       const deadline = stored ? Number(stored) : NaN;
       if (Number.isFinite(deadline)) {
         // A deadline from an earlier visit shouldn't brand this device "expired"
@@ -75,11 +79,11 @@ function useCountdown(minutes: number) {
         // older than OFFER_RESET_MS starts over.
         const age = Date.now() - (deadline - totalMs);
         if (age <= OFFER_RESET_MS) {
-          localStorage.setItem("appexPaywallDeadline", String(deadline));
+          localStorage.setItem(PAYWALL_DEADLINE_KEY, String(deadline));
           return Math.max(0, Math.round((deadline - Date.now()) / 1000));
         }
       }
-      localStorage.setItem("appexPaywallDeadline", String(Date.now() + totalMs));
+      localStorage.setItem(PAYWALL_DEADLINE_KEY, String(Date.now() + totalMs));
     } catch {
       /* storage disabled — fall back to a fresh in-memory countdown */
     }
@@ -282,6 +286,13 @@ function PricingRow({
   const discounted = state !== "expired";
   // Spec: the "Most popular" card is always the black brand card, selected or not.
   const isDark = Boolean(plan.popular);
+  // Split the per-day figure so the cents render small and raised next to a large
+  // dollar figure ("$0⁴⁵/day"). Derived from the price actually charged, so it
+  // can never drift from it.
+  const perDay = (() => {
+    const [whole, cents = "00"] = perDayFor(plan, state).split(".");
+    return { whole, cents };
+  })();
 
   const inner = (
     <button
@@ -311,25 +322,62 @@ function PricingRow({
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <span className="text-[17px] font-extrabold leading-none" style={{ color: isDark ? 'white' : BLACK }}>{plan.label}</span>
             {discounted && (
-              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: isDark ? ORANGE : '#FFF7ED', color: isDark ? 'white' : ORANGE }}>Save {DISCOUNT_LABEL[state]}</span>
+              // `badgeOverride` names the entry price instead of a percentage on
+              // plans whose discount isn't a straight cut of their own full price
+              // (day_1 is 97% off the 4-week base — a percentage there reads as a
+              // scam and the shared label would be plain wrong).
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: isDark ? ORANGE : '#FFF7ED', color: isDark ? 'white' : ORANGE }}>
+                {plan.badgeOverride ?? `Save ${DISCOUNT_LABEL[state]}`}
+              </span>
             )}
           </div>
+          {/* Cycle price under the label: "was → now". The headline number on the
+              right is the per-day figure, so the amount actually charged has to be
+              stated plainly here — per-day is a comparison aid, not the charge. */}
           <p className="text-[12px] leading-tight" style={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#6B7280' }}>
-            ${price} now, then auto-renews ${plan.renewalPrice} {plan.renewalCadence}
+            {discounted && !plan.badgeOverride && (
+              <>
+                <span className="line-through" style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#94A3B8' }}>${plan.fullPrice}</span>
+                <span className="mx-1">→</span>
+              </>
+            )}
+            <span className="font-semibold" style={{ color: isDark ? 'white' : BLACK }}>${price}</span>
+            {/* Entry plans state what happens next right on the card: the price
+                they're agreeing to is not the price they'll keep paying. */}
+            {plan.badgeOverride && (
+              <span>, then ${plan.renewalPrice} {plan.renewalCadence}</span>
+            )}
           </p>
         </div>
       </div>
-      {/* Price block — cycle price with the struck-through full price beneath it
-          (matches the reference paywall; no per-day figure on the card). */}
-      <div className="flex-shrink-0 text-right pl-2">
-        <p className="text-[22px] font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
-          ${price}
-        </p>
-        {discounted && (
-          <p className="text-[12px] line-through leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#94A3B8' }}>
-            ${plan.fullPrice}
+      {/* Price tag — the per-day figure, so plans of different lengths compare at
+          a glance ($0.45/day vs $0.99/day). Shaped as a tag with a notched left
+          edge (clip-path) to read as a price label rather than plain text. */}
+      <div
+        className="flex-shrink-0 text-center py-2 pl-5 pr-3 -mr-1"
+        style={{
+          background: isDark ? 'rgba(255,255,255,0.12)' : selected ? '#FFEDD5' : '#F3F4F6',
+          clipPath: 'polygon(14px 0, 100% 0, 100% 100%, 14px 100%, 0 50%)',
+        }}
+      >
+        {/* Struck-through per-day "was" figure. Suppressed on plans whose full
+            price spans a different period than one cycle of this plan: day_1's
+            full price is the $38.95 4-week base, so dividing it by its 1 day
+            would advertise "was $38.95/day", which is nonsense and reads as a
+            lie. Those plans carry a badgeOverride instead. */}
+        {discounted && !plan.badgeOverride && (
+          <p className="text-[12px] line-through leading-none mb-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#9CA3AF' }}>
+            ${perDayWasFor(plan)}
           </p>
         )}
+        <p className="font-black leading-none" style={{ color: isDark ? 'white' : BLACK }}>
+          <span className="text-[15px]">$</span>
+          <span className="text-[27px]">{perDay.whole}</span>
+          <span className="text-[15px]">.{perDay.cents}</span>
+        </p>
+        <p className="text-[10px] leading-none mt-1" style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#6B7280' }}>
+          per day
+        </p>
       </div>
     </button>
   );
@@ -367,6 +415,7 @@ function PricingBlock({
   onSelectPlan,
   checkoutLoading,
   state,
+  visiblePlans,
 }: {
   onGetPlan: () => void;
   onSignIn: () => void;
@@ -375,6 +424,8 @@ function PricingBlock({
   onSelectPlan: (i: number) => void;
   checkoutLoading: boolean;
   state: DiscountState;
+  /** Plans this visitor's A/B arm puts on sale, with their PAYWALL_PLANS index. */
+  visiblePlans: { plan: PaywallPlan; index: number }[];
 }) {
   const plan = PAYWALL_PLANS[selected];
 
@@ -392,9 +443,9 @@ function PricingBlock({
         ))}
       </ul>
 
-      {/* Pricing cards */}
+      {/* Pricing cards — the shelf for this visitor's A/B arm. */}
       <div className="space-y-2 mb-3">
-        {VISIBLE_PAYWALL_PLANS.map(({ plan: p, index: i }) => (
+        {visiblePlans.map(({ plan: p, index: i }) => (
           <PricingRow key={p.id} plan={p} selected={selected === i} onClick={() => onSelectPlan(i)} state={state} />
         ))}
       </div>
@@ -447,13 +498,25 @@ function PricingBlock({
 
 export default function Paywall() {
   const [showStickyCta, setShowStickyCta] = useState(false);
-  // Never start on a withheld plan — if the default is hidden, fall back to the
-  // first plan actually on sale so checkout can't be opened for it.
-  const [selected, setSelected] = useState(() =>
-    PAYWALL_PLANS[PAYWALL_DEFAULT_INDEX]?.hidden
-      ? (VISIBLE_PAYWALL_PLANS[0]?.index ?? PAYWALL_DEFAULT_INDEX)
-      : PAYWALL_DEFAULT_INDEX
-  );
+  // Pricing A/B arm. Resolved once per mount and held: re-resolving mid-session
+  // could swap the shelf under someone who has already picked a card.
+  // Resolve the arm and stamp it onto the tracker in the SAME lazy initializer,
+  // so it is recorded before any paywall event can fire. Doing it in an effect
+  // instead would let paywall_view — the denominator of the whole experiment —
+  // be attributed to the default arm.
+  const [pricingVariant] = useState(() => {
+    const variant = getPricingVariant();
+    setFunnelDimensions({ pricingVariant: variant });
+    return variant;
+  });
+  const visiblePlans = useMemo(() => visiblePlansFor(pricingVariant), [pricingVariant]);
+  // Never start on a plan this arm doesn't sell — otherwise checkout could be
+  // opened for a card that was never on screen.
+  const [selected, setSelected] = useState(() => {
+    const shelf = visiblePlansFor(getPricingVariant());
+    const defaultOnShelf = shelf.some(({ index }) => index === PAYWALL_DEFAULT_INDEX);
+    return defaultOnShelf ? PAYWALL_DEFAULT_INDEX : (shelf[0]?.index ?? PAYWALL_DEFAULT_INDEX);
+  });
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const timer = useCountdown(10);
@@ -857,6 +920,7 @@ export default function Paywall() {
             onSelectPlan={handleSelectPlan}
             checkoutLoading={checkoutLoading}
             state={discountState}
+            visiblePlans={visiblePlans}
           />
         </section>
 
