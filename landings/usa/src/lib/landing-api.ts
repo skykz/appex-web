@@ -2,10 +2,11 @@ import type { Answers } from "@/quiz/QuizContext";
 import { getLearnerAppUrl } from "@/lib/checkout-redirect";
 import { getAttributionParams, getSessionId } from "@/lib/attribution";
 import { getFunnelDimensions } from "@/lib/quiz-tracker";
+import { PAYWALL_PLANS, PAYWALL_DEFAULT_INDEX } from "@/lib/paywall-plans";
 
 const LANDING_ID = "usa";
 
-export type LandingPlanId = "week_1" | "week_4" | "year";
+export type LandingPlanId = "day_1" | "week_1" | "week_4" | "week_12" | "year";
 
 export type SubmitQuizPayload = {
   email: string;
@@ -153,12 +154,21 @@ export async function submitLandingQuiz(
 }
 
 /**
- * Maps paywall plan index (0 = 1 week, 1 = 4 weeks, 2 = annual) to backend plan ids.
+ * Maps a paywall plan's position in PAYWALL_PLANS to its backend plan id.
+ *
+ * Reads the id off the plan itself rather than hardcoding positions. The old
+ * version mapped by literal index (`0 → week_1`, `2 → year`, else `week_4`),
+ * which silently sold the WRONG PLAN the moment a plan was inserted, removed, or
+ * reordered: every index shifted, but the mapping didn't. Since the array is the
+ * single source of truth for what's on sale, deriving from it makes that class of
+ * bug impossible.
+ *
+ * Falls back to the default plan for an out-of-range index — callers pass a
+ * selection index that should always be valid, and charging nothing is worse than
+ * charging the default.
  */
 export function planIndexToId(index: number): LandingPlanId {
-  if (index === 0) return "week_1";
-  if (index === 2) return "year";
-  return "week_4";
+  return PAYWALL_PLANS[index]?.id ?? PAYWALL_PLANS[PAYWALL_DEFAULT_INDEX].id;
 }
 
 /**
@@ -227,6 +237,11 @@ export async function createLandingCheckout(args: {
         // route) → Stripe metadata → post-purchase routing to the right surface.
         product_slug: funnelDims.productSlug || undefined,
         funnel_slug: funnelDims.funnelSlug || undefined,
+        // Pricing A/B arm → Stripe metadata, so revenue (not just conversion
+        // rate) can be split by arm. Entry-price tests move average order value
+        // in the opposite direction to conversion, so the money side is the
+        // part that actually decides the winner.
+        pricing_variant: funnelDims.pricingVariant || undefined,
       }),
     });
 
