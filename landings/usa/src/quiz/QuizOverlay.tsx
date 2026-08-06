@@ -240,11 +240,14 @@ function TopBar() {
  */
 function StepShell({ children }: { children: React.ReactNode }) {
   return (
-    // `min-h-*` rather than `flex-1`: flex-1 would cap the step at the container
-    // height and clip a long option list without producing a scrollbar. A minimum
-    // height still pushes short steps' actions to the bottom, while letting tall
-    // ones grow past the fold and scroll normally.
-    <div className="mx-auto flex w-full max-w-[520px] flex-col px-5 py-5 animate-[fadeUp_0.35s_ease-out] [min-height:calc(100dvh-var(--quiz-topbar,7rem))] md:block md:min-h-0">
+    // Full-height flex column on EVERY width (not just mobile): the question sits
+    // at the top and `mt-auto` on the actions drops them to the bottom of the
+    // viewport, matching the mobile layout on desktop web too.
+    //
+    // `min-h-*` rather than `flex-1`/fixed height: a minimum height still pushes
+    // short steps' actions to the bottom, while a tall option list grows past the
+    // fold and scrolls normally instead of being clipped.
+    <div className="mx-auto flex w-full max-w-[520px] flex-col px-5 py-5 animate-[fadeUp_0.35s_ease-out] [min-height:calc(100dvh-var(--quiz-topbar,7rem))]">
       {children}
     </div>
   );
@@ -316,10 +319,10 @@ function OptionList<T extends string>({
 }: { options: Opt[]; value?: T; onPick: (v: T) => void }) {
   const [picked, setPicked] = useState<string | undefined>(value);
   return (
-    // `mt-auto` is what drops the answers to the bottom of StepShell's column on
-    // phones — the question stays put at the top and the tap targets sit under the
-    // thumb. Reset at `md`, where the step flows normally.
-    <div className="mt-auto flex flex-col gap-3 pt-6 md:mt-0 md:pt-0">
+    // `mt-auto` drops the answers to the bottom of StepShell's column on every
+    // width — the question stays at the top and the options sit at the bottom of
+    // the viewport, the same layout on desktop web as on phones.
+    <div className="mt-auto flex flex-col gap-3 pt-6">
       {options.map((o, i) => {
         const active = picked === o.value;
         return (
