@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingDown, Users, Mail, CheckCircle2, Clock, LogOut, Smartphone, Monitor, Tablet, ArrowDown, SkipForward } from 'lucide-react'
 import { funnelApi, type FunnelFilters, type FunnelStep } from '@features/funnel/api'
+import { RANGE_OPTIONS, resolveRange, type RangeKey } from '@shared/lib'
 import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
 import { QueryErrorPanel } from '@shared/ui/query-error-panel'
@@ -10,15 +11,33 @@ import { Skeleton } from '@shared/ui/skeleton'
 
 const FUNNEL_KEY = ['admin', 'funnel'] as const
 
-const RANGES = [
-  { value: '7', label: 'Last 7 days' },
-  { value: '30', label: 'Last 30 days' },
-  { value: '90', label: 'Last 90 days' },
+/**
+ * Paywall pricing arms.
+ *
+ * Hardcoded rather than derived from the data: the list has to include arms
+ * with zero traffic (that's often what you're checking), and a dropdown built
+ * from whatever happened to be logged can't offer those. Kept in sync with
+ * landings/usa/src/lib/paywall-plans.ts by hand — one test a month makes that
+ * cheaper than config plumbing.
+ */
+const PRICING_VARIANTS = [
+  { value: '', label: 'All arms (merged)' },
+  { value: 'control', label: 'Control' },
+  { value: 'day_entry', label: 'Day entry ($0.99)' },
 ] as const
 
-/** ISO timestamp N days back, used as the report's lower bound. */
-function daysAgo(n: number): string {
-  return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString()
+/**
+ * Share of `total` as a percentage string.
+ *
+ * Keeps one decimal below 10% because whole-number rounding made distinct
+ * metrics look identical: 12/219 and 10/219 both printed "5% of sessions",
+ * so "reached email" and "completed quiz" appeared to be the same number.
+ * Above 10% the extra digit is noise, so it's dropped.
+ */
+function sharePct(part: number, total: number): string {
+  if (!total) return '0%'
+  const pct = (part / total) * 100
+  return pct < 10 ? `${Math.round(pct * 10) / 10}%` : `${Math.round(pct)}%`
 }
 
 /**
@@ -64,8 +83,20 @@ function StatCard({
         </span>
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-xl font-bold tabular-nums">{value}</p>
-          {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+          {/* `truncate` + title: "Biggest drop" holds a step_id, not a number, and
+              slugs like `experience_with_claude` overflowed the card. Smaller type
+              for text values so a long slug has a chance of fitting at all. */}
+          <p
+            className={
+              typeof value === 'number'
+                ? 'text-xl font-bold tabular-nums'
+                : 'truncate text-base font-bold'
+            }
+            title={typeof value === 'string' ? value : undefined}
+          >
+            {value}
+          </p>
+          {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
         </div>
       </CardContent>
     </Card>
@@ -73,7 +104,7 @@ function StatCard({
 }
 
 export function FunnelPage() {
-  const [days, setDays] = useState('30')
+  const [range, setRange] = useState<RangeKey>('30')
   const [expanded, setExpanded] = useState<string | null>(null)
   /**
    * Three readings of the same numbers, because each answers a different
@@ -87,16 +118,24 @@ export function FunnelPage() {
    * against each other in one list.
    */
   const [kind, setKind] = useState<'all' | 'question' | 'info'>('all')
+  /** Empty string = every arm merged, which is the pre-experiment behaviour. */
+  const [variant, setVariant] = useState('')
 
-  const filters = useMemo<FunnelFilters>(() => ({ from: daysAgo(Number(days)) }), [days])
+  const filters = useMemo<FunnelFilters>(
+    () => ({
+      ...resolveRange(range),
+      ...(variant ? { pricing_variant: variant } : {}),
+    }),
+    [range, variant]
+  )
 
   const report = useQuery({
-    queryKey: [...FUNNEL_KEY, days],
+    queryKey: [...FUNNEL_KEY, range, variant],
     queryFn: () => funnelApi.getReport(filters),
   })
 
   const breakdown = useQuery({
-    queryKey: [...FUNNEL_KEY, 'step', expanded, days],
+    queryKey: [...FUNNEL_KEY, 'step', expanded, range, variant],
     queryFn: () => funnelApi.getStepBreakdown(expanded as string, filters),
     enabled: Boolean(expanded),
   })
@@ -136,13 +175,22 @@ export function FunnelPage() {
         title="Funnel"
         description="Where visitors drop out of the quiz and paywall, step by step."
         actions={
-          <Select value={days} onChange={(e) => setDays(e.target.value)}>
-            {RANGES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </Select>
+          <div className="flex flex-wrap gap-2">
+            <Select value={variant} onChange={(e) => setVariant(e.target.value)}>
+              {PRICING_VARIANTS.map((v) => (
+                <option key={v.value} value={v.value}>
+                  {v.label}
+                </option>
+              ))}
+            </Select>
+            <Select value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>
+              {RANGE_OPTIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </Select>
+          </div>
         }
       />
 
@@ -162,23 +210,19 @@ export function FunnelPage() {
               icon={Mail}
               label="Reached email"
               value={totals.reached_email}
-              hint={totals.sessions ? `${Math.round((totals.reached_email / totals.sessions) * 100)}% of sessions` : undefined}
+              hint={`${sharePct(totals.reached_email, totals.sessions)} of sessions`}
             />
             <StatCard
               icon={CheckCircle2}
               label="Completed quiz"
               value={totals.completed}
-              hint={totals.sessions ? `${Math.round((totals.completed / totals.sessions) * 100)}% of sessions` : undefined}
+              hint={`${sharePct(totals.completed, totals.sessions)} of sessions`}
             />
             <StatCard
               icon={LogOut}
               label="Left without answering"
               value={totals.bounced_immediately}
-              hint={
-                totals.sessions
-                  ? `${Math.round((totals.bounced_immediately / totals.sessions) * 100)}% never engaged`
-                  : undefined
-              }
+              hint={`${sharePct(totals.bounced_immediately, totals.sessions)} never engaged`}
             />
             <StatCard
               icon={TrendingDown}
@@ -198,12 +242,17 @@ export function FunnelPage() {
             <h3 className="mb-3 text-sm font-semibold">Where you lose the most people</h3>
             <div className="space-y-2">
               {worst.map((s, i) => (
-                <div key={s.step_id} className="flex items-center gap-3 text-sm">
-                  <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
-                  <span className="font-medium">{s.step_id}</span>
-                  <span className="text-muted-foreground">
-                    {s.question_text ? `— ${s.question_text}` : ''}
-                  </span>
+                <div key={s.step_id} className="flex items-center gap-2 text-sm">
+                  <span className="w-5 shrink-0 text-muted-foreground tabular-nums">{i + 1}.</span>
+                  <span className="shrink-0 font-medium">{s.step_id}</span>
+                  {/* Only show the wording when it adds something. Steps whose
+                      question_text is just the slug back again rendered as
+                      "experience_with_claude — experience_with_claude". */}
+                  {s.question_text && s.question_text !== s.step_id && (
+                    <span className="min-w-0 truncate text-muted-foreground" title={s.question_text}>
+                      — {s.question_text}
+                    </span>
+                  )}
                   <span className="ml-auto shrink-0 font-semibold text-red-600 tabular-nums">
                     −{s.dropped} ({s.drop_rate}%)
                   </span>
@@ -224,23 +273,33 @@ export function FunnelPage() {
               Share of everyone entering a stage who left somewhere inside it.
             </p>
             <div className="space-y-2">
-              {report.data!.sections.map((sec) => (
-                <div key={sec.section} className="flex items-center gap-3 text-sm">
-                  <span className="w-20 shrink-0 capitalize">{sec.section}</span>
-                  <span className="relative h-5 flex-1 overflow-hidden rounded bg-muted">
-                    <span
-                      className={`absolute inset-y-0 left-0 ${SECTION_COLOR[sec.section] ?? 'bg-slate-400'}`}
-                      style={{ width: `${Math.min(100, sec.drop_rate)}%` }}
-                    />
-                    <span className="absolute inset-y-0 left-2 flex items-center text-xs font-medium">
-                      {sec.drop_rate}% left
+              {report.data!.sections.map((sec, i, all) => {
+                // "Exited" means "this stage was the furthest they got", so the LAST
+                // stage always reports 100% — everyone who reaches the paywall ends
+                // there by definition, purchase or not. Rendering that as a
+                // full-width drop bar read as a total loss, which it isn't: the
+                // funnel simply has no step after it to advance to.
+                const isFinal = i === all.length - 1
+                return (
+                  <div key={sec.section} className="flex items-center gap-3 text-sm">
+                    <span className="w-20 shrink-0 capitalize">{sec.section}</span>
+                    <span className="relative h-5 flex-1 overflow-hidden rounded bg-muted">
+                      {!isFinal && (
+                        <span
+                          className={`absolute inset-y-0 left-0 ${SECTION_COLOR[sec.section] ?? 'bg-slate-400'}`}
+                          style={{ width: `${Math.min(100, sec.drop_rate)}%` }}
+                        />
+                      )}
+                      <span className="absolute inset-y-0 left-2 flex items-center text-xs font-medium">
+                        {isFinal ? 'final stage — nothing after it' : `${sec.drop_rate}% left`}
+                      </span>
                     </span>
-                  </span>
-                  <span className="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
-                    {sec.exited} of {sec.entered}
-                  </span>
-                </div>
-              ))}
+                    <span className="w-28 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                      {isFinal ? `${sec.entered} reached` : `${sec.exited} of ${sec.entered}`}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
