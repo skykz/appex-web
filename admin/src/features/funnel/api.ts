@@ -63,6 +63,13 @@ export interface FunnelFilters {
   landing?: string
   utm_source?: string
   quiz_version?: string
+  /**
+   * Scopes the funnel to one paywall pricing arm.
+   *
+   * Left unset the report merges every arm into one funnel — plausible-looking
+   * and wrong, since the arms are shown different prices.
+   */
+  pricing_variant?: string
 }
 
 function toQuery(f: FunnelFilters): string {

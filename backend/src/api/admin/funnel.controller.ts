@@ -9,6 +9,8 @@ const rangeSchema = z.object({
   landing: z.string().max(40).optional(),
   utm_source: z.string().max(200).optional(),
   quiz_version: z.string().max(40).optional(),
+  /** Scopes the funnel to one paywall pricing arm; merged arms read wrong. */
+  pricing_variant: z.string().max(40).optional(),
 })
 
 /**

@@ -107,7 +107,7 @@ const TEST_ID_PREFIXES = ['demo-', 'aud-', 'audit-', 'probe-', 'test-']
 const TEST_EMAIL_PATTERNS = ['@example.', '@test.', '@df.com', 'probe+', 'audit+']
 
 /** True when the row came from our own testing rather than a real visitor. */
-function isTestRow(r: { session_id: string | null; anon_id: string; email?: string | null }): boolean {
+export function isTestRow(r: { session_id: string | null; anon_id: string; email?: string | null }): boolean {
   const ids = [r.session_id ?? '', r.anon_id ?? '']
   if (ids.some((id) => TEST_ID_PREFIXES.some((p) => id.startsWith(p)))) return true
   const email = (r.email ?? '').toLowerCase()
@@ -136,6 +136,14 @@ export async function getFunnel(opts: {
   landing?: string
   utm_source?: string
   quiz_version?: string
+  /**
+   * Scopes the whole funnel to one paywall pricing arm.
+   *
+   * Without it the two arms are merged into a single funnel, which looks
+   * entirely plausible and is wrong — the same mistake fixed for `quiz_funnel`
+   * in migration 043.
+   */
+  pricing_variant?: string
 } = {}): Promise<FunnelSummary> {
   // The default upper bound sits slightly in the future on purpose. `created_at`
   // is stamped by Postgres, and any clock skew between this process and the DB
@@ -157,6 +165,7 @@ export async function getFunnel(opts: {
 
   if (opts.landing) query = query.eq('landing', opts.landing)
   if (opts.quiz_version) query = query.eq('quiz_version', opts.quiz_version)
+  if (opts.pricing_variant) query = query.eq('pricing_variant', opts.pricing_variant)
   if (opts.utm_source) query = query.eq('attribution->>utm_source', opts.utm_source)
 
   const { data, error } = await query
