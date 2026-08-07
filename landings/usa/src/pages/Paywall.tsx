@@ -169,6 +169,52 @@ function Laurel({ side }: { side: "left" | "right" }) {
   );
 }
 
+/* Trustpilot star, used by TrustpilotBadge below (static placeholder — no live widget/script yet). */
+function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
+  const starPath =
+    "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
+
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+      {half && (
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="0" y="0" width="9" height="18" />
+          </clipPath>
+        </defs>
+      )}
+      <rect width="18" height="18" rx="1" fill={half ? "#DCDCE6" : "#00B67A"} />
+      {half && <rect width="18" height="18" rx="1" fill="#00B67A" clipPath={`url(#${clipId})`} />}
+      <path d={starPath} fill="white" />
+    </svg>
+  );
+}
+
+/**
+ * Static Trustpilot-style rating badge — a placeholder visual, not the real
+ * embedded widget/script. Swap for the actual Trustpilot embed once we have
+ * real review data and the widget snippet.
+ */
+function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; reviews?: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2 flex-wrap">
+      <div className="flex items-center gap-[3px]">
+        {Array.from({ length: 5 }, (_, i) => {
+          const filled = rating - i;
+          const half = filled > 0 && filled < 1;
+          return <TrustpilotStar key={i} half={half} clipId={`tp-star-${i}`} />;
+        })}
+      </div>
+      <span className="text-[13px] font-semibold" style={{ color: BLACK }}>
+        {rating.toFixed(1)}
+      </span>
+      <span className="text-[12px]" style={{ color: '#64748B' }}>
+        · {reviews.toLocaleString()} reviews on <b>Trustpilot</b>
+      </span>
+    </div>
+  );
+}
+
 /**
  * The "Certificate of Mastery" artwork, matching the quiz's certification step
  * (QuizOverlay S19) so the paywall shows the same credential the learner was
@@ -957,6 +1003,9 @@ export default function Paywall() {
             </div>
           </div>
           <div className="rounded-xl lg:rounded-2xl px-2.5 py-2.5 pt-5 lg:p-4 lg:pt-7 text-center border" style={{ background: '#F8FAFC', borderColor: '#E5E5E5' }}>
+            <div className="mb-2 lg:mb-2.5">
+              <TrustpilotBadge />
+            </div>
             <h2 className="text-[10px] lg:text-[14px] font-extrabold mb-1 lg:mb-1.5" style={{ color: BLACK }}>Money-back guarantee</h2>
             <p className="text-[8px] lg:text-[8px] leading-snug lg:leading-relaxed mb-1.5 lg:mb-3" style={{ color: '#475569' }}>
               Not happy after really giving the course a go? Email us and we'll refund you.
