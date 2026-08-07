@@ -15,6 +15,7 @@ import {
 import { sendPostPaymentEmailsAsync } from './lifecycle-email.service.js'
 import { sendPurchaseEventAsync as sendMetaPurchaseAsync } from './meta-capi.service.js'
 import { sendPurchaseEventAsync as sendGa4PurchaseAsync } from './ga4-mp.service.js'
+import { sendOfflineConversionAsync as sendYmConversionAsync } from './ym-offline.service.js'
 import { env } from '../config/env.js'
 import { paymentLog } from '../lib/logger.js'
 
@@ -218,6 +219,20 @@ function firePurchaseEvent(
       utmSource,
       utmCampaign,
       gclid,
+    })
+  }
+
+  if (env.ymOfflineEnabled) {
+    // Uploads the `purchase_confirmed` goal — deliberately NOT the same name as
+    // the browser `purchase` goal, because Metrica does not merge a browser goal
+    // with an offline conversion the way GA4 merges by transaction_id. See
+    // ym-offline.service.ts for which of the two to report on.
+    sendYmConversionAsync({
+      clientId: md.ym_client_id ?? null,
+      yclid: md.yclid ?? null,
+      transactionId: session.id,
+      value,
+      currency,
     })
   }
 }

@@ -18,6 +18,7 @@ import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
 import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
 import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView, ga4WheelView, ga4WheelSpin, ga4WheelResult } from "@/lib/ga4";
+import { ymQuizStep, ymQuizAbandon, ymLead, ymNameSubmit, ymPlanView, ymWheelView, ymWheelSpin, ymWheelResult } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex, OVERLAY_QUIZ_STEPS } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
@@ -1463,6 +1464,7 @@ function S23() {
     commitAnswer("email_capture", "provided");
     trackLead();
     ga4Lead();
+    ymLead();
     pushToDataLayer("lead");
     void submitLandingQuiz({ email: value, answers: { ...answers, email: value } });
     next();
@@ -1550,6 +1552,7 @@ function S24() {
     commitAnswer("name_capture", "provided");
     trackCompleteRegistration();
     ga4NameSubmit();
+    ymNameSubmit();
     pushToDataLayer("name_submit");
     void submitLandingQuiz({
       email: answers.email || "",
@@ -1584,6 +1587,7 @@ function S25() {
   // plan_view — the personal-plan reveal, last screen before the discount wheel.
   useEffect(() => {
     ga4PlanView();
+    ymPlanView();
     pushToDataLayer("plan_view");
   }, []);
 
@@ -1682,12 +1686,14 @@ function S26() {
 
   useEffect(() => {
     ga4WheelView();
+    ymWheelView();
     pushToDataLayer("wheel_view");
     trackFunnelEvent("wheel_view");
   }, []);
 
   const handleSpinStart = useCallback(() => {
     ga4WheelSpin();
+    ymWheelSpin();
     pushToDataLayer("wheel_spin");
     trackFunnelEvent("wheel_spin");
   }, []);
@@ -1695,6 +1701,7 @@ function S26() {
   const handleResult = useCallback((percent: number) => {
     setWon(percent);
     ga4WheelResult({ discount_percent: percent });
+    ymWheelResult({ discount_percent: percent });
     pushToDataLayer("wheel_result", { discount_percent: percent });
     trackFunnelEvent("wheel_result", { value: percent });
   }, []);
@@ -2371,6 +2378,12 @@ export default function QuizOverlay() {
       section: meta.section,
       type: meta.type,
     });
+    ymQuizStep({
+      step_index: step,
+      step_id: meta.id,
+      section: meta.section,
+      type: meta.type,
+    });
     pushToDataLayer("quiz_step", {
       step_index: step,
       step_id: meta.id,
@@ -2455,6 +2468,7 @@ export default function QuizOverlay() {
         ).length,
       };
       ga4QuizAbandon(payload);
+      ymQuizAbandon(payload);
       pushToDataLayer("quiz_abandon", { ...payload, reason });
       // Same event into our own store, flushed via sendBeacon so it survives the
       // unload that triggered it.

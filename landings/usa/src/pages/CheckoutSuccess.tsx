@@ -7,6 +7,7 @@ import {
 } from "@/lib/landing-api";
 import { trackPurchase } from "@/lib/meta-pixel";
 import { ga4Purchase } from "@/lib/ga4";
+import { ymPurchase } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { trackFunnelEvent } from "@/lib/quiz-tracker";
 import { PAYWALL_PLANS, PAYWALL_DEFAULT_INDEX } from "@/lib/paywall-plans";
@@ -47,6 +48,15 @@ function firePurchaseOnce(sessionId: string): void {
     const currency = c.currency || "USD";
     trackPurchase({ stripeSessionId: sessionId, value, currency, plan: c.plan });
     ga4Purchase({
+      transactionId: sessionId,
+      value,
+      currency,
+      plan: c.plan,
+      discountTier: c.discount_tier,
+    });
+    // Metrica's realtime, lossy twin. The authoritative revenue number is the
+    // server-uploaded `purchase_confirmed` offline conversion — do not sum them.
+    ymPurchase({
       transactionId: sessionId,
       value,
       currency,

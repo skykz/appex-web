@@ -16,6 +16,18 @@ import {
   ga4PaywallAbandon,
   getGa4ClientId,
 } from "@/lib/ga4";
+import {
+  ymCheckoutStart,
+  ymPaywallView,
+  ymPaywallExitIntentShown,
+  ymPaywallTimerExpired,
+  ymPlanSelect,
+  ymCheckoutModalView,
+  ymCheckoutAbandon,
+  ymCheckoutError,
+  ymPaywallAbandon,
+  getYmClientId,
+} from "@/lib/yandex-metrica";
 import { getPricingVariant } from "@/lib/pricing-variant";
 import { pushToDataLayer } from "@/lib/gtm";
 import { trackFunnelEvent, setFunnelDimensions } from "@/lib/quiz-tracker";
@@ -600,6 +612,7 @@ export default function Paywall() {
     markExitOfferUnlocked();
     // Spec §6: report the moment the 71% offer is revealed.
     ga4PaywallExitIntentShown();
+    ymPaywallExitIntentShown();
     pushToDataLayer("paywall_exit_intent_shown", { discount_tier: "exit" });
   }, []);
   useExitIntent(handleExitIntent, !timer.expired && !exitUnlocked);
@@ -644,6 +657,7 @@ export default function Paywall() {
         opened_checkout: openedCheckoutRef.current,
       };
       ga4PaywallAbandon(payload);
+      ymPaywallAbandon(payload);
       pushToDataLayer("paywall_abandon", payload);
       trackFunnelEvent("paywall_abandon", payload);
     };
@@ -661,6 +675,7 @@ export default function Paywall() {
     if (paywallViewFired.current) return;
     paywallViewFired.current = true;
     ga4PaywallView({ discount_tier: discountState });
+    ymPaywallView({ discount_tier: discountState });
     pushToDataLayer("paywall_view", { discount_tier: discountState });
     // Our own store too, so the funnel doesn't stop at the quiz.
     trackFunnelEvent("paywall_view", { discount_tier: discountState });
@@ -676,6 +691,7 @@ export default function Paywall() {
     if (arrivedExpired.current || !timer.expired || timerExpiredFired.current) return;
     timerExpiredFired.current = true;
     ga4PaywallTimerExpired();
+    ymPaywallTimerExpired();
     pushToDataLayer("paywall_timer_expired", { discount_tier: "expired" });
   }, [timer.expired]);
 
@@ -744,6 +760,7 @@ export default function Paywall() {
       select_index: planSelectCount.current,
     };
     ga4PlanSelect(payload);
+    ymPlanSelect(payload);
     pushToDataLayer("plan_select", payload);
     trackFunnelEvent("plan_select", payload);
     setSelected(i);
@@ -762,6 +779,11 @@ export default function Paywall() {
     checkoutOutcome.current = "abandoned";
     openedCheckoutRef.current = true;
     ga4CheckoutModalView({
+      plan: plan.id,
+      discount_tier: discountState,
+      value: Number(priceFor(plan, discountState)),
+    });
+    ymCheckoutModalView({
       plan: plan.id,
       discount_tier: discountState,
       value: Number(priceFor(plan, discountState)),
@@ -795,6 +817,7 @@ export default function Paywall() {
         reason: "dismissed",
       };
       ga4CheckoutAbandon(payload);
+      ymCheckoutAbandon(payload);
       pushToDataLayer("checkout_abandon", payload);
       trackFunnelEvent("checkout_abandon", payload);
     }
@@ -837,6 +860,12 @@ export default function Paywall() {
       plan: interval,
       discountTier: shownTier,
     });
+    ymCheckoutStart({
+      value: conversionValue,
+      currency: "USD",
+      plan: interval,
+      discountTier: shownTier,
+    });
     pushToDataLayer("checkout_start", {
       value: conversionValue,
       currency: "USD",
@@ -866,7 +895,12 @@ export default function Paywall() {
     const { fbp, fbc } = getMetaBrowserIds();
 
     try {
-      const ga4ClientId = await getGa4ClientId();
+      // Both ids in parallel: each has its own 800ms timeout, and awaiting them
+      // in sequence would add up to 1.6s of dead time before the Stripe redirect.
+      const [ga4ClientId, ymClientId] = await Promise.all([
+        getGa4ClientId(),
+        getYmClientId(),
+      ]);
       const result = await createLandingCheckout({
         email: quizEmail ?? "",
         name: quizName,
@@ -874,6 +908,7 @@ export default function Paywall() {
         discountTier: shownTier,
         meta: { event_id: eventId, fbp, fbc },
         ga4: { client_id: ga4ClientId },
+        ym: { client_id: ymClientId },
       });
 
       if ("error" in result) {
@@ -881,6 +916,7 @@ export default function Paywall() {
         // it separately so a server-side outage is visible in the funnel instead
         // of just looking like missing purchases.
         ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
+        ymCheckoutError({ plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
         pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
         checkoutOutcome.current = "confirmed"; // not an abandonment
         // Drop back to the plan picker so the error isn't hidden behind the modal.
@@ -895,6 +931,7 @@ export default function Paywall() {
       // Network/CORS failure rejects the promise — surface it and re-enable the
       // button (the finally below) instead of leaving it stuck on "Redirecting…".
       ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: "network_error" });
+      ymCheckoutError({ plan: interval, discount_tier: shownTier, message: "network_error" });
       pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: "network_error" });
       checkoutOutcome.current = "confirmed"; // an error, not an abandonment
       setCheckoutOpen(false);

@@ -19,6 +19,7 @@ import QuizOverlay from "./quiz/QuizOverlay";
 import ActivityToasts from "./components/landing/ActivityToasts";
 import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
 import { initGa4, ga4PageView, ga4LandingView } from "@/lib/ga4";
+import { initYm, ymPageView, ymLandingView } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { captureAttribution } from "@/lib/attribution";
 
@@ -36,16 +37,19 @@ function RouteAnalytics() {
     captureAttribution();
     initMetaPixel();
     initGa4();
+    initYm();
   }, []);
 
   useEffect(() => {
     captureAttribution();
     trackPageView();
     ga4PageView(location.pathname);
+    ymPageView(location.pathname);
     pushToDataLayer("page_view", { page_path: location.pathname });
     if (location.pathname === "/" || location.pathname.startsWith("/ai-skills-for/")) {
       trackViewContent({ content_name: location.pathname });
       ga4LandingView({ item_name: location.pathname });
+      ymLandingView({ item_name: location.pathname });
       pushToDataLayer("landing_view", { item_name: location.pathname });
     }
   }, [location.pathname]);

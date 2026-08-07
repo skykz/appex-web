@@ -190,6 +190,17 @@ export type Ga4Attribution = {
 };
 
 /**
+ * Yandex Metrica attribution passed to the backend so the server-side offline
+ * conversion attaches to the same Metrica visitor as the browser goals.
+ *
+ * `yclid` rides in the shared attribution params rather than here — it comes
+ * from the URL (first touch), not from the tag.
+ */
+export type YmAttribution = {
+  client_id?: string | null;
+};
+
+/**
  * Starts Stripe Checkout for a USA landing lead (payment-first, no signup required).
  */
 export async function createLandingCheckout(args: {
@@ -200,6 +211,7 @@ export async function createLandingCheckout(args: {
   discountTier?: "intro" | "exit" | "expired";
   meta?: MetaAttribution;
   ga4?: Ga4Attribution;
+  ym?: YmAttribution;
 }): Promise<{ url: string } | { error: string }> {
   const base = getApiBaseUrl();
   if (!base) {
@@ -225,14 +237,17 @@ export async function createLandingCheckout(args: {
         fbp: args.meta?.fbp || undefined,
         fbc: args.meta?.fbc || undefined,
         ga4_client_id: args.ga4?.client_id || undefined,
-        // First-touch creative/UTM tags + Google Ads click id → Stripe metadata →
-        // server Purchase attribution (Meta CAPI + GA4 MP / Google Ads).
+        ym_client_id: args.ym?.client_id || undefined,
+        // First-touch creative/UTM tags + ad-platform click ids → Stripe metadata →
+        // server Purchase attribution (Meta CAPI + GA4 MP / Google Ads + Metrica
+        // offline conversions / Yandex.Direct).
         variant: attribution.variant || undefined,
         utm_source: attribution.utm_source || undefined,
         utm_campaign: attribution.utm_campaign || undefined,
         utm_adset: attribution.utm_adset || undefined,
         utm_ad: attribution.utm_ad || undefined,
         gclid: attribution.gclid || undefined,
+        yclid: attribution.yclid || undefined,
         // Flex-quiz product/creative (recovered from sessionStorage on the paywall
         // route) → Stripe metadata → post-purchase routing to the right surface.
         product_slug: funnelDims.productSlug || undefined,
