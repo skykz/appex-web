@@ -125,14 +125,27 @@ type FunnelDims = {
   flowVersion: string
   abBucket: string
   /**
-   * Paywall pricing A/B arm ("control" | "day_entry").
+   * Paywall pricing A/B arm ("control" | "day_entry"), or null before one is
+   * assigned.
    *
    * Its OWN dimension rather than reusing `abBucket`: that one names the quiz
    * FLOW arm, and a visitor is in both experiments at once. Folding two arms into
    * one column would make each test's results depend on the other's split, so
    * neither could be read.
+   *
+   * NULL UNTIL THE PAYWALL ASSIGNS IT — never defaulted to 'control'.
+   * The arm is drawn on the paywall (Paywall.tsx), but quiz events fire long
+   * before that. Defaulting to 'control' stamped every pre-paywall event with an
+   * arm the visitor had not been given, so a visitor later drawn into `day_entry`
+   * appeared in BOTH arms: `control` collected phantom sessions it never showed a
+   * price to, inflating the denominator of revenue-per-visitor and making control
+   * look worse than it is. Observed in production as a 7/2 split on paywall_view
+   * where the true assignment is 50/50.
+   *
+   * The column is nullable by design (migration 045) precisely so "not yet
+   * assigned" stays distinguishable from "assigned to control".
    */
-  pricingVariant: string
+  pricingVariant: string | null
 }
 
 const DEFAULT_FUNNEL_DIMS: FunnelDims = {
@@ -140,7 +153,7 @@ const DEFAULT_FUNNEL_DIMS: FunnelDims = {
   funnelSlug: 'default',
   flowVersion: QUIZ_VERSION,
   abBucket: 'control',
-  pricingVariant: 'control',
+  pricingVariant: null,
 }
 
 const FUNNEL_DIMS_KEY = 'appexFunnelDims'
@@ -361,7 +374,13 @@ export function trackQuizEvent(event: QuizEvent): void {
       funnel_slug: funnelDims.funnelSlug,
       flow_version: funnelDims.flowVersion,
       ab_bucket: funnelDims.abBucket,
-      pricing_variant: funnelDims.pricingVariant,
+      // Omitted entirely until the paywall assigns an arm. The server schema is
+      // `z.string().optional()`, which accepts a missing key but REJECTS null —
+      // and a rejection there fails the whole event, so sending null would trade
+      // one wrong column for the loss of the entire row.
+      ...(funnelDims.pricingVariant
+        ? { pricing_variant: funnelDims.pricingVariant }
+        : {}),
       // Its own column, not just an attribution key: the landing and the quiz
       // ship independently, so reports need to slice by either one alone.
       landing_version: getAttribution().landing_version ?? LANDING_VERSION,
