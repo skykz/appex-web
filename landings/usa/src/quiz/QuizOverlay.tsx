@@ -1926,17 +1926,22 @@ function SLoadingFlow() {
    * a cosmetic bug: nobody reaches the paywall. Rather than trust that every such
    * path has been found, this guarantees the funnel always continues.
    *
-   * Deliberately does NOT fire while the popup is open: a visitor deciding on a
-   * question is not stuck, and skipping the screen out from under them would be a
-   * worse bug than the one this guards against. It only rescues the case where the
-   * bar is running with no popup up — i.e. the flow genuinely stopped advancing.
+   * Two windows, because "stuck" looks different on each leg:
    *
-   * The timer restarts whenever the popup opens or closes (it is in the dep list),
-   * so each leg of the phase gets its own fresh, generous window.
+   *  - Bar running, no popup (20s). Nothing here needs the visitor, so silence
+   *    means the flow stopped advancing.
+   *  - Popup open (2min, reset by any interaction). A popup that renders but
+   *    swallows its clicks strands the visitor exactly as badly as one that never
+   *    renders, so this leg cannot be left unguarded — but someone reading the
+   *    question is NOT stuck, and skipping the screen under them would be worse
+   *    than the bug. Any keypress, tap or click restarts the clock, so only a
+   *    genuinely dead screen — no input at all for two minutes — trips it.
    */
   useEffect(() => {
-    if (showPopup) return;
-    const id = window.setTimeout(() => {
+    let id = 0;
+    const delay = showPopup ? 120000 : 20000;
+
+    const bail = () => {
       if (advancedRef.current) return;
       advancedRef.current = true;
       try {
@@ -1947,14 +1952,30 @@ function SLoadingFlow() {
           step_type: 'milestone',
           // Read from a ref, not state: including `pct` in the deps would restart
           // the watchdog on every animation frame, so it would never elapse.
-          props: { phase_index: phaseIdx, pct: pctRef.current },
+          props: { phase_index: phaseIdx, pct: pctRef.current, popup_open: showPopup },
         });
       } catch {
         /* analytics must never block the escape hatch */
       }
       next();
-    }, 20000);
-    return () => window.clearTimeout(id);
+    };
+
+    const arm = () => {
+      window.clearTimeout(id);
+      id = window.setTimeout(bail, delay);
+    };
+    arm();
+
+    // Only meaningful while a popup is waiting on the visitor; on the other leg
+    // there is nothing to interact with, so the plain timeout stands.
+    if (!showPopup) return () => window.clearTimeout(id);
+
+    const events = ['pointerdown', 'keydown'] as const;
+    events.forEach((e) => window.addEventListener(e, arm, { passive: true }));
+    return () => {
+      window.clearTimeout(id);
+      events.forEach((e) => window.removeEventListener(e, arm));
+    };
   }, [next, showPopup, phaseIdx]);
 
   useEffect(() => {
