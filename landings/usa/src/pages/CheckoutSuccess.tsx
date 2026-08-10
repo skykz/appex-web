@@ -161,9 +161,20 @@ function CheckoutSuccessContent() {
   const purchaseFired = useRef(false);
   const firePurchase = useCallback(() => {
     if (!sessionId || purchaseFired.current) return;
+    // Keyed PER SESSION rather than one shared cell holding the latest id.
+    // A single cell only remembers the most recent purchase, so a second one
+    // (renewal, upsell) overwrites the first — and returning to the earlier
+    // success URL afterwards, from history or the receipt email, then looks
+    // unseen and re-fires it. That is the same inflated-conversion bug this
+    // guard exists to prevent, just one order later.
+    const guardKey = `appexPurchaseFired:${sessionId}`;
     let alreadySent = false;
     try {
       alreadySent =
+        localStorage.getItem(guardKey) !== null ||
+        sessionStorage.getItem(guardKey) !== null ||
+        // Legacy single-cell guard, so purchases already reported by the
+        // previous build are not counted a second time after this deploy.
         localStorage.getItem("appexPurchaseFired") === sessionId ||
         sessionStorage.getItem("appexPurchaseFired") === sessionId;
     } catch {
@@ -172,7 +183,7 @@ function CheckoutSuccessContent() {
     purchaseFired.current = true;
     if (alreadySent) return;
     try {
-      localStorage.setItem("appexPurchaseFired", sessionId);
+      localStorage.setItem(guardKey, String(Date.now()));
     } catch {
       /* non-fatal: the in-memory ref still de-dupes within this page life */
     }
