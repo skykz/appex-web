@@ -1832,43 +1832,123 @@ function SLoadingFlow() {
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewExiting, setReviewExiting] = useState(false);
   const rafRef = useRef<number>(0);
+  /** Owns phase completion; rAF only paints (see runBar). */
+  const doneTimerRef = useRef<number>(0);
+  /** Latest `pct`, readable from the watchdog without restarting its timer. */
+  const pctRef = useRef(0);
+  /** Single writer for the bar, so state and ref can never drift apart. */
+  const applyPct = (v: number) => {
+    pctRef.current = v;
+    setPct(v);
+  };
   /**
    * Index of the phase that just hit 100%, or null. Distinguishes "completed a
    * moment ago" (play the sweep/sparks once) from "was already done" (steady
    * dark card) — without it every re-render would replay the celebration.
    */
   const [justDone, setJustDone] = useState<number | null>(null);
+  /** Guards `next()` so a watchdog and a real completion can't both advance. */
+  const advancedRef = useRef(false);
 
-  // Run bar from 0→50, pause for popup, then 50→100 after answer
+  /**
+   * Drives the bar from `from`→`to` over `dur`, then calls `onDone` exactly once.
+   *
+   * Progress is derived from wall-clock `Date.now()`, and completion is owned by a
+   * `setTimeout` rather than by the animation loop. This is the fix for the quiz
+   * hanging at 0%: `requestAnimationFrame` is frozen while the tab is backgrounded,
+   * so on mobile — where a visitor swaps apps mid-quiz — the old loop stopped
+   * ticking and `onDone` was never reached, leaving the bar stuck wherever it was
+   * (0% if it happened immediately) with no way forward. rAF now only paints;
+   * the timer guarantees the step always finishes, backgrounded or not.
+   */
   const runBar = (from: number, to: number, dur: number, onDone: () => void) => {
-    const start = performance.now();
+    const start = Date.now();
     const range = to - from;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / dur);
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(doneTimerRef.current);
+      applyPct(to);
+      onDone();
+    };
+
+    const tick = () => {
+      // A frame queued before `finish` ran must not paint over the final value,
+      // or a phase can be left reading e.g. 92% after it has actually completed.
+      if (finished) return;
+      const p = Math.min(1, (Date.now() - start) / dur);
       const eased = 1 - Math.pow(1 - p, 2);
-      setPct(Math.round(from + eased * range));
+      applyPct(Math.round(from + eased * range));
       if (p < 1) rafRef.current = requestAnimationFrame(tick);
-      else onDone();
     };
     rafRef.current = requestAnimationFrame(tick);
+    // The authority on completion — fires even with rAF frozen.
+    doneTimerRef.current = window.setTimeout(finish, dur);
   };
 
   useEffect(() => {
-    setPct(0);
+    applyPct(0);
     setShowPopup(false);
     setPaused(false);
     // The previous phase's celebration is over once we advance; clearing it lets
     // that card settle into its plain completed state.
     setJustDone(null);
     cancelAnimationFrame(rafRef.current);
+    window.clearTimeout(doneTimerRef.current);
     const half = phases[phaseIdx].duration / 2;
     // Run 0→50, then show popup
     runBar(0, 50, half, () => {
       setPaused(true);
       setShowPopup(true);
     });
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(doneTimerRef.current);
+    };
   }, [phaseIdx]);
+
+  /**
+   * Last-resort watchdog: leaves this screen even if the flow above wedges.
+   *
+   * The commitment popup is the ONLY way forward — the bar parks at 50% until a
+   * button is clicked — so anything that stops it rendering or swallows the click
+   * strands the visitor on the loader permanently. That is a revenue blocker, not
+   * a cosmetic bug: nobody reaches the paywall. Rather than trust that every such
+   * path has been found, this guarantees the funnel always continues.
+   *
+   * Deliberately does NOT fire while the popup is open: a visitor deciding on a
+   * question is not stuck, and skipping the screen out from under them would be a
+   * worse bug than the one this guards against. It only rescues the case where the
+   * bar is running with no popup up — i.e. the flow genuinely stopped advancing.
+   *
+   * The timer restarts whenever the popup opens or closes (it is in the dep list),
+   * so each leg of the phase gets its own fresh, generous window.
+   */
+  useEffect(() => {
+    if (showPopup) return;
+    const id = window.setTimeout(() => {
+      if (advancedRef.current) return;
+      advancedRef.current = true;
+      try {
+        trackQuizEvent({
+          event_name: 'step_view',
+          step_id: 'loading_flow_timeout',
+          section: 'plan',
+          step_type: 'milestone',
+          // Read from a ref, not state: including `pct` in the deps would restart
+          // the watchdog on every animation frame, so it would never elapse.
+          props: { phase_index: phaseIdx, pct: pctRef.current },
+        });
+      } catch {
+        /* analytics must never block the escape hatch */
+      }
+      next();
+    }, 20000);
+    return () => window.clearTimeout(id);
+  }, [next, showPopup, phaseIdx]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -1879,8 +1959,14 @@ function SLoadingFlow() {
   }, []);
 
   const handlePick = (v: "yes" | "no") => {
-    const popup = phases[phaseIdx].popup;
-    if (popup) set(popup.answerKey as any, v);
+    // Recording the answer must never be able to strand the visitor here: if the
+    // store throws, we still continue the flow rather than leaving a dead popup.
+    try {
+      const popup = phases[phaseIdx].popup;
+      if (popup) set(popup.answerKey as any, v);
+    } catch {
+      /* answer is a nice-to-have; advancing is not optional */
+    }
     setShowPopup(false);
     setPaused(false);
     // Resume 50→100
@@ -1893,7 +1979,10 @@ function SLoadingFlow() {
       setJustDone(completing);
       setTimeout(() => {
         if (phaseIdx < phases.length - 1) setPhaseIdx((i) => i + 1);
-        else next();
+        else if (!advancedRef.current) {
+          advancedRef.current = true;
+          next();
+        }
       }, 900);
     });
   };
