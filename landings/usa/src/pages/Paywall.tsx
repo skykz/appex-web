@@ -183,20 +183,22 @@ function Laurel({ side }: { side: "left" | "right" }) {
 
 /* Trustpilot star, used by TrustpilotBadge below (static placeholder — no live widget/script yet). */
 function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
+  // Centred in a 24×24 box: the star fills the tile the way Trustpilot's does.
+  // The earlier 18×18 path sat low and small, which read as a dot, not a star.
   const starPath =
-    "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
+    "M12 3.4l2.42 5.63 6.08.5-4.62 4.02 1.39 5.96L12 16.4l-5.27 3.11 1.39-5.96L3.5 9.53l6.08-.5L12 3.4z";
 
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0">
       {half && (
         <defs>
           <clipPath id={clipId}>
-            <rect x="0" y="0" width="9" height="18" />
+            <rect x="0" y="0" width="12" height="24" />
           </clipPath>
         </defs>
       )}
-      <rect width="18" height="18" rx="1" fill={half ? "#DCDCE6" : "#00B67A"} />
-      {half && <rect width="18" height="18" rx="1" fill="#00B67A" clipPath={`url(#${clipId})`} />}
+      <rect width="24" height="24" fill={half ? "#DCDCE6" : "#00B67A"} />
+      {half && <rect width="24" height="24" fill="#00B67A" clipPath={`url(#${clipId})`} />}
       <path d={starPath} fill="white" />
     </svg>
   );
@@ -210,7 +212,7 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
 function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; reviews?: number }) {
   return (
     <div className="flex items-center justify-center gap-2 flex-wrap">
-      <div className="flex items-center gap-[3px]">
+      <div className="flex items-center gap-[2px]">
         {Array.from({ length: 5 }, (_, i) => {
           const filled = rating - i;
           const half = filled > 0 && filled < 1;
@@ -221,7 +223,8 @@ function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; re
         {rating.toFixed(1)}
       </span>
       <span className="text-[12px]" style={{ color: '#64748B' }}>
-        · {reviews.toLocaleString()} reviews on <b>Trustpilot</b>
+        · {reviews.toLocaleString()} reviews on{' '}
+        <b style={{ color: '#191919' }}>Trustpilot</b>
       </span>
     </div>
   );
