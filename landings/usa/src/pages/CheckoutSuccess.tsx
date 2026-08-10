@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import {
@@ -142,18 +142,40 @@ function CheckoutSuccessContent() {
     }
   }, []);
 
-  // Fire the browser Purchase once, on arrival at the success page — reaching
-  // this URL means Stripe already took payment (it's the success_url). Guarded so
-  // React re-renders / effect re-runs don't double-fire.
+  /**
+   * Fires the browser Purchase exactly once per Stripe session.
+   *
+   * Deliberately NOT fired on arrival at this URL. Landing here is not proof of
+   * payment — the success_url can be re-opened, shared or restored — and the old
+   * version keyed its "already fired" guard on sessionStorage, which is empty
+   * whenever Stripe returns the buyer in a NEW TAB (routine on mobile and in-app
+   * browsers). Every such reopen re-fired Purchase, which is how 3 real payments
+   * were reported to Meta as 10 conversions and taught it to optimise against a
+   * signal that wasn't real.
+   *
+   * Now it waits for the backend to confirm the payment provisioned, and the
+   * guard lives in localStorage — the same fix `appexCheckout` already carries,
+   * for the same new-tab reason. Costs a few seconds of latency versus firing on
+   * page load; correctness of the conversion signal is worth more than that.
+   */
   const purchaseFired = useRef(false);
-  useEffect(() => {
+  const firePurchase = useCallback(() => {
     if (!sessionId || purchaseFired.current) return;
-    if (sessionStorage.getItem("appexPurchaseFired") === sessionId) {
-      purchaseFired.current = true;
-      return;
+    let alreadySent = false;
+    try {
+      alreadySent =
+        localStorage.getItem("appexPurchaseFired") === sessionId ||
+        sessionStorage.getItem("appexPurchaseFired") === sessionId;
+    } catch {
+      /* storage disabled — fall through and fire, better than losing the event */
     }
     purchaseFired.current = true;
-    sessionStorage.setItem("appexPurchaseFired", sessionId);
+    if (alreadySent) return;
+    try {
+      localStorage.setItem("appexPurchaseFired", sessionId);
+    } catch {
+      /* non-fatal: the in-memory ref still de-dupes within this page life */
+    }
     firePurchaseOnce(sessionId);
   }, [sessionId]);
 
@@ -180,6 +202,9 @@ function CheckoutSuccessContent() {
       }
 
       if (result.status === "ready" && result.email) {
+        // The backend confirmed the payment provisioned — this is the point at
+        // which the sale is real, so this is where the conversion is reported.
+        firePurchase();
         setEmail(result.email);
         setName(result.name?.trim() || quizName || "");
         setPhase("form");
@@ -187,6 +212,11 @@ function CheckoutSuccessContent() {
       }
 
       if (attempts >= MAX_POLL_ATTEMPTS) {
+        // Provisioning is slow, but the status endpoint answered — the payment
+        // itself went through, so the conversion still counts. Reporting it here
+        // is what keeps a backend hiccup from quietly under-reporting revenue;
+        // the localStorage guard stops it double-firing if they reload later.
+        firePurchase();
         setError(
           "Your payment was received but account setup is taking longer than usual. Check your email for a sign-in link."
         );
@@ -202,7 +232,7 @@ function CheckoutSuccessContent() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, quizName]);
+  }, [sessionId, quizName, firePurchase]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
