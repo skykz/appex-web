@@ -17,7 +17,7 @@ import ConfirmEmail from "./pages/ConfirmEmail.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 import ActivityToasts from "./components/landing/ActivityToasts";
-import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
+import { initMetaPixel, trackPageView, trackViewContent, restoreMetaUserData } from "@/lib/meta-pixel";
 import { initGa4, ga4PageView, ga4LandingView } from "@/lib/ga4";
 import { initYm, ymPageView, ymLandingView } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
@@ -36,6 +36,9 @@ function RouteAnalytics() {
     // Capture first-touch creative/UTM tags BEFORE any pixel fires its first event.
     captureAttribution();
     initMetaPixel();
+    // Must follow initMetaPixel: re-attaches the hashed email from a previous
+    // route so the paywall/checkout events aren't sent unidentified.
+    restoreMetaUserData();
     initGa4();
     initYm();
   }, []);

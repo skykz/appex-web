@@ -16,7 +16,7 @@ import { submitLandingQuiz } from "@/lib/landing-api";
 import { resurrectIntroOffer } from "@/lib/paywall-plans";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
-import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
+import { trackLead, trackCompleteRegistration, setMetaUserData } from "@/lib/meta-pixel";
 import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView, ga4WheelView, ga4WheelSpin, ga4WheelResult } from "@/lib/ga4";
 import { ymQuizStep, ymQuizAbandon, ymLead, ymNameSubmit, ymPlanView, ymWheelView, ymWheelSpin, ymWheelResult } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
@@ -1462,6 +1462,13 @@ function S23() {
       props: { consent_copy: "AI Agents Guidebook opt-in on email step" },
     });
     commitAnswer("email_capture", "provided");
+    // Attaches the hashed email to the pixel so every later browser event
+    // (InitiateCheckout, Purchase) carries an identifier Meta can match on —
+    // browser match quality was 6.1/10 because nothing was sent here at all.
+    // Deliberately not awaited: hashing is async, and the funnel must not wait on
+    // analytics. Lead below may therefore go out just before the matching lands;
+    // the events that matter for optimisation all come later.
+    void setMetaUserData({ email: value, name: answers.name });
     trackLead();
     ga4Lead();
     ymLead();
