@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../db/supabase.js'
 import { quizLog } from '../lib/logger.js'
-import { isTestRow } from './funnel-analytics.service.js'
+import { isTestRow, fetchAllRows } from './funnel-analytics.service.js'
 
 /**
  * Reads the paywall pricing A/B test (`quiz_events.pricing_variant`).
@@ -215,22 +215,32 @@ export async function getPricingExperiment(
   const from =
     opts.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  let query = supabaseAdmin
-    .from('quiz_events')
-    .select('session_id, anon_id, email, step_id, event_name, pricing_variant, answer_label, created_at')
-    .not('pricing_variant', 'is', null)
-    .in('step_id', STAGES as unknown as string[])
-    .gte('created_at', from)
-    .lte('created_at', to)
-    .limit(100_000)
+  // Paged for the same reason as the funnel report: one request is capped by
+  // the server at ~1000 rows whatever `.limit()` says, and a partial arm count
+  // would look like a real result. See fetchAllRows.
+  const { rows: fetched, truncated } = await fetchAllRows<EventRow>((start, end) => {
+    let query = supabaseAdmin
+      .from('quiz_events')
+      .select('session_id, anon_id, email, step_id, event_name, pricing_variant, answer_label, created_at')
+      .not('pricing_variant', 'is', null)
+      .in('step_id', STAGES as unknown as string[])
+      .gte('created_at', from)
+      .lte('created_at', to)
+      // Stable order so pages can't overlap or skip rows.
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(start, end)
 
-  if (opts.landing) query = query.eq('landing', opts.landing)
+    if (opts.landing) query = query.eq('landing', opts.landing)
+    return query
+  }, 'pricing_experiment')
 
-  const { data, error } = await query
-  if (error) {
-    quizLog.error('pricing_experiment.query_failed', { message: error.message })
-    return { arms: [], range: { from, to }, unmatched_purchases: 0 }
+  if (truncated) {
+    quizLog.error('pricing_experiment.partial_result', { from, to, rows: fetched.length })
+    if (fetched.length === 0) return { arms: [], range: { from, to }, unmatched_purchases: 0 }
   }
+
+  const data = fetched
 
   // Test traffic is dropped inside aggregateArms, not here, so the two can't
   // disagree — the revenue join below must see the same rows the report does.
