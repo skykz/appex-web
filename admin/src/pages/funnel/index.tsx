@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TrendingDown, Users, Mail, CheckCircle2, Clock, LogOut, Smartphone, Monitor, Tablet, ArrowDown, SkipForward } from 'lucide-react'
 import { funnelApi, type FunnelFilters, type FunnelStep } from '@features/funnel/api'
-import { RANGE_OPTIONS, resolveRange, type RangeKey } from '@shared/lib'
+import { resolveRange, toDateInput, type CustomRange, type RangeKey } from '@shared/lib'
 import { Card, CardContent } from '@shared/ui/card'
+import { DateRangePicker } from '@shared/ui/date-range-picker'
 import { PageHeader } from '@shared/ui/page-header'
 import { QueryErrorPanel } from '@shared/ui/query-error-panel'
 import { Select } from '@shared/ui/select'
@@ -120,22 +121,34 @@ export function FunnelPage() {
   const [kind, setKind] = useState<'all' | 'question' | 'info'>('all')
   /** Empty string = every arm merged, which is the pre-experiment behaviour. */
   const [variant, setVariant] = useState('')
+  /** Seeded to the last 7 days so "Custom range…" opens on a usable window. */
+  const [custom, setCustom] = useState<CustomRange>(() => {
+    const today = new Date()
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 6)
+    return { from: toDateInput(weekAgo), to: toDateInput(today) }
+  })
 
   const filters = useMemo<FunnelFilters>(
     () => ({
-      ...resolveRange(range),
+      ...resolveRange(range, custom),
       ...(variant ? { pricing_variant: variant } : {}),
     }),
-    [range, variant]
+    [range, custom, variant]
   )
 
+  // The resolved window is part of the key, not just `range`: two custom picks
+  // both read as 'custom', so keying on the preset alone would serve the first
+  // range's cached report for the second.
+  const rangeKey = `${filters.from ?? ''}|${filters.to ?? ''}`
+
   const report = useQuery({
-    queryKey: [...FUNNEL_KEY, range, variant],
+    queryKey: [...FUNNEL_KEY, rangeKey, variant],
     queryFn: () => funnelApi.getReport(filters),
   })
 
   const breakdown = useQuery({
-    queryKey: [...FUNNEL_KEY, 'step', expanded, range, variant],
+    queryKey: [...FUNNEL_KEY, 'step', expanded, rangeKey, variant],
     queryFn: () => funnelApi.getStepBreakdown(expanded as string, filters),
     enabled: Boolean(expanded),
   })
@@ -183,13 +196,12 @@ export function FunnelPage() {
                 </option>
               ))}
             </Select>
-            <Select value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>
-              {RANGE_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </Select>
+            <DateRangePicker
+              range={range}
+              onRangeChange={setRange}
+              custom={custom}
+              onCustomChange={setCustom}
+            />
           </div>
         }
       />

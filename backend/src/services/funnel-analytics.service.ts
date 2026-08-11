@@ -131,6 +131,53 @@ export function isTestRow(r: { session_id: string | null; anon_id: string; email
   return Boolean(email) && TEST_EMAIL_PATTERNS.some((p) => email.includes(p))
 }
 
+/**
+ * Rows PostgREST returns in one response before it stops, regardless of
+ * `.limit()`.
+ *
+ * The server enforces its own `max-rows` ceiling (1000 by default on Supabase),
+ * and a client-side `.limit(100_000)` does NOT raise it — the request simply
+ * comes back capped, with no error and no indication anything was dropped. A
+ * report built on that slice looks complete and is silently partial: measured
+ * on this project's own data, a window holding 2222 rows / 445 sessions
+ * reported 206 sessions, a 54% undercount.
+ */
+const PAGE_SIZE = 1000
+
+/**
+ * Reads every row a query matches, a page at a time.
+ *
+ * Takes a builder rather than a finished query because each page needs a fresh
+ * `.range()`, and a PostgREST query object cannot be re-ranged once awaited.
+ *
+ * `hardCap` bounds total memory for a very wide range; hitting it is logged
+ * rather than passed over, since a truncated report is exactly the failure this
+ * function exists to prevent — better a visible warning than a quiet wrong
+ * number.
+ */
+export async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  label: string,
+  hardCap = 200_000
+): Promise<{ rows: T[]; truncated: boolean }> {
+  const rows: T[] = []
+  for (let page = 0; page * PAGE_SIZE < hardCap; page++) {
+    const start = page * PAGE_SIZE
+    const { data, error } = await build(start, start + PAGE_SIZE - 1)
+    if (error) {
+      quizLog.error(`${label}.page_failed`, { page, message: error.message })
+      // Returns what was gathered rather than nothing: a partial report flagged
+      // as partial beats an empty one that reads as "no traffic".
+      return { rows, truncated: true }
+    }
+    const batch = data ?? []
+    rows.push(...batch)
+    if (batch.length < PAGE_SIZE) return { rows, truncated: false }
+  }
+  quizLog.error(`${label}.hard_cap_hit`, { cap: hardCap, rows: rows.length })
+  return { rows, truncated: true }
+}
+
 /** Median of a numeric list; null when empty. Used instead of the mean because
  *  one abandoned tab left open for an hour destroys an average. */
 function median(values: number[]): number | null {
@@ -171,23 +218,34 @@ export async function getFunnel(opts: {
   const from =
     opts.from ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
-  let query = supabaseAdmin
-    .from('quiz_events')
-    .select('session_id, anon_id, email, device, step_id, step_order, section, step_type, event_name, ms_on_step, question_text')
-    .gte('created_at', from)
-    .lte('created_at', to)
-    .not('step_id', 'is', null)
-    // Bounded so a wide range can't try to page the whole table into memory.
-    .limit(100_000)
+  // Paged: a single request is silently capped at PAGE_SIZE by the server, so
+  // `.limit()` alone would hand back a partial funnel that looks whole.
+  const { rows: fetched, truncated } = await fetchAllRows<EventRow>((start, end) => {
+    let query = supabaseAdmin
+      .from('quiz_events')
+      .select('session_id, anon_id, email, device, step_id, step_order, section, step_type, event_name, ms_on_step, question_text')
+      .gte('created_at', from)
+      .lte('created_at', to)
+      .not('step_id', 'is', null)
+      // Stable order is REQUIRED for paging to be coherent: without it
+      // PostgREST may return rows in a different order per page, so a row can
+      // be seen twice or missed entirely across page boundaries.
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(start, end)
 
-  if (opts.landing) query = query.eq('landing', opts.landing)
-  if (opts.quiz_version) query = query.eq('quiz_version', opts.quiz_version)
-  if (opts.pricing_variant) query = query.eq('pricing_variant', opts.pricing_variant)
-  if (opts.utm_source) query = query.eq('attribution->>utm_source', opts.utm_source)
+    if (opts.landing) query = query.eq('landing', opts.landing)
+    if (opts.quiz_version) query = query.eq('quiz_version', opts.quiz_version)
+    if (opts.pricing_variant) query = query.eq('pricing_variant', opts.pricing_variant)
+    if (opts.utm_source) query = query.eq('attribution->>utm_source', opts.utm_source)
+    return query
+  }, 'funnel')
 
-  const { data, error } = await query
-  if (error) {
-    quizLog.error('funnel.query_failed', { message: error.message })
+  if (truncated) quizLog.error('funnel.partial_result', { from, to })
+
+  // A failed first page returns no rows; report the empty funnel rather than
+  // pretending the range genuinely held no traffic.
+  if (truncated && fetched.length === 0) {
     return {
       steps: [],
       totals: { sessions: 0, reached_email: 0, completed: 0, devices: 0, bounced_immediately: 0 },
@@ -198,7 +256,7 @@ export async function getFunnel(opts: {
   }
 
   // Drop our own test traffic before any counting — see isTestRow.
-  const rows = ((data ?? []) as EventRow[]).filter((r) => !isTestRow(r))
+  const rows = fetched.filter((r) => !isTestRow(r))
   /** Session key; falls back to the device when a session id is missing. */
   const keyOf = (r: EventRow) => r.session_id || r.anon_id
 

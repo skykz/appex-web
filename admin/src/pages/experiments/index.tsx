@@ -8,7 +8,8 @@ import {
   type ArmReport,
   type PricingExperimentFilters,
 } from '@features/pricing-experiment/api'
-import { RANGE_OPTIONS, resolveRange, type RangeKey } from '@shared/lib'
+import { resolveRange, toDateInput, type CustomRange, type RangeKey } from '@shared/lib'
+import { DateRangePicker } from '@shared/ui/date-range-picker'
 import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
 import { QueryErrorPanel } from '@shared/ui/query-error-panel'
@@ -212,11 +213,25 @@ function ArmCard({
 
 export function ExperimentsPage() {
   const [range, setRange] = useState<RangeKey>('30')
+  /** Seeded to the last 7 days so "Custom range…" opens on a usable window. */
+  const [custom, setCustom] = useState<CustomRange>(() => {
+    const today = new Date()
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 6)
+    return { from: toDateInput(weekAgo), to: toDateInput(today) }
+  })
 
-  const filters = useMemo<PricingExperimentFilters>(() => resolveRange(range), [range])
+  const filters = useMemo<PricingExperimentFilters>(
+    () => resolveRange(range, custom),
+    [range, custom]
+  )
+
+  // Keyed on the resolved window, not the preset: two different custom picks
+  // both read as 'custom' and would otherwise share one cache entry.
+  const rangeKey = `${filters.from ?? ''}|${filters.to ?? ''}`
 
   const report = useQuery({
-    queryKey: [...KEY, range],
+    queryKey: [...KEY, rangeKey],
     queryFn: () => pricingExperimentApi.getReport(filters),
   })
 
@@ -244,7 +259,15 @@ export function ExperimentsPage() {
         (a.stages.find((s) => s.stage === 'purchase')?.sessions ?? 0) >= MIN_PURCHASES_TO_CALL
     )
     if (eligible.length < 2) return null
-    return [...eligible].sort((a, b) => b.revenue_per_visitor - a.revenue_per_visitor)[0]
+    const ranked = [...eligible].sort((a, b) => b.revenue_per_visitor - a.revenue_per_visitor)
+    const [first, second] = ranked
+    // A tie is not a win. Sorting alone would hand the badge to whichever arm
+    // happened to sort first — and the case that actually occurs is BOTH arms
+    // on $0.00 revenue, where declaring a leader is exactly backwards: that is
+    // an absence of data, not a result.
+    if (first.revenue_per_visitor <= 0) return null
+    if (first.revenue_per_visitor === second.revenue_per_visitor) return null
+    return first
   }, [arms])
 
   const thin = arms.length > 0 && !winner
@@ -255,13 +278,12 @@ export function ExperimentsPage() {
         title="Experiments"
         description="Paywall pricing A/B. Judged on revenue per visitor — a cheaper entry price lifts conversion and lowers order value, so conversion alone always favours the cheap arm."
         actions={
-          <Select value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>
-            {RANGE_OPTIONS.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </Select>
+          <DateRangePicker
+            range={range}
+            onRangeChange={setRange}
+            custom={custom}
+            onCustomChange={setCustom}
+          />
         }
       />
 
