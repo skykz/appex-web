@@ -433,8 +433,15 @@ export function FunnelPage() {
                         {width > 18 ? `${s.step_id} · ${s.reached}` : s.reached}
                       </span>
                     </span>
-                    <span className="w-10 shrink-0 text-[9px] text-muted-foreground tabular-nums">
-                      {s.conversion_from_start}%
+                    <span
+                      className="w-10 shrink-0 text-[9px] text-muted-foreground tabular-nums"
+                      title={
+                        s.stage === 'post_quiz'
+                          ? 'Share of paywall views — the paywall is its own route, so this stage has its own baseline'
+                          : 'Share of quiz starts'
+                      }
+                    >
+                      {s.conversion_from_start === null ? '—' : `${s.conversion_from_start}%`}
                     </span>
                   </button>
                 )
@@ -550,9 +557,13 @@ export function FunnelPage() {
 
                       <span
                         className="w-11 shrink-0 text-right text-[11px] text-muted-foreground tabular-nums"
-                        title="Conversion from the first step"
+                        title={
+                          s.stage === 'post_quiz'
+                            ? 'Share of paywall views. The paywall is a separate route — reachable by direct link, reload, or Stripe returning a buyer in a new tab — so it is measured against its own baseline, not against quiz starts.'
+                            : 'Share of quiz starts'
+                        }
                       >
-                        {s.conversion_from_start}%
+                        {s.conversion_from_start === null ? '—' : `${s.conversion_from_start}%`}
                       </span>
 
                       <span

@@ -24,8 +24,25 @@ export interface FunnelStep {
   dropped: number
   /** dropped / reached, as a percentage. */
   drop_rate: number
-  /** reached / (first step's reached), as a percentage. */
-  conversion_from_start: number
+  /**
+   * reached / the baseline for this step's stage, as a percentage.
+   *
+   * Null when no baseline exists in the range, rather than a number derived from
+   * whatever row happened to sort first — see `stage`.
+   */
+  conversion_from_start: number | null
+  /**
+   * Which population the percentage is measured against: `quiz` steps are a
+   * share of quiz starts, `post_quiz` ones (paywall and later) a share of
+   * paywall views.
+   *
+   * They are genuinely different populations, not two ends of one sequence: the
+   * paywall is its own route, reachable by direct link, by reload, and by
+   * Stripe returning a buyer — often in a new tab, which starts a new session.
+   * So it legitimately holds sessions the quiz steps never saw, and putting both
+   * on one scale makes the later stage look like it out-converted the earlier.
+   */
+  stage: 'quiz' | 'post_quiz'
   /**
    * question | info | loader | milestone | funnel.
    *
@@ -251,8 +268,52 @@ export async function getFunnel(opts: {
     if (typeof r.ms_on_step === 'number' && r.ms_on_step > 0) bucket.times.push(r.ms_on_step)
   }
 
-  const ordered = [...steps.entries()].sort((a, b) => a[1].order - b[1].order)
-  const startReached = ordered[0]?.[1].reached.size ?? 0
+  // Ties broken by step_id so the order is stable: several step_ids share a
+  // step_order (the quiz's last screen, the wheel and quiz_complete all sit at
+  // 34), and without a tiebreak their relative position came out of Map
+  // insertion order — i.e. it changed with the data.
+  const ordered = [...steps.entries()].sort(
+    (a, b) => a[1].order - b[1].order || a[0].localeCompare(b[0])
+  )
+
+  /**
+   * First post-quiz `step_order`. FUNNEL_ORDER on the client starts the
+   * paywall-side events at 90 (wheel) / 100 (paywall), well clear of the ~34
+   * quiz screens.
+   */
+  const POST_QUIZ_FROM = 90
+  const stageOf = (order: number): 'quiz' | 'post_quiz' =>
+    order >= POST_QUIZ_FROM ? 'post_quiz' : 'quiz'
+
+  /**
+   * Baseline per stage, resolved from a NAMED step rather than whatever sorted
+   * first.
+   *
+   * `ordered[0]` was the bug: it is only the funnel's start if the earliest
+   * screens happen to be present in the window. Once they age out of the range —
+   * or a filter excludes them — the baseline silently became some later step, so
+   * every percentage was a share of an arbitrary row. That is how `paywall_view`
+   * came to report 100% while the steps above it showed less: it had become the
+   * denominator.
+   *
+   * Falls back through a couple of near-equivalent anchors so an unusual range
+   * still reports something sound, and yields undefined when none are present —
+   * callers then show no percentage instead of a made-up one.
+   */
+  const reachedOf = (stepId: string) =>
+    steps.get(stepId)?.reached.size ?? undefined
+  const firstDefined = (...vals: (number | undefined)[]) =>
+    vals.find((v) => typeof v === 'number' && v > 0)
+
+  const quizBaseline = firstDefined(
+    reachedOf('quiz_start'),
+    // The quiz's own first screen, whatever it is called in this flow version.
+    ordered.find(([, b]) => stageOf(b.order) === 'quiz')?.[1].reached.size
+  )
+  const postQuizBaseline = firstDefined(
+    reachedOf('paywall_view'),
+    ordered.find(([, b]) => stageOf(b.order) === 'post_quiz')?.[1].reached.size
+  )
 
   const result: FunnelStep[] = ordered.map(([step_id, b]) => {
     // Dropped = sessions whose furthest step is exactly this one. Derived from
@@ -262,6 +323,8 @@ export async function getFunnel(opts: {
     for (const s of b.reached) if ((furthest.get(s) ?? -1) <= b.order) dropped++
 
     const reached = b.reached.size
+    const stage = stageOf(b.order)
+    const baseline = stage === 'post_quiz' ? postQuizBaseline : quizBaseline
     return {
       step_order: b.order,
       step_id,
@@ -272,9 +335,10 @@ export async function getFunnel(opts: {
       median_seconds: b.times.length ? Math.round((median(b.times) ?? 0) / 100) / 10 : null,
       dropped,
       drop_rate: reached ? Math.round((dropped / reached) * 1000) / 10 : 0,
-      conversion_from_start: startReached
-        ? Math.round((reached / startReached) * 1000) / 10
-        : 0,
+      conversion_from_start: baseline
+        ? Math.round((reached / baseline) * 1000) / 10
+        : null,
+      stage,
       step_type: b.stepType,
       // Only meaningful where an answer is expected; info/loader screens would
       // otherwise all report their full audience as "ignored".
