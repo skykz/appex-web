@@ -22,6 +22,7 @@ import { initGa4, ga4PageView, ga4LandingView } from "@/lib/ga4";
 import { initYm, ymPageView, ymLandingView } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { captureAttribution } from "@/lib/attribution";
+import { flushPendingLeads, installLeadFlushOnExit } from "@/lib/landing-api";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,11 @@ function RouteAnalytics() {
     restoreMetaUserData();
     initGa4();
     initYm();
+    // Recovers leads whose submission never got confirmed — a closed tab or a
+    // dropped connection used to lose them outright. Safe to run on every load:
+    // the backend upserts on email, so a resend of one that did land is a no-op.
+    void flushPendingLeads();
+    return installLeadFlushOnExit();
   }, []);
 
   useEffect(() => {

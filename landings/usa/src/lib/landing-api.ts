@@ -106,7 +106,118 @@ async function readApiError(res: Response, fallback: string): Promise<string> {
 }
 
 /**
+ * localStorage key holding lead submissions that have not been confirmed saved.
+ *
+ * localStorage, not sessionStorage: the whole point is to survive the tab being
+ * closed, which is exactly when a submission is most likely to have been cut off.
+ */
+const PENDING_LEADS_KEY = "appexPendingLeads";
+
+type PendingLead = { body: string; ts: number };
+
+/** Pending submissions, oldest first. Never throws. */
+function readPendingLeads(): PendingLead[] {
+  try {
+    const raw = localStorage.getItem(PENDING_LEADS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as PendingLead[]) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingLeads(leads: PendingLead[]): void {
+  try {
+    // Capped so a permanently failing backend can't grow this without bound;
+    // the newest are kept because they are the ones still worth recovering.
+    localStorage.setItem(PENDING_LEADS_KEY, JSON.stringify(leads.slice(-20)));
+  } catch {
+    /* storage disabled — in-flight retry below is then the only chance */
+  }
+}
+
+function rememberPendingLead(body: string): void {
+  writePendingLeads([...readPendingLeads(), { body, ts: Date.now() }]);
+}
+
+function forgetPendingLead(body: string): void {
+  writePendingLeads(readPendingLeads().filter((l) => l.body !== body));
+}
+
+/**
+ * Retries lead submissions that never got confirmed.
+ *
+ * A lead is the one thing in this funnel that is already paid for at the point
+ * it is captured, so losing one silently is the most expensive failure here —
+ * measured at ~25% of valid leads over a week, because the original call was
+ * fire-and-forget: a dropped connection, a closed tab or a 5xx left no trace and
+ * no second attempt.
+ *
+ * Safe to call repeatedly: the backend upserts on email, so a retry of a
+ * submission that actually landed is a no-op rather than a duplicate lead.
+ */
+export async function flushPendingLeads(): Promise<void> {
+  const base = getApiBaseUrl();
+  const pending = readPendingLeads();
+  if (!base || !pending.length) return;
+
+  for (const lead of pending) {
+    try {
+      const res = await fetch(`${base}/landing/quiz`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: lead.body,
+        keepalive: true,
+      });
+      // 4xx means the server will never accept this payload (e.g. the address
+      // failed validation), so retrying it forever would be pointless — drop it.
+      // Only a 5xx or a network error is worth keeping for another attempt.
+      if (res.ok || res.status < 500) forgetPendingLead(lead.body);
+    } catch {
+      /* still offline — keep it queued for the next attempt */
+    }
+  }
+}
+
+/**
+ * Hands any still-unconfirmed leads to the browser as the page goes away.
+ *
+ * `visibilitychange` rather than `beforeunload`, and sendBeacon rather than
+ * fetch: this is the moment a normal request gets cancelled, and it is the same
+ * moment the funnel loses leads. Mirrors what quiz-tracker already does.
+ */
+export function installLeadFlushOnExit(): () => void {
+  if (typeof document === "undefined") return () => {};
+  const onHidden = () => {
+    if (document.visibilityState !== "hidden") return;
+    const base = getApiBaseUrl();
+    const pending = readPendingLeads();
+    if (!base || !pending.length || !navigator.sendBeacon) return;
+    for (const lead of pending) {
+      try {
+        const queued = navigator.sendBeacon(
+          `${base}/landing/quiz`,
+          new Blob([lead.body], { type: "application/json" })
+        );
+        // Handed to the browser: it delivers after the page is gone, and there
+        // is no response to read, so treat it as sent. A retry on the next visit
+        // would only upsert anyway.
+        if (queued) forgetPendingLead(lead.body);
+      } catch {
+        /* keep it queued */
+      }
+    }
+  };
+  document.addEventListener("visibilitychange", onHidden);
+  return () => document.removeEventListener("visibilitychange", onHidden);
+}
+
+/**
  * Persists quiz answers to the backend. Fire-and-forget safe — never throws to callers.
+ *
+ * The submission is queued in localStorage BEFORE the request and only cleared
+ * once the server confirms it, so a failure leaves something to retry instead of
+ * losing the lead.
  */
 export async function submitLandingQuiz(
   payload: SubmitQuizPayload
@@ -125,27 +236,39 @@ export async function submitLandingQuiz(
     return null;
   }
 
+  const body = JSON.stringify({
+    landing: LANDING_ID,
+    session_id: getOrCreateSessionId(),
+    ...getUtmParams(),
+    // First-touch attribution (variant + utm + fbclid) wins over live-URL utm.
+    ...getAttributionParams(),
+    ...payload,
+    email,
+  });
+
+  // Queued first: if this request never completes — closed tab, dead connection —
+  // the lead is still recoverable on the next visit or at page-hide.
+  rememberPendingLead(body);
+
   try {
     const res = await fetch(`${base}/landing/quiz`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        landing: LANDING_ID,
-        session_id: getOrCreateSessionId(),
-        ...getUtmParams(),
-        // First-touch attribution (variant + utm + fbclid) wins over live-URL utm.
-        ...getAttributionParams(),
-        ...payload,
-        email,
-      }),
+      body,
+      // Lets the request outlive the page when the visitor leaves immediately
+      // after submitting — the case that was losing leads.
+      keepalive: true,
     });
 
     if (!res.ok) {
       const message = await readApiError(res, "Quiz could not be saved");
       console.warn("[landing-api] quiz submit failed", res.status, message);
+      // A 4xx will never succeed on retry; anything else stays queued.
+      if (res.status < 500) forgetPendingLead(body);
       return null;
     }
 
+    forgetPendingLead(body);
     return (await res.json()) as SubmitQuizResult;
   } catch (err) {
     console.warn("[landing-api] quiz submit error", err);
