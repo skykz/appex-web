@@ -113,6 +113,18 @@ describe('resolveRange', () => {
     expect(isValidCustomRange(undefined)).toBe(false)
   })
 
+  it('never throws on a key outside the union', () => {
+    // `key` arrives from a <select> via an unchecked `as RangeKey`, so a stale
+    // persisted value or a newly-added preset without a case reaches `default:`.
+    // Number(...) is NaN there, and new Date(NaN).toISOString() THROWS — which
+    // would blank the entire page over a bad filter.
+    for (const bad of ['bogus', '', 'NaN', '0', '-5', 'Infinity']) {
+      expect(() => resolveRange(bad as never)).not.toThrow()
+      const r = resolveRange(bad as never)
+      expect(r.from).toBe(resolveRange('30').from)
+    }
+  })
+
   it('formats picker values in local time', () => {
     // Late evening is where a UTC-based formatter would report tomorrow.
     expect(toDateInput(new Date(2026, 7, 5, 23, 59))).toBe('2026-08-05')

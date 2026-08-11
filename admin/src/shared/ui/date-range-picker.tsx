@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import {
   RANGE_OPTIONS,
   isValidCustomRange,
@@ -32,10 +33,40 @@ export function DateRangePicker({
   onCustomChange: (next: CustomRange) => void
 }) {
   const isCustom = range === 'custom'
+
+  /**
+   * What the inputs display, which is NOT what the report is queried with.
+   *
+   * A native date input emits `change` on every edited segment, so typing
+   * "01/15/2026" walks through 2026-01-01 and 2026-08-01 before landing on the
+   * intended day. Bound straight to the parent, each of those is a complete,
+   * VALID range — so the page fires a query per keystroke and briefly renders a
+   * report for a window nobody asked for. Held locally and lifted only once the
+   * value is a usable date (see commit below).
+   */
+  const [draft, setDraft] = useState(custom)
+
+  // Re-sync when the parent changes the range from outside (preset switch,
+  // reset). Keyed on the values, so local edits — which the parent echoes back
+  // identically — don't clobber what is being typed.
+  useEffect(() => setDraft(custom), [custom.from, custom.to])
+
+  /**
+   * Lifts an edit to the parent only when it is a complete, in-range date.
+   *
+   * A partial value ("2026-08-" mid-edit, or an empty field) stays local, so the
+   * displayed report keeps showing the last window the admin actually chose
+   * rather than flickering through the 30-day fallback.
+   */
+  const commit = (next: CustomRange) => {
+    setDraft(next)
+    if (isValidCustomRange(next)) onCustomChange(next)
+  }
+
   // Only flagged once BOTH ends are filled: warning about a reversed range while
   // the admin is still typing the first date is noise, not help.
-  const incomplete = isCustom && Boolean(custom.from) && Boolean(custom.to) &&
-    !isValidCustomRange(custom)
+  const incomplete = isCustom && Boolean(draft.from) && Boolean(draft.to) &&
+    !isValidCustomRange(draft)
   // Future days hold no events; offering them invites an empty report that
   // looks like a data problem.
   const max = todayInput()
@@ -59,21 +90,22 @@ export function DateRangePicker({
           <div className="flex items-center gap-1.5">
             <input
               type="date"
-              value={custom.from}
-              max={custom.to || max}
-              onChange={(e) => onCustomChange({ ...custom, from: e.target.value })}
+              value={draft.from}
+              // NOT bounded by `draft.to`: a native input silently refuses a
+              // typed value outside min/max, so capping `from` at the current
+              // `to` makes widening a range backwards impossible to type. The
+              // reversed case is caught by the warning below instead.
+              max={max}
+              onChange={(e) => commit({ ...draft, from: e.target.value })}
               aria-label="From date"
               className="h-10 rounded-md border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <span className="text-sm text-muted-foreground">→</span>
             <input
               type="date"
-              value={custom.to}
-              // Bounded by `from` as well as today, so the two inputs can't be
-              // dragged into a reversed range in the first place.
-              min={custom.from || undefined}
+              value={draft.to}
               max={max}
-              onChange={(e) => onCustomChange({ ...custom, to: e.target.value })}
+              onChange={(e) => commit({ ...draft, to: e.target.value })}
               aria-label="To date"
               className="h-10 rounded-md border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
@@ -83,7 +115,7 @@ export function DateRangePicker({
 
       {incomplete && (
         <p className="text-xs text-amber-700">
-          Start date is after the end date — showing the last 30 days until it's fixed.
+          Start date is after the end date — still showing the previous range.
         </p>
       )}
     </div>

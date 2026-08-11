@@ -259,7 +259,15 @@ export function ExperimentsPage() {
         (a.stages.find((s) => s.stage === 'purchase')?.sessions ?? 0) >= MIN_PURCHASES_TO_CALL
     )
     if (eligible.length < 2) return null
-    return [...eligible].sort((a, b) => b.revenue_per_visitor - a.revenue_per_visitor)[0]
+    const ranked = [...eligible].sort((a, b) => b.revenue_per_visitor - a.revenue_per_visitor)
+    const [first, second] = ranked
+    // A tie is not a win. Sorting alone would hand the badge to whichever arm
+    // happened to sort first — and the case that actually occurs is BOTH arms
+    // on $0.00 revenue, where declaring a leader is exactly backwards: that is
+    // an absence of data, not a result.
+    if (first.revenue_per_visitor <= 0) return null
+    if (first.revenue_per_visitor === second.revenue_per_visitor) return null
+    return first
   }, [arms])
 
   const thin = arms.length > 0 && !winner

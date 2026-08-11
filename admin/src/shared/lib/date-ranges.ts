@@ -135,7 +135,14 @@ export function resolveRange(key: RangeKey, custom?: CustomRange): DateRange {
     }
 
     default: {
+      // Guarded rather than trusting the type: `key` reaches here from a
+      // `<select>` value via an unchecked `as RangeKey`, so a stale persisted
+      // value — or a new preset added to the union without a case above —
+      // arrives as a non-numeric string. `Number(...)` would be NaN, and
+      // `new Date(NaN).toISOString()` THROWS, blanking the whole page for what
+      // should be a harmless bad filter.
       const days = Number(key)
+      if (!Number.isFinite(days) || days < 1) return { from: startOfDay(-29).toISOString() }
       return { from: startOfDay(-(days - 1)).toISOString() }
     }
   }
