@@ -43,6 +43,7 @@ const submitQuizSchema = z.object({
   gclid: z.string().max(512).optional(),
   wbraid: z.string().max(512).optional(),
   gbraid: z.string().max(512).optional(),
+  yclid: z.string().max(512).optional(),
 })
 
 /**
@@ -86,6 +87,7 @@ const ATTRIBUTION_FIELDS = [
   'gclid',
   'wbraid',
   'gbraid',
+  'yclid',
 ] as const
 
 /** Extracts the non-empty attribution fields from a request body. */
@@ -364,6 +366,8 @@ const landingCheckoutSchema = z.object({
   fbc: z.string().max(500).optional(),
   // GA4 client id for the server-side Measurement Protocol purchase (dedup/attribution).
   ga4_client_id: z.string().max(128).optional(),
+  // Metrica ClientID for the server-side offline conversion (attribution).
+  ym_client_id: z.string().max(128).optional(),
   // Creative/UTM tags for Purchase attribution (fallback to the stored lead).
   variant: z.string().max(64).optional(),
   utm_source: z.string().max(200).optional(),
@@ -373,6 +377,8 @@ const landingCheckoutSchema = z.object({
   utm_ad: z.string().max(200).optional(),
   // Google Ads click id — for server-side Google Ads conversion attribution.
   gclid: z.string().max(500).optional(),
+  // Yandex.Direct click id — the preferred key for Metrica offline conversions.
+  yclid: z.string().max(500).optional(),
   // Flex-quiz product/creative, stamped on the Stripe session so post-purchase
   // routing can send the buyer to the right surface. Optional: a single-product
   // checkout omits them and the buyer lands on the default surface.
@@ -404,7 +410,8 @@ export async function createLandingCheckout(
     let utmAdset = body.utm_adset
     let utmAd = body.utm_ad
     let gclid = body.gclid
-    if (!variant || !utmSource || !utmCampaign || !utmAdset || !utmAd || !gclid) {
+    let yclid = body.yclid
+    if (!variant || !utmSource || !utmCampaign || !utmAdset || !utmAd || !gclid || !yclid) {
       // maybeSingle() + ignored error keeps checkout on the happy path even if
       // this best-effort attribution lookup fails — never block a real payment.
       const { data: lead } = await supabaseAdmin
@@ -420,6 +427,7 @@ export async function createLandingCheckout(
       utmAdset = utmAdset || stored.utm_adset
       utmAd = utmAd || stored.utm_ad
       gclid = gclid || stored.gclid
+      yclid = yclid || stored.yclid
     }
 
     // The quiz→payment handoff. Logged under `payment` (not `quiz`) so the whole
@@ -447,7 +455,8 @@ export async function createLandingCheckout(
         fbc: body.fbc,
       },
       ga4: { clientId: body.ga4_client_id },
-      attribution: { variant, utmSource, utmCampaign, utmAdset, utmAd, gclid },
+      ym: { clientId: body.ym_client_id },
+      attribution: { variant, utmSource, utmCampaign, utmAdset, utmAd, gclid, yclid },
       productSlug: body.product_slug,
       funnelSlug: body.funnel_slug,
       pricingVariant: body.pricing_variant,

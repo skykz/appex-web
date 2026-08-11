@@ -61,6 +61,15 @@ export type Attribution = {
   /** Google Ads iOS/web-to-app click ids (`?wbraid=` / `?gbraid=`). */
   wbraid?: string
   gbraid?: string
+  /**
+   * Yandex.Direct click id from `?yclid=` (first touch).
+   *
+   * The Yandex analogue of `gclid`, and the only value that ties a purchase back
+   * to a specific Direct click. Captured first-touch and carried through Stripe
+   * metadata into the server-side offline conversion, so Direct's bidding can
+   * optimise on Stripe-verified revenue rather than on browser goals alone.
+   */
+  yclid?: string
 }
 
 /** Fields exported as flat string params (excludes the internal timestamp). */
@@ -78,6 +87,7 @@ const ATTR_KEYS: (keyof Attribution)[] = [
   'gclid',
   'wbraid',
   'gbraid',
+  'yclid',
 ]
 
 /** Reads a stored attribution snapshot, or null if none captured yet. */
@@ -110,8 +120,9 @@ function readFromUrl(): Attribution {
       attr.fbclid = fbclid.slice(0, 512)
       attr.fbclid_ts = Date.now()
     }
-    // Google Ads click ids (gclid, or wbraid/gbraid for iOS/app campaigns).
-    for (const key of ['gclid', 'wbraid', 'gbraid'] as const) {
+    // Ad-platform click ids: Google Ads (gclid, or wbraid/gbraid for iOS/app
+    // campaigns) and Yandex.Direct (yclid).
+    for (const key of ['gclid', 'wbraid', 'gbraid', 'yclid'] as const) {
       const val = params.get(key)
       if (val) attr[key] = val.slice(0, 512)
     }

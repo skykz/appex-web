@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ga4ScrollDepth } from "@/lib/ga4";
+import { ymScrollDepth } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 
 /** Thresholds reported, in percent of scrollable page height. */
@@ -35,6 +36,7 @@ export function useScrollDepth(): void {
         if (percent + 0.5 >= t && !fired.current.has(t)) {
           fired.current.add(t);
           ga4ScrollDepth({ percent: t });
+          ymScrollDepth({ percent: t });
           pushToDataLayer("scroll_depth", { percent: t });
         }
       }

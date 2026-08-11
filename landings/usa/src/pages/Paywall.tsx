@@ -16,6 +16,18 @@ import {
   ga4PaywallAbandon,
   getGa4ClientId,
 } from "@/lib/ga4";
+import {
+  ymCheckoutStart,
+  ymPaywallView,
+  ymPaywallExitIntentShown,
+  ymPaywallTimerExpired,
+  ymPlanSelect,
+  ymCheckoutModalView,
+  ymCheckoutAbandon,
+  ymCheckoutError,
+  ymPaywallAbandon,
+  getYmClientId,
+} from "@/lib/yandex-metrica";
 import { getPricingVariant } from "@/lib/pricing-variant";
 import { pushToDataLayer } from "@/lib/gtm";
 import { trackFunnelEvent, setFunnelDimensions } from "@/lib/quiz-tracker";
@@ -171,20 +183,22 @@ function Laurel({ side }: { side: "left" | "right" }) {
 
 /* Trustpilot star, used by TrustpilotBadge below (static placeholder — no live widget/script yet). */
 function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
+  // Centred in a 24×24 box: the star fills the tile the way Trustpilot's does.
+  // The earlier 18×18 path sat low and small, which read as a dot, not a star.
   const starPath =
-    "M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z";
+    "M12 3.4l2.42 5.63 6.08.5-4.62 4.02 1.39 5.96L12 16.4l-5.27 3.11 1.39-5.96L3.5 9.53l6.08-.5L12 3.4z";
 
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden className="shrink-0">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0">
       {half && (
         <defs>
           <clipPath id={clipId}>
-            <rect x="0" y="0" width="9" height="18" />
+            <rect x="0" y="0" width="12" height="24" />
           </clipPath>
         </defs>
       )}
-      <rect width="18" height="18" rx="1" fill={half ? "#DCDCE6" : "#00B67A"} />
-      {half && <rect width="18" height="18" rx="1" fill="#00B67A" clipPath={`url(#${clipId})`} />}
+      <rect width="24" height="24" fill={half ? "#DCDCE6" : "#00B67A"} />
+      {half && <rect width="24" height="24" fill="#00B67A" clipPath={`url(#${clipId})`} />}
       <path d={starPath} fill="white" />
     </svg>
   );
@@ -198,7 +212,7 @@ function TrustpilotStar({ half, clipId }: { half?: boolean; clipId: string }) {
 function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; reviews?: number }) {
   return (
     <div className="flex items-center justify-center gap-2 flex-wrap">
-      <div className="flex items-center gap-[3px]">
+      <div className="flex items-center gap-[2px]">
         {Array.from({ length: 5 }, (_, i) => {
           const filled = rating - i;
           const half = filled > 0 && filled < 1;
@@ -209,7 +223,8 @@ function TrustpilotBadge({ rating = 4.4, reviews = 2143 }: { rating?: number; re
         {rating.toFixed(1)}
       </span>
       <span className="text-[12px]" style={{ color: '#64748B' }}>
-        · {reviews.toLocaleString()} reviews on <b>Trustpilot</b>
+        · {reviews.toLocaleString()} reviews on{' '}
+        <b style={{ color: '#191919' }}>Trustpilot</b>
       </span>
     </div>
   );
@@ -600,6 +615,7 @@ export default function Paywall() {
     markExitOfferUnlocked();
     // Spec §6: report the moment the 71% offer is revealed.
     ga4PaywallExitIntentShown();
+    ymPaywallExitIntentShown();
     pushToDataLayer("paywall_exit_intent_shown", { discount_tier: "exit" });
   }, []);
   useExitIntent(handleExitIntent, !timer.expired && !exitUnlocked);
@@ -644,6 +660,7 @@ export default function Paywall() {
         opened_checkout: openedCheckoutRef.current,
       };
       ga4PaywallAbandon(payload);
+      ymPaywallAbandon(payload);
       pushToDataLayer("paywall_abandon", payload);
       trackFunnelEvent("paywall_abandon", payload);
     };
@@ -661,6 +678,7 @@ export default function Paywall() {
     if (paywallViewFired.current) return;
     paywallViewFired.current = true;
     ga4PaywallView({ discount_tier: discountState });
+    ymPaywallView({ discount_tier: discountState });
     pushToDataLayer("paywall_view", { discount_tier: discountState });
     // Our own store too, so the funnel doesn't stop at the quiz.
     trackFunnelEvent("paywall_view", { discount_tier: discountState });
@@ -676,6 +694,7 @@ export default function Paywall() {
     if (arrivedExpired.current || !timer.expired || timerExpiredFired.current) return;
     timerExpiredFired.current = true;
     ga4PaywallTimerExpired();
+    ymPaywallTimerExpired();
     pushToDataLayer("paywall_timer_expired", { discount_tier: "expired" });
   }, [timer.expired]);
 
@@ -744,6 +763,7 @@ export default function Paywall() {
       select_index: planSelectCount.current,
     };
     ga4PlanSelect(payload);
+    ymPlanSelect(payload);
     pushToDataLayer("plan_select", payload);
     trackFunnelEvent("plan_select", payload);
     setSelected(i);
@@ -762,6 +782,11 @@ export default function Paywall() {
     checkoutOutcome.current = "abandoned";
     openedCheckoutRef.current = true;
     ga4CheckoutModalView({
+      plan: plan.id,
+      discount_tier: discountState,
+      value: Number(priceFor(plan, discountState)),
+    });
+    ymCheckoutModalView({
       plan: plan.id,
       discount_tier: discountState,
       value: Number(priceFor(plan, discountState)),
@@ -795,6 +820,7 @@ export default function Paywall() {
         reason: "dismissed",
       };
       ga4CheckoutAbandon(payload);
+      ymCheckoutAbandon(payload);
       pushToDataLayer("checkout_abandon", payload);
       trackFunnelEvent("checkout_abandon", payload);
     }
@@ -837,6 +863,12 @@ export default function Paywall() {
       plan: interval,
       discountTier: shownTier,
     });
+    ymCheckoutStart({
+      value: conversionValue,
+      currency: "USD",
+      plan: interval,
+      discountTier: shownTier,
+    });
     pushToDataLayer("checkout_start", {
       value: conversionValue,
       currency: "USD",
@@ -866,7 +898,12 @@ export default function Paywall() {
     const { fbp, fbc } = getMetaBrowserIds();
 
     try {
-      const ga4ClientId = await getGa4ClientId();
+      // Both ids in parallel: each has its own 800ms timeout, and awaiting them
+      // in sequence would add up to 1.6s of dead time before the Stripe redirect.
+      const [ga4ClientId, ymClientId] = await Promise.all([
+        getGa4ClientId(),
+        getYmClientId(),
+      ]);
       const result = await createLandingCheckout({
         email: quizEmail ?? "",
         name: quizName,
@@ -874,6 +911,7 @@ export default function Paywall() {
         discountTier: shownTier,
         meta: { event_id: eventId, fbp, fbc },
         ga4: { client_id: ga4ClientId },
+        ym: { client_id: ymClientId },
       });
 
       if ("error" in result) {
@@ -881,6 +919,7 @@ export default function Paywall() {
         // it separately so a server-side outage is visible in the funnel instead
         // of just looking like missing purchases.
         ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
+        ymCheckoutError({ plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
         pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: String(result.error).slice(0, 120) });
         checkoutOutcome.current = "confirmed"; // not an abandonment
         // Drop back to the plan picker so the error isn't hidden behind the modal.
@@ -895,6 +934,7 @@ export default function Paywall() {
       // Network/CORS failure rejects the promise — surface it and re-enable the
       // button (the finally below) instead of leaving it stuck on "Redirecting…".
       ga4CheckoutError({ plan: interval, discount_tier: shownTier, message: "network_error" });
+      ymCheckoutError({ plan: interval, discount_tier: shownTier, message: "network_error" });
       pushToDataLayer("checkout_error", { plan: interval, discount_tier: shownTier, message: "network_error" });
       checkoutOutcome.current = "confirmed"; // an error, not an abandonment
       setCheckoutOpen(false);

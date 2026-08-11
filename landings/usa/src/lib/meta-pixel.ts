@@ -21,7 +21,7 @@
  *   Paid              → Purchase         (server-side, CAPI — NOT here)
  */
 
-import { getAttributionParams, getAttribution } from './attribution'
+import { getAttributionParams, getAttribution, getAnonId, getSessionId } from './attribution'
 
 type FbqFn = ((...args: unknown[]) => void) & { queue?: unknown[]; loaded?: boolean; version?: string }
 
@@ -133,6 +133,105 @@ export function newEventId(): string {
   return `evt-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
+/**
+ * SHA-256 hex, matching how the server hashes the same fields
+ * (meta-capi.service.ts) so browser and CAPI produce identical values for one
+ * person. Normalises first — Meta requires trimmed lowercase before hashing, and
+ * a mismatched normalisation is indistinguishable from a wrong email: it simply
+ * fails to match and silently costs match quality.
+ *
+ * Returns null rather than throwing where SubtleCrypto is unavailable (it needs a
+ * secure context), so a plain-HTTP preview degrades to no advanced matching
+ * instead of breaking the pixel.
+ */
+async function sha256Hex(value: string): Promise<string | null> {
+  try {
+    const normalised = value.trim().toLowerCase()
+    if (!normalised) return null
+    const subtle = globalThis.crypto?.subtle
+    if (!subtle) return null
+    const bytes = new TextEncoder().encode(normalised)
+    const digest = await subtle.digest('SHA-256', bytes)
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Re-initialises the pixel with Advanced Matching once the visitor identifies
+ * themselves in the quiz.
+ *
+ * Match quality sat at 6.1/10 because the browser pixel sent no identifiers at
+ * all — only the server-side Purchase did. Meta matches a browser event to a
+ * person using whatever `fbq('init', …)` was given, so passing the hashed email
+ * lifts every subsequent browser event, not just the conversion.
+ *
+ * ALWAYS hashed here, never raw: `fbq` accepts plaintext and hashes it itself,
+ * but that would put the visitor's email address into a third-party request from
+ * our page. Hashing first keeps the plaintext on our side and is what the
+ * server already does, so the two agree.
+ *
+ * Calling `init` again with the same pixel id updates its user data rather than
+ * creating a second pixel — this does NOT double-count events.
+ */
+export async function setMetaUserData(input: {
+  email?: string | null
+  name?: string | null
+  externalId?: string | null
+}): Promise<void> {
+  if (!TRACKING_ENABLED || typeof window === 'undefined' || !window.fbq) return
+  try {
+    const userData: Record<string, string> = {}
+
+    const em = input.email ? await sha256Hex(input.email) : null
+    if (em) userData.em = em
+
+    // First name only: Meta expects `fn` to be the given name, and sending a
+    // full "First Last" string hashes to something that matches nobody.
+    const first = input.name?.trim().split(/\s+/)[0]
+    const fn = first ? await sha256Hex(first) : null
+    if (fn) userData.fn = fn
+
+    // Our own anon id — not PII, so it is sent as-is per Meta's spec for
+    // external_id, and lets Meta stitch this browser to the CAPI events.
+    const externalId = input.externalId ?? getAnonId()
+    if (externalId) userData.external_id = externalId
+
+    if (!Object.keys(userData).length) return
+    window.fbq('init', PIXEL_ID, userData)
+  } catch {
+    /* advanced matching is an optimisation; never break tracking for it */
+  }
+}
+
+/**
+ * Re-applies Advanced Matching from the stored quiz answers on a fresh page load.
+ *
+ * The email is captured mid-quiz, but the paywall, checkout and success page are
+ * separate routes — a reload (or Stripe returning the buyer) starts a new page
+ * with an un-identified pixel. Without this, exactly the events furthest down the
+ * funnel, the ones worth optimising for, would be the ones sent unmatched.
+ *
+ * Reads the same `appexQuiz` blob QuizContext persists, so there is no second
+ * copy of the email to keep in sync.
+ */
+export function restoreMetaUserData(): void {
+  if (!TRACKING_ENABLED || typeof window === 'undefined') return
+  try {
+    const raw = sessionStorage.getItem('appexQuiz')
+    if (!raw) return
+    const parsed = JSON.parse(raw) as { answers?: { email?: string; name?: string } }
+    const email = parsed.answers?.email
+    if (!email) return
+    void setMetaUserData({ email, name: parsed.answers?.name })
+  } catch {
+    /* storage disabled or malformed — matching simply stays off */
+  }
+}
+
 type TrackOptions = { eventId?: string }
 
 /**
@@ -173,34 +272,54 @@ function trackCustom(
 
 // ─── Funnel event helpers ──────────────────────────────────────────────────
 
-/** PageView — every route. */
+/**
+ * A once-per-session event id, e.g. `QuizStart_sess-abc`.
+ *
+ * Deliberately DERIVED rather than random. A fresh uuid per call would satisfy
+ * "every event has an eventID" while deduplicating nothing: Meta collapses two
+ * hits only when they share both name and id, so a random id guarantees they
+ * never match. Keying on the session id means a genuine re-fire of a
+ * once-per-funnel milestone — a reload, a remount, a restored tab — collapses
+ * into the single event it actually represents.
+ *
+ * Only for milestones that should occur once per funnel run. PageView and
+ * ViewContent are deliberately excluded: they legitimately repeat per route, and
+ * a stable id would make Meta discard the later, real ones.
+ */
+function sessionEventId(eventName: string): string {
+  return `${eventName}_${getSessionId()}`
+}
+
+/** PageView — every route. Intentionally un-deduplicated (fires per route). */
 export function trackPageView(): void {
   track('PageView')
 }
 
-/** ViewContent — opened a landing / course page. */
+/** ViewContent — opened a landing / course page. Repeats per page by design. */
 export function trackViewContent(params?: { content_name?: string }): void {
   track('ViewContent', params)
 }
 
 /** QuizStart (custom) — first quiz answer. */
 export function trackQuizStart(): void {
-  trackCustom('QuizStart')
+  trackCustom('QuizStart', undefined, { eventId: sessionEventId('QuizStart') })
 }
 
 /** QuizComplete (custom) — reached the last quiz screen. */
 export function trackQuizComplete(): void {
-  trackCustom('QuizComplete')
+  trackCustom('QuizComplete', undefined, { eventId: sessionEventId('QuizComplete') })
 }
 
 /** Lead — submitted email in the quiz. */
 export function trackLead(): void {
-  track('Lead')
+  track('Lead', undefined, { eventId: sessionEventId('Lead') })
 }
 
 /** CompleteRegistration — submitted name (registration intent) after email. */
 export function trackCompleteRegistration(): void {
-  track('CompleteRegistration')
+  track('CompleteRegistration', undefined, {
+    eventId: sessionEventId('CompleteRegistration'),
+  })
 }
 
 /**

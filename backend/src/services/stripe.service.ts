@@ -296,6 +296,10 @@ export interface LandingCheckoutInput {
   ga4?: {
     clientId?: string
   }
+  /** Metrica attribution stored on the session for the server-side offline conversion. */
+  ym?: {
+    clientId?: string
+  }
   /** Creative/UTM attribution stamped on the session for Purchase reporting. */
   attribution?: {
     variant?: string
@@ -306,6 +310,8 @@ export interface LandingCheckoutInput {
     utmAd?: string
     /** Google Ads click id — for server-side Google Ads conversion attribution. */
     gclid?: string
+    /** Yandex.Direct click id — preferred key for the Metrica offline conversion. */
+    yclid?: string
   }
   /**
    * Which product/creative this purchase is for, from the flex quiz. Stamped on
@@ -451,6 +457,7 @@ export async function createLandingCheckoutSession(
       ...(input.meta?.fbp ? { fbp: input.meta.fbp } : {}),
       ...(input.meta?.fbc ? { fbc: input.meta.fbc } : {}),
       ...(input.ga4?.clientId ? { ga4_client_id: input.ga4.clientId } : {}),
+      ...(input.ym?.clientId ? { ym_client_id: input.ym.clientId } : {}),
       // Creative/UTM attribution for Purchase reporting (which ad drove the sale).
       ...(input.attribution?.variant ? { variant: input.attribution.variant } : {}),
       ...(input.attribution?.utmSource ? { utm_source: input.attribution.utmSource } : {}),
@@ -458,6 +465,7 @@ export async function createLandingCheckoutSession(
       ...(input.attribution?.utmAdset ? { utm_adset: input.attribution.utmAdset } : {}),
       ...(input.attribution?.utmAd ? { utm_ad: input.attribution.utmAd } : {}),
       ...(input.attribution?.gclid ? { gclid: input.attribution.gclid } : {}),
+      ...(input.attribution?.yclid ? { yclid: input.attribution.yclid } : {}),
       // Flex-quiz product/creative, so post-purchase routing knows which surface
       // to send the buyer to, and Purchase events can be split by product.
       ...(input.productSlug ? { product_slug: input.productSlug } : {}),

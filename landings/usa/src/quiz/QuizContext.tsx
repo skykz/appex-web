@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useLocation, useNavigate } from "react-router-dom";
 import { trackQuizStart, trackQuizComplete } from "@/lib/meta-pixel";
 import { ga4QuizStart, ga4QuizComplete, ga4QuizAnswer, ga4CtaClick } from "@/lib/ga4";
+import { ymQuizStart, ymQuizComplete, ymCtaClick } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex } from "@/lib/overlay-quiz-steps";
 import { trackStepAnswer, getQuestionText, trackQuizEvent, buildQuizQuery } from "@/lib/quiz-tracker";
@@ -322,6 +323,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     }
     trackQuizStart();
     ga4QuizStart();
+    ymQuizStart();
     pushToDataLayer("quiz_start");
     // Also into our own store, so the funnel view has a real entry point rather
     // than inferring it from the first step_view.
@@ -358,6 +360,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
     }
     trackQuizComplete();
     ga4QuizComplete();
+    ymQuizComplete();
     pushToDataLayer("quiz_complete");
     trackQuizEvent({ event_name: "quiz_complete", step_id: "quiz_complete", step_order: QUIZ_COMPLETE_STEP + 1, section: "plan", step_type: "milestone" });
     // state.answers is intentionally in the deps: a deep link to step 33 with
@@ -394,6 +397,7 @@ export function QuizProvider({ children }: { children: React.ReactNode }) {
       // but the quiz never starts" (broken), which look identical in quiz_step.
       const ctaLocation = target.dataset.cta || "unknown";
       ga4CtaClick({ location: ctaLocation });
+      ymCtaClick({ location: ctaLocation });
       pushToDataLayer("cta_click", { location: ctaLocation });
       e.preventDefault();
       // Pass the CTA name through so it lands in the URL as utm_button.

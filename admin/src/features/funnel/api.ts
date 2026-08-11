@@ -14,7 +14,19 @@ export interface FunnelStep {
   /** Sessions whose furthest point was this screen. */
   dropped: number
   drop_rate: number
-  conversion_from_start: number
+  /**
+   * Share of this step's STAGE baseline — quiz steps against quiz starts,
+   * post-quiz steps against paywall views. Null when the range holds no
+   * baseline to measure against.
+   */
+  conversion_from_start: number | null
+  /**
+   * Which population the percentage is against. The paywall is its own route
+   * (direct link, reload, Stripe returning a buyer in a new tab), so it holds
+   * sessions the quiz steps never saw — one shared scale made it look like the
+   * later stage out-converted the earlier one.
+   */
+  stage: 'quiz' | 'post_quiz'
   /** question | info | loader | milestone | funnel. */
   step_type: string | null
   /** Saw the screen but never answered it — 0 for screens taking no answer. */

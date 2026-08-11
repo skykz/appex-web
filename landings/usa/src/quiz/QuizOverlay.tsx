@@ -16,8 +16,9 @@ import { submitLandingQuiz } from "@/lib/landing-api";
 import { resurrectIntroOffer } from "@/lib/paywall-plans";
 import { LegalLink } from "@/components/legal/LegalLink";
 import { getQuizMenuLinks } from "@/lib/auth-links";
-import { trackLead, trackCompleteRegistration } from "@/lib/meta-pixel";
+import { trackLead, trackCompleteRegistration, setMetaUserData } from "@/lib/meta-pixel";
 import { ga4QuizStep, ga4QuizAbandon, ga4Lead, ga4NameSubmit, ga4PlanView, ga4WheelView, ga4WheelSpin, ga4WheelResult } from "@/lib/ga4";
+import { ymQuizStep, ymQuizAbandon, ymLead, ymNameSubmit, ymPlanView, ymWheelView, ymWheelSpin, ymWheelResult } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { overlayStepByIndex, OVERLAY_QUIZ_STEPS } from "@/lib/overlay-quiz-steps";
 import { checkEmail } from "@/lib/email-validation";
@@ -1461,8 +1462,16 @@ function S23() {
       props: { consent_copy: "AI Agents Guidebook opt-in on email step" },
     });
     commitAnswer("email_capture", "provided");
+    // Attaches the hashed email to the pixel so every later browser event
+    // (InitiateCheckout, Purchase) carries an identifier Meta can match on —
+    // browser match quality was 6.1/10 because nothing was sent here at all.
+    // Deliberately not awaited: hashing is async, and the funnel must not wait on
+    // analytics. Lead below may therefore go out just before the matching lands;
+    // the events that matter for optimisation all come later.
+    void setMetaUserData({ email: value, name: answers.name });
     trackLead();
     ga4Lead();
+    ymLead();
     pushToDataLayer("lead");
     void submitLandingQuiz({ email: value, answers: { ...answers, email: value } });
     next();
@@ -1550,6 +1559,7 @@ function S24() {
     commitAnswer("name_capture", "provided");
     trackCompleteRegistration();
     ga4NameSubmit();
+    ymNameSubmit();
     pushToDataLayer("name_submit");
     void submitLandingQuiz({
       email: answers.email || "",
@@ -1584,6 +1594,7 @@ function S25() {
   // plan_view — the personal-plan reveal, last screen before the discount wheel.
   useEffect(() => {
     ga4PlanView();
+    ymPlanView();
     pushToDataLayer("plan_view");
   }, []);
 
@@ -1682,12 +1693,14 @@ function S26() {
 
   useEffect(() => {
     ga4WheelView();
+    ymWheelView();
     pushToDataLayer("wheel_view");
     trackFunnelEvent("wheel_view");
   }, []);
 
   const handleSpinStart = useCallback(() => {
     ga4WheelSpin();
+    ymWheelSpin();
     pushToDataLayer("wheel_spin");
     trackFunnelEvent("wheel_spin");
   }, []);
@@ -1695,6 +1708,7 @@ function S26() {
   const handleResult = useCallback((percent: number) => {
     setWon(percent);
     ga4WheelResult({ discount_percent: percent });
+    ymWheelResult({ discount_percent: percent });
     pushToDataLayer("wheel_result", { discount_percent: percent });
     trackFunnelEvent("wheel_result", { value: percent });
   }, []);
@@ -1825,43 +1839,144 @@ function SLoadingFlow() {
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewExiting, setReviewExiting] = useState(false);
   const rafRef = useRef<number>(0);
+  /** Owns phase completion; rAF only paints (see runBar). */
+  const doneTimerRef = useRef<number>(0);
+  /** Latest `pct`, readable from the watchdog without restarting its timer. */
+  const pctRef = useRef(0);
+  /** Single writer for the bar, so state and ref can never drift apart. */
+  const applyPct = (v: number) => {
+    pctRef.current = v;
+    setPct(v);
+  };
   /**
    * Index of the phase that just hit 100%, or null. Distinguishes "completed a
    * moment ago" (play the sweep/sparks once) from "was already done" (steady
    * dark card) — without it every re-render would replay the celebration.
    */
   const [justDone, setJustDone] = useState<number | null>(null);
+  /** Guards `next()` so a watchdog and a real completion can't both advance. */
+  const advancedRef = useRef(false);
 
-  // Run bar from 0→50, pause for popup, then 50→100 after answer
+  /**
+   * Drives the bar from `from`→`to` over `dur`, then calls `onDone` exactly once.
+   *
+   * Progress is derived from wall-clock `Date.now()`, and completion is owned by a
+   * `setTimeout` rather than by the animation loop. This is the fix for the quiz
+   * hanging at 0%: `requestAnimationFrame` is frozen while the tab is backgrounded,
+   * so on mobile — where a visitor swaps apps mid-quiz — the old loop stopped
+   * ticking and `onDone` was never reached, leaving the bar stuck wherever it was
+   * (0% if it happened immediately) with no way forward. rAF now only paints;
+   * the timer guarantees the step always finishes, backgrounded or not.
+   */
   const runBar = (from: number, to: number, dur: number, onDone: () => void) => {
-    const start = performance.now();
+    const start = Date.now();
     const range = to - from;
-    const tick = (now: number) => {
-      const p = Math.min(1, (now - start) / dur);
+    let finished = false;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(doneTimerRef.current);
+      applyPct(to);
+      onDone();
+    };
+
+    const tick = () => {
+      // A frame queued before `finish` ran must not paint over the final value,
+      // or a phase can be left reading e.g. 92% after it has actually completed.
+      if (finished) return;
+      const p = Math.min(1, (Date.now() - start) / dur);
       const eased = 1 - Math.pow(1 - p, 2);
-      setPct(Math.round(from + eased * range));
+      applyPct(Math.round(from + eased * range));
       if (p < 1) rafRef.current = requestAnimationFrame(tick);
-      else onDone();
     };
     rafRef.current = requestAnimationFrame(tick);
+    // The authority on completion — fires even with rAF frozen.
+    doneTimerRef.current = window.setTimeout(finish, dur);
   };
 
   useEffect(() => {
-    setPct(0);
+    applyPct(0);
     setShowPopup(false);
     setPaused(false);
     // The previous phase's celebration is over once we advance; clearing it lets
     // that card settle into its plain completed state.
     setJustDone(null);
     cancelAnimationFrame(rafRef.current);
+    window.clearTimeout(doneTimerRef.current);
     const half = phases[phaseIdx].duration / 2;
     // Run 0→50, then show popup
     runBar(0, 50, half, () => {
       setPaused(true);
       setShowPopup(true);
     });
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(doneTimerRef.current);
+    };
   }, [phaseIdx]);
+
+  /**
+   * Last-resort watchdog: leaves this screen even if the flow above wedges.
+   *
+   * The commitment popup is the ONLY way forward — the bar parks at 50% until a
+   * button is clicked — so anything that stops it rendering or swallows the click
+   * strands the visitor on the loader permanently. That is a revenue blocker, not
+   * a cosmetic bug: nobody reaches the paywall. Rather than trust that every such
+   * path has been found, this guarantees the funnel always continues.
+   *
+   * Two windows, because "stuck" looks different on each leg:
+   *
+   *  - Bar running, no popup (20s). Nothing here needs the visitor, so silence
+   *    means the flow stopped advancing.
+   *  - Popup open (2min, reset by any interaction). A popup that renders but
+   *    swallows its clicks strands the visitor exactly as badly as one that never
+   *    renders, so this leg cannot be left unguarded — but someone reading the
+   *    question is NOT stuck, and skipping the screen under them would be worse
+   *    than the bug. Any keypress, tap or click restarts the clock, so only a
+   *    genuinely dead screen — no input at all for two minutes — trips it.
+   */
+  useEffect(() => {
+    let id = 0;
+    const delay = showPopup ? 120000 : 20000;
+
+    const bail = () => {
+      if (advancedRef.current) return;
+      advancedRef.current = true;
+      try {
+        trackQuizEvent({
+          event_name: 'step_view',
+          step_id: 'loading_flow_timeout',
+          section: 'plan',
+          step_type: 'milestone',
+          // Read from a ref, not state: including `pct` in the deps would restart
+          // the watchdog on every animation frame, so it would never elapse.
+          props: { phase_index: phaseIdx, pct: pctRef.current, popup_open: showPopup },
+        });
+      } catch {
+        /* analytics must never block the escape hatch */
+      }
+      next();
+    };
+
+    const arm = () => {
+      window.clearTimeout(id);
+      id = window.setTimeout(bail, delay);
+    };
+    arm();
+
+    // Only meaningful while a popup is waiting on the visitor; on the other leg
+    // there is nothing to interact with, so the plain timeout stands.
+    if (!showPopup) return () => window.clearTimeout(id);
+
+    const events = ['pointerdown', 'keydown'] as const;
+    events.forEach((e) => window.addEventListener(e, arm, { passive: true }));
+    return () => {
+      window.clearTimeout(id);
+      events.forEach((e) => window.removeEventListener(e, arm));
+    };
+  }, [next, showPopup, phaseIdx]);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -1872,8 +1987,14 @@ function SLoadingFlow() {
   }, []);
 
   const handlePick = (v: "yes" | "no") => {
-    const popup = phases[phaseIdx].popup;
-    if (popup) set(popup.answerKey as any, v);
+    // Recording the answer must never be able to strand the visitor here: if the
+    // store throws, we still continue the flow rather than leaving a dead popup.
+    try {
+      const popup = phases[phaseIdx].popup;
+      if (popup) set(popup.answerKey as any, v);
+    } catch {
+      /* answer is a nice-to-have; advancing is not optional */
+    }
     setShowPopup(false);
     setPaused(false);
     // Resume 50→100
@@ -1886,7 +2007,10 @@ function SLoadingFlow() {
       setJustDone(completing);
       setTimeout(() => {
         if (phaseIdx < phases.length - 1) setPhaseIdx((i) => i + 1);
-        else next();
+        else if (!advancedRef.current) {
+          advancedRef.current = true;
+          next();
+        }
       }, 900);
     });
   };
@@ -2021,14 +2145,14 @@ function SLoadingFlow() {
       {/* Auto-sliding review */}
       <div className="overflow-hidden rounded-xl border" style={{ borderColor: '#E5E5E5' }}>
         <div className="p-4" style={{ transform: reviewExiting ? 'translateX(-40px)' : 'translateX(0)', opacity: reviewExiting ? 0 : 1, transition: 'transform 320ms ease, opacity 320ms ease' }}>
-          <div className="flex items-center gap-1.5 mb-1">
+          <div className="flex items-center gap-[2px] mb-1.5">
             {Array.from({ length: 5 }, (_, i) => (
-              <svg key={i} width="14" height="14" viewBox="0 0 18 18" aria-hidden>
-                <rect width="18" height="18" rx="1" fill="#00B67A" />
-                <path d="M9 12.2l-2.4 2.5 0.6-3.1L5 9.3l3.1-0.5L9 6l0.9 2.8 3.1 0.5-2.2 2.3 0.6 3.1z" fill="white" />
+              <svg key={i} width="16" height="16" viewBox="0 0 24 24" aria-hidden className="shrink-0">
+                <rect width="24" height="24" fill="#00B67A" />
+                <path d="M12 3.4l2.42 5.63 6.08.5-4.62 4.02 1.39 5.96L12 16.4l-5.27 3.11 1.39-5.96L3.5 9.53l6.08-.5L12 3.4z" fill="white" />
               </svg>
             ))}
-            <span className="text-[11px] font-semibold ml-0.5" style={{ color: '#00B67A' }}>Trustpilot</span>
+            <span className="text-[12px] font-bold ml-1.5" style={{ color: '#191919' }}>Trustpilot</span>
           </div>
           <p className="text-[12px] mb-1" style={{ color: '#9CA3AF' }}>{review.name} | {review.loc}</p>
           <p className="text-[14px] font-semibold mb-1" style={{ color: '#111' }}>{review.title}</p>
@@ -2371,6 +2495,12 @@ export default function QuizOverlay() {
       section: meta.section,
       type: meta.type,
     });
+    ymQuizStep({
+      step_index: step,
+      step_id: meta.id,
+      section: meta.section,
+      type: meta.type,
+    });
     pushToDataLayer("quiz_step", {
       step_index: step,
       step_id: meta.id,
@@ -2455,6 +2585,7 @@ export default function QuizOverlay() {
         ).length,
       };
       ga4QuizAbandon(payload);
+      ymQuizAbandon(payload);
       pushToDataLayer("quiz_abandon", { ...payload, reason });
       // Same event into our own store, flushed via sendBeacon so it survives the
       // unload that triggered it.

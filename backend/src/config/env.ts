@@ -202,6 +202,21 @@ const envSchema = z.object({
     .transform((v) => (v ? v : 'G-9VSNWFGHR6')),
   /** GA4 Measurement Protocol API secret (Admin → Data Streams → Measurement Protocol). */
   GA4_API_SECRET: z.string().optional().transform((v) => (v ? v : undefined)),
+
+  // --- Yandex Metrica offline conversions (server-side purchase) ---
+  /**
+   * Metrica counter id (same counter as VITE_YM_COUNTER_ID on the landing).
+   *
+   * NO baked-in default, unlike the Meta pixel and GA4 stream: those point at
+   * live Appex properties, while the Metrica counter is created per-deployment.
+   * A wrong default would upload this funnel's revenue into a stranger's counter.
+   */
+  YM_COUNTER_ID: z.string().optional().transform((v) => (v ? v : undefined)),
+  /**
+   * OAuth token for the Metrica management API (offline conversions upload).
+   * A secret — server offline conversions stay OFF until it is set.
+   */
+  YM_OFFLINE_TOKEN: z.string().optional().transform((v) => (v ? v : undefined)),
 })
 
 const parsed = envSchema.parse(process.env)
@@ -312,6 +327,9 @@ const metaCapiEnabled = Boolean(parsed.META_PIXEL_ID && parsed.META_CAPI_ACCESS_
 /** GA4 Measurement Protocol is ready when both the measurement id and API secret are set. */
 const ga4MpEnabled = Boolean(parsed.GA4_MEASUREMENT_ID && parsed.GA4_API_SECRET)
 
+/** Metrica offline conversions are ready when both the counter id and OAuth token are set. */
+const ymOfflineEnabled = Boolean(parsed.YM_COUNTER_ID && parsed.YM_OFFLINE_TOKEN)
+
 export const env = {
   ...parsed,
   /** Learner platform origin (app.appexme.com in production). */
@@ -331,6 +349,7 @@ export const env = {
   mailgunWebhooksEnabled: Boolean(parsed.MAILGUN_WEBHOOK_SIGNING_KEY),
   metaCapiEnabled,
   ga4MpEnabled,
+  ymOfflineEnabled,
   /**
    * The lead-magnet email needs BOTH a guidebook to link to and a working
    * mailer; either one missing makes the send pointless or the promise empty.

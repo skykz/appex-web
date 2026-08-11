@@ -17,10 +17,12 @@ import ConfirmEmail from "./pages/ConfirmEmail.tsx";
 import { QuizProvider } from "./quiz/QuizContext";
 import QuizOverlay from "./quiz/QuizOverlay";
 import ActivityToasts from "./components/landing/ActivityToasts";
-import { initMetaPixel, trackPageView, trackViewContent } from "@/lib/meta-pixel";
+import { initMetaPixel, trackPageView, trackViewContent, restoreMetaUserData } from "@/lib/meta-pixel";
 import { initGa4, ga4PageView, ga4LandingView } from "@/lib/ga4";
+import { initYm, ymPageView, ymLandingView } from "@/lib/yandex-metrica";
 import { pushToDataLayer } from "@/lib/gtm";
 import { captureAttribution } from "@/lib/attribution";
+import { flushPendingLeads, installLeadFlushOnExit } from "@/lib/landing-api";
 
 const queryClient = new QueryClient();
 
@@ -35,17 +37,28 @@ function RouteAnalytics() {
     // Capture first-touch creative/UTM tags BEFORE any pixel fires its first event.
     captureAttribution();
     initMetaPixel();
+    // Must follow initMetaPixel: re-attaches the hashed email from a previous
+    // route so the paywall/checkout events aren't sent unidentified.
+    restoreMetaUserData();
     initGa4();
+    initYm();
+    // Recovers leads whose submission never got confirmed — a closed tab or a
+    // dropped connection used to lose them outright. Safe to run on every load:
+    // the backend upserts on email, so a resend of one that did land is a no-op.
+    void flushPendingLeads();
+    return installLeadFlushOnExit();
   }, []);
 
   useEffect(() => {
     captureAttribution();
     trackPageView();
     ga4PageView(location.pathname);
+    ymPageView(location.pathname);
     pushToDataLayer("page_view", { page_path: location.pathname });
     if (location.pathname === "/" || location.pathname.startsWith("/ai-skills-for/")) {
       trackViewContent({ content_name: location.pathname });
       ga4LandingView({ item_name: location.pathname });
+      ymLandingView({ item_name: location.pathname });
       pushToDataLayer("landing_view", { item_name: location.pathname });
     }
   }, [location.pathname]);
