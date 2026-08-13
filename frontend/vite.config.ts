@@ -3,6 +3,8 @@ import type { ServerResponse } from 'http'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import pkg from './package.json' with { type: 'json' }; 
+import { sentryVitePlugin } from "@sentry/vite-plugin"
 
 /** CSP for local dev / preview only — allows Vite HMR + React refresh inline scripts. */
 const DEV_CSP =
@@ -99,9 +101,15 @@ export default defineConfig({
     react({
       jsxRuntime: 'automatic',
     }),
+    sentryVitePlugin({
+      org: "Appex", // Замените на slug организации из настроек Sentry
+      project: "javascript-react",          // Замените на slug проекта из настроек Sentry
+    }),
   ],
+  define: {    'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),},
   build: {
     /** Rollup warns above 500 kB; SPA is fine — raise slightly after splitting heavy vendors. */
+    sourcemap: true,
     chunkSizeWarningLimit: 900,
     rollupOptions: {
       output: {

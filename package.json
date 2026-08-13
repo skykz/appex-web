@@ -21,10 +21,13 @@
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "momentic": "^2.118.1"
+    "momentic": "^3.48.1"
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-win32-x64-msvc": "^4.3.0",
     "lightningcss-win32-x64-msvc": "^1.32.0"
+  },
+  "dependencies": {
+    "@sentry/react": "^10.70.0"
   }
 }
