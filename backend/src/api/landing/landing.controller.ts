@@ -453,6 +453,12 @@ export async function createLandingCheckout(
         eventId: body.meta_event_id,
         fbp: body.fbp,
         fbc: body.fbc,
+        // Taken from the connection, never from the request body: these are Meta
+        // match parameters, and a client-supplied IP/UA would let a caller poison
+        // match quality (or attribute a sale to someone else's device). `trust
+        // proxy` is set to 1 in app.ts, so req.ip is the real client address.
+        clientIp: req.ip,
+        clientUserAgent: req.get('user-agent') ?? undefined,
       },
       ga4: { clientId: body.ga4_client_id },
       ym: { clientId: body.ym_client_id },

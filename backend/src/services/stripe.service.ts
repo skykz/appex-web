@@ -291,6 +291,14 @@ export interface LandingCheckoutInput {
     eventId?: string
     fbp?: string
     fbc?: string
+    /**
+     * Client IP and User-Agent, captured at checkout time. Meta counts both as
+     * match parameters, and the Stripe webhook that fires the Purchase has no
+     * access to the buyer's browser — so they must be carried through here or
+     * the server event goes out with weaker matching than it could have.
+     */
+    clientIp?: string
+    clientUserAgent?: string
   }
   /** GA4 attribution stored on the session for the server-side Measurement Protocol purchase. */
   ga4?: {
@@ -456,6 +464,13 @@ export async function createLandingCheckoutSession(
       ...(input.meta?.eventId ? { meta_event_id: input.meta.eventId } : {}),
       ...(input.meta?.fbp ? { fbp: input.meta.fbp } : {}),
       ...(input.meta?.fbc ? { fbc: input.meta.fbc } : {}),
+      // Truncated to stay under Stripe's 500-char metadata value limit — a long
+      // UA would otherwise reject the whole checkout call. Meta tolerates a
+      // clipped UA far better than it tolerates a missing one.
+      ...(input.meta?.clientIp ? { client_ip: input.meta.clientIp.slice(0, 100) } : {}),
+      ...(input.meta?.clientUserAgent
+        ? { client_ua: input.meta.clientUserAgent.slice(0, 480) }
+        : {}),
       ...(input.ga4?.clientId ? { ga4_client_id: input.ga4.clientId } : {}),
       ...(input.ym?.clientId ? { ym_client_id: input.ym.clientId } : {}),
       // Creative/UTM attribution for Purchase reporting (which ad drove the sale).

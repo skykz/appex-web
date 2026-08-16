@@ -83,6 +83,60 @@ export async function getLandingCheckoutProvision(sessionId: string) {
   return data as { user_id: string; email: string } | null
 }
 
+/** Ad attribution captured at checkout, replayed onto later conversion events. */
+export type PurchaseAttribution = {
+  email: string
+  fbp: string | null
+  fbc: string | null
+  clientIp: string | null
+  clientUserAgent: string | null
+  variant: string | null
+  utmSource: string | null
+  utmCampaign: string | null
+  pricingVariant: string | null
+}
+
+/**
+ * Reads back the attribution stored at checkout, keyed by subscription — the
+ * only identifier a renewal / refund / cancellation webhook actually carries.
+ *
+ * Returns null for subscriptions sold before migration 047 (nothing was stored)
+ * and, deliberately, on a query error: callers are fire-and-forget tracking
+ * paths, and degrading to weaker matching is always preferable to throwing
+ * inside a Stripe webhook and forcing a retry of the whole handler.
+ *
+ * A non-null result may still have null cookies — a buyer who arrived without a
+ * Meta click has no `_fbc`. Callers should send whatever is present rather than
+ * treating a partial row as unusable.
+ */
+export async function getPurchaseAttribution(
+  stripeSubscriptionId: string
+): Promise<PurchaseAttribution | null> {
+  const { data, error } = await supabaseAdmin
+    .from('landing_checkout_provisions')
+    .select('email, fbp, fbc, client_ip, client_ua, variant, utm_source, utm_campaign, pricing_variant')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    // A subscription could in principle have more than one provision row after a
+    // replay; the earliest is the one that carries the original click.
+    .order('provisioned_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  return {
+    email: data.email,
+    fbp: data.fbp ?? null,
+    fbc: data.fbc ?? null,
+    clientIp: data.client_ip ?? null,
+    clientUserAgent: data.client_ua ?? null,
+    variant: data.variant ?? null,
+    utmSource: data.utm_source ?? null,
+    utmCampaign: data.utm_campaign ?? null,
+    pricingVariant: data.pricing_variant ?? null,
+  }
+}
+
 /**
  * Persists the Stripe customer mapping for a provisioned learner account.
  */
@@ -201,6 +255,10 @@ function firePurchaseEvent(
       plan,
       fbp: md.fbp ?? null,
       fbc: md.fbc ?? null,
+      // Captured at checkout (the webhook has no buyer browser of its own) and
+      // stashed on the session — both raise Meta's match quality for this event.
+      clientIpAddress: md.client_ip ?? null,
+      clientUserAgent: md.client_ua ?? null,
       variant,
       utmSource,
       utmCampaign,
@@ -312,6 +370,11 @@ export async function provisionFromLandingCheckoutSession(
   await upsertSubscriptionFromStripe(subscription)
   await syncCreditsForSubscription(subscription)
 
+  // The ad-attribution identifiers are copied out of the checkout session and
+  // stored alongside the audit row. They live nowhere else that a later webhook
+  // can reach: renewals and refunds arrive with only an invoice/subscription, so
+  // without this copy any post-purchase Meta event would lose browser matching.
+  const md = session.metadata ?? {}
   const { error: logError } = await supabaseAdmin
     .from('landing_checkout_provisions')
     .insert({
@@ -319,6 +382,14 @@ export async function provisionFromLandingCheckoutSession(
       user_id: userId,
       stripe_subscription_id: subscription.id,
       email,
+      fbp: md.fbp ?? null,
+      fbc: md.fbc ?? null,
+      client_ip: md.client_ip ?? null,
+      client_ua: md.client_ua ?? null,
+      variant: md.variant ?? null,
+      utm_source: md.utm_source ?? null,
+      utm_campaign: md.utm_campaign ?? null,
+      pricing_variant: md.pricing_variant ?? null,
     })
 
   if (logError) {
