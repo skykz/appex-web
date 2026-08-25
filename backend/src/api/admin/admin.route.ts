@@ -57,6 +57,8 @@ import {
 import { getPricingExperimentReport } from './pricing-experiment.controller.js'
 import { getLessonEngagement } from './lesson-engagement.controller.js'
 import { uploadLessonAsset } from './uploads.controller.js'
+import { generateLessonImport, generateModuleImport } from './lesson-import.controller.js'
+import { lessonImportLimiter } from '../../middleware/rate-limit.middleware.js'
 
 const router = Router()
 
@@ -120,5 +122,7 @@ router.get('/lesson-submissions', ...guard, listLessonSubmissions)
 router.patch('/lesson-submissions/:id', ...guard, patchLessonSubmission)
 
 router.post('/uploads/lesson-file', ...guard, uploadLessonAsset)
+router.post('/lesson-imports/generate', ...guard, lessonImportLimiter, generateLessonImport)
+router.post('/lesson-imports/module-generate', ...guard, lessonImportLimiter, generateModuleImport)
 
 export default router

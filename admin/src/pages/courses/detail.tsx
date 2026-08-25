@@ -11,11 +11,14 @@ import {
   ChevronUp,
   BarChart3,
   EyeOff,
+  FileUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { coursesApi, type Lesson, type Module } from '@features/courses/api'
+import { coursesApi, type ImportedLessonDraft, type ImportedModuleDraft, type Lesson, type Module } from '@features/courses/api'
 import { ModuleForm } from '@features/courses/module-form'
 import { LessonEditor } from '@features/courses/lesson-editor'
+import { LessonImportDialog } from '@features/courses/lesson-import-dialog'
+import { ModuleImportDialog } from '@features/courses/module-import-dialog'
 import { LessonEngagementDialog } from '@features/courses/lesson-engagement-dialog'
 import { Button } from '@shared/ui/button'
 import { Card, CardContent } from '@shared/ui/card'
@@ -52,11 +55,14 @@ export function CourseDetailPage() {
 
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
   const [creatingModule, setCreatingModule] = useState(false)
+  const [moduleImportOpen, setModuleImportOpen] = useState(false)
   const [editingModule, setEditingModule] = useState<Module | null>(null)
   const [lessonEditor, setLessonEditor] = useState<{
     moduleId: number
     lesson?: Lesson
+    draft?: ImportedLessonDraft
   } | null>(null)
+  const [lessonImportModuleId, setLessonImportModuleId] = useState<number | null>(null)
   const [engagementLesson, setEngagementLesson] = useState<Lesson | null>(null)
   const [conflictBanner, setConflictBanner] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CourseBuilderDeleteTarget | null>(null)
@@ -148,6 +154,22 @@ export function CourseDetailPage() {
     if (next) reorderLessonsMutation.mutate({ moduleId, orderedIds: next })
   }
 
+  async function createImportedModule(draft: ImportedModuleDraft) {
+    const module = await coursesApi.createModule(courseId, { title: draft.title, is_visible: false })
+    for (const lesson of draft.lessons) {
+      await coursesApi.createLesson(module.id, {
+        label: lesson.label,
+        title: lesson.title,
+        emoji: lesson.emoji,
+        content: lesson.steps,
+        is_visible: false,
+      })
+    }
+    setExpanded((current) => ({ ...current, [module.id]: true }))
+    await qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+    await qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+  }
+
   if (!Number.isFinite(courseId)) {
     return (
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
@@ -231,10 +253,16 @@ export function CourseDetailPage() {
                 </div>
               </div>
             </div>
-            <Button onClick={() => setCreatingModule(true)} className="shrink-0 shadow-sm">
-              <Plus className="h-4 w-4" />
-              Add module
-            </Button>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setModuleImportOpen(true)}>
+                <FileUp className="h-4 w-4" />
+                Import module ZIP
+              </Button>
+              <Button onClick={() => setCreatingModule(true)} className="shadow-sm">
+                <Plus className="h-4 w-4" />
+                Add module
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -309,6 +337,15 @@ export function CourseDetailPage() {
                   >
                     <Plus className="h-4 w-4" />
                     Lesson
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-border/80 bg-background shadow-none"
+                    onClick={() => setLessonImportModuleId(m.id)}
+                  >
+                    <FileUp className="h-4 w-4" />
+                    Import DOCX
                   </Button>
                   <Button
                     size="icon"
@@ -516,11 +553,29 @@ export function CourseDetailPage() {
               key={lessonEditor.lesson ? `lesson-${lessonEditor.lesson.id}` : `new-${lessonEditor.moduleId}`}
               moduleId={lessonEditor.moduleId}
               initial={lessonEditor.lesson}
+              draft={lessonEditor.draft}
               onDone={() => setLessonEditor(null)}
             />
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <LessonImportDialog
+        open={lessonImportModuleId !== null}
+        onOpenChange={(open) => !open && setLessonImportModuleId(null)}
+        onGenerated={(draft) => {
+          if (lessonImportModuleId === null) return
+          const moduleId = lessonImportModuleId
+          setLessonImportModuleId(null)
+          setLessonEditor({ moduleId, draft })
+        }}
+      />
+
+      <ModuleImportDialog
+        open={moduleImportOpen}
+        onOpenChange={setModuleImportOpen}
+        onGenerated={createImportedModule}
+      />
     </div>
   )
 }

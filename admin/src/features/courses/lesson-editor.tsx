@@ -19,6 +19,7 @@ import {
 } from '@appex/lesson-schema'
 import {
   coursesApi,
+  type ImportedLessonDraft,
   type Lesson,
   type LessonBlock,
   type LessonStep,
@@ -74,10 +75,11 @@ function firstValidationMessage(errors: FieldErrors): string | undefined {
 interface Props {
   moduleId: number
   initial?: Lesson
+  draft?: ImportedLessonDraft
   onDone: () => void
 }
 
-export function LessonEditor({ moduleId, initial, onDone }: Props) {
+export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
   const qc = useQueryClient()
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -85,12 +87,14 @@ export function LessonEditor({ moduleId, initial, onDone }: Props) {
     resolver: zodResolver(lessonEditorFormSchema) as Resolver<LessonEditorFormValues>,
     mode: 'onSubmit',
     defaultValues: {
-      label: initial?.label ?? 'Lesson 1',
-      title: initial?.title ?? '',
-      emoji: initial?.emoji ?? '📘',
-      is_visible: initial?.is_visible ?? false,
+      label: initial?.label ?? draft?.label ?? 'Lesson 1',
+      title: initial?.title ?? draft?.title ?? '',
+      emoji: initial?.emoji ?? draft?.emoji ?? '📘',
+      is_visible: initial?.is_visible ?? draft?.is_visible ?? false,
       order: initial?.order ?? 0,
-      steps: normalizeLessonStepsFromApi(initial?.content),
+      steps: initial
+        ? normalizeLessonStepsFromApi(initial.content)
+        : draft?.steps ?? [{ blocks: [{ type: 'heading', content: '' }] }],
     },
   })
 
@@ -363,7 +367,6 @@ function StepBlocksEditor({
         >
           <option value="heading">Heading</option>
           <option value="text">Text</option>
-          <option value="bold-text">Bold text</option>
           <option value="list">List</option>
           <option value="image">Image</option>
           <option value="video">Video</option>
