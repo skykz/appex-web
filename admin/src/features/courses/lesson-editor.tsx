@@ -11,7 +11,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Eye } from 'lucide-react'
+import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Eye, Sparkles } from 'lucide-react'
 import {
   lessonEditorFormSchema,
   normalizeLessonContentSteps,
@@ -375,6 +375,9 @@ function StepBlocksEditor({
           <option value="quiz">Quiz</option>
           <option value="submission">Student submission</option>
           <option value="callout">Callout</option>
+          <option value="table">Interactive table</option>
+          <option value="guide">Interactive guide</option>
+          <option value="playground">AI Playground</option>
           <option value="prompt">Copy prompt</option>
           <option value="user-message">User message</option>
           <option value="mentor-message">Mentor message</option>
@@ -459,7 +462,7 @@ function InlineMarkdownHint() {
     <p className="text-xs text-muted-foreground">
       Use <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">**bold text**</code> or{' '}
       <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">{'""italic text""'}</code> for emphasis.
-      Paste from Word keeps paragraphs and lists only — bold/italic are pasted as plain text.
+      Add <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">[link name](https://example.com)</code> or highlight with <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">==text==</code> and <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">==blue:text==</code>.
     </p>
   )
 }
@@ -650,7 +653,7 @@ function BlockFields({
 
   if (type === 'list') {
     return (
-      <div className="grid gap-1">
+      <div className="grid gap-2">
         <Controller
           control={form.control}
           name={`${base}.items` as const}
@@ -670,6 +673,16 @@ function BlockFields({
               />
             )
           }}
+        />
+        <Controller
+          control={form.control}
+          name={`${base}.checkable` as const}
+          render={({ field }) => (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={Boolean(field.value)} onChange={(event) => field.onChange(event.target.checked)} />
+              Learners can tick items
+            </label>
+          )}
         />
         <InlineMarkdownHint />
       </div>
@@ -849,6 +862,7 @@ function BlockFields({
           <option value="warn">Warning</option>
         </Select>
         <Input placeholder="Title (optional)" {...form.register(`${base}.title` as const)} />
+        <p className="text-xs text-muted-foreground">Tips are expandable and start closed. Notes and warnings always stay open.</p>
         <Controller
           control={form.control}
           name={`${base}.content` as const}
@@ -865,6 +879,32 @@ function BlockFields({
         <InlineMarkdownHint />
       </div>
     )
+  }
+  if (type === 'table') {
+    const value = form.watch(`${base}.items` as const) as Array<{ label: string; content: string }> | undefined
+    return <div className="grid gap-2">
+      <Input placeholder="Table title (optional)" {...form.register(`${base}.title` as const)} />
+      <Controller control={form.control} name={`${base}.items` as const} render={({ field }) => (
+        <Textarea rows={6} placeholder={'Tab name | Content shown when clicked\nSecond tab | Different content'} value={(value ?? []).map((item) => `${item.label} | ${item.content}`).join('\n')} onChange={(event) => field.onChange(event.target.value.split('\n').filter(Boolean).map((line) => { const split = line.indexOf('|'); return { label: (split >= 0 ? line.slice(0, split) : line).trim(), content: (split >= 0 ? line.slice(split + 1) : '').trim() } }))} />
+      )} />
+      <p className="text-xs text-muted-foreground">One clickable item per line: label | content. Add at least two.</p>
+      {value && value.length < 2 ? <p className="text-xs text-destructive">Add at least two items.</p> : null}
+    </div>
+  }
+  if (type === 'guide') {
+    const value = form.watch(`${base}.steps` as const) as Array<{ title: string; content: string }> | undefined
+    return <div className="grid gap-2">
+      <Input placeholder="Guide title" {...form.register(`${base}.title` as const)} />
+      <Textarea rows={2} placeholder="Short introduction (optional)" {...form.register(`${base}.description` as const)} />
+      <Controller control={form.control} name={`${base}.steps` as const} render={({ field }) => (
+        <Textarea rows={7} placeholder={'Step name | Content for this guide step\nNext step | What the learner does next'} value={(value ?? []).map((step) => `${step.title} | ${step.content}`).join('\n')} onChange={(event) => field.onChange(event.target.value.split('\n').filter(Boolean).map((line) => { const split = line.indexOf('|'); return { title: (split >= 0 ? line.slice(0, split) : line).trim(), content: (split >= 0 ? line.slice(split + 1) : '').trim() } }))} />
+      )} />
+      <p className="text-xs text-muted-foreground">One internal guide step per line: step name | content. Add at least two.</p>
+      {value && value.length < 2 ? <p className="text-xs text-destructive">Add at least two guide steps.</p> : null}
+    </div>
+  }
+  if (type === 'playground') {
+    return <PlaygroundFields form={form} stepIdx={stepIdx} blockIdx={blockIdx} />
   }
   if (type === 'prompt') {
     return (
@@ -937,13 +977,69 @@ function BlockFields({
   )
 }
 
+function PlaygroundFields({ form, stepIdx, blockIdx }: {
+  form: UseFormReturn<LessonEditorFormValues>
+  stepIdx: number
+  blockIdx: number
+}) {
+  const base = `steps.${stepIdx}.blocks.${blockIdx}` as const
+  const value = form.watch(base) as Extract<LessonBlock, { type: 'playground' }>
+  const generation = useMutation({
+    mutationFn: () => coursesApi.generatePlaygroundDraft({
+      prompt: value.prompt,
+      documentUrl: value.documentUrl || undefined,
+      documentLabel: value.documentLabel || undefined,
+      lessonContext: JSON.stringify(form.getValues('steps')).slice(0, 20_000),
+    }),
+    onSuccess: (draft) => {
+      form.setValue(`${base}.answer` as const, draft.answer, { shouldDirty: true, shouldValidate: true })
+      form.setValue(`${base}.previewUrl` as const, draft.previewUrl ?? '', { shouldDirty: true })
+      form.setValue(`${base}.previewLabel` as const, draft.previewLabel ?? '', { shouldDirty: true })
+      toast.success('AI draft generated. Review it, then save the lesson.')
+    },
+    onError: (error: unknown) => {
+      toast.error(error instanceof ApiError ? error.message : 'Could not generate the Playground draft.')
+    },
+  })
+
+  return <div className="grid gap-3">
+    <Input placeholder="Block title" {...form.register(`${base}.title` as const)} />
+    <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Ready prompt</Label><Textarea rows={7} className="font-mono text-sm" placeholder="Prompt learners can copy or try" {...form.register(`${base}.prompt` as const)} /></div>
+    <div className="grid gap-2"><p className="text-xs font-semibold text-muted-foreground">Optional input document</p><FileSrcField
+      url={value?.documentUrl ?? ''}
+      label={value?.documentLabel ?? ''}
+      description=""
+      onUrlChange={(next) => form.setValue(`${base}.documentUrl` as const, next, { shouldDirty: true })}
+      onLabelChange={(next) => form.setValue(`${base}.documentLabel` as const, next, { shouldDirty: true })}
+      onDescriptionChange={() => undefined}
+    /></div>
+    <div className="rounded-xl border border-orange-200 bg-orange-50/60 p-3">
+      <Button type="button" size="sm" disabled={generation.isPending || !value.prompt?.trim()} onClick={() => generation.mutate()} className="gap-2">
+        {generation.isPending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+        {generation.isPending ? 'Generating draft…' : value.answer?.trim() ? 'Regenerate draft with AI' : 'Generate draft with AI'}
+      </Button>
+      <p className="mt-2 text-xs leading-5 text-muted-foreground">AI generates an editable answer and, when requested, a preview file. Review the draft below and use Save lesson to approve it for learners.</p>
+    </div>
+    <div className="grid gap-1"><Label className="text-xs text-muted-foreground">Prepared answer — review and edit</Label><Textarea rows={7} placeholder="Generate with AI or write the answer manually" {...form.register(`${base}.answer` as const)} /></div>
+    <div className="border-t border-border/70 pt-3"><p className="mb-2 text-xs font-semibold text-muted-foreground">Prepared preview or generated output file</p><FileSrcField
+      url={value?.previewUrl ?? ''}
+      label={value?.previewLabel ?? ''}
+      description=""
+      onUrlChange={(next) => form.setValue(`${base}.previewUrl` as const, next, { shouldDirty: true })}
+      onLabelChange={(next) => form.setValue(`${base}.previewLabel` as const, next, { shouldDirty: true })}
+      onDescriptionChange={() => undefined}
+    /></div>
+    <p className="text-xs text-muted-foreground">The saved answer and output are static for learners. No AI request happens when they click Try it or Regenerate.</p>
+  </div>
+}
+
 /**
  * Returns a new empty block of the given type for useFieldArray append defaults.
  */
 function defaultBlock(type: LessonBlock['type']): LessonBlock {
   switch (type) {
     case 'list':
-      return { type: 'list', items: [] }
+      return { type: 'list', items: [], checkable: false }
     case 'image':
       return { type: 'image', src: '' }
     case 'video':
@@ -964,6 +1060,12 @@ function defaultBlock(type: LessonBlock['type']): LessonBlock {
       return { type: 'submission', prompt: '', acceptAttachment: false }
     case 'callout':
       return { type: 'callout', variant: 'tip', content: '' }
+    case 'table':
+      return { type: 'table', title: '', items: [{ label: 'First', content: '' }, { label: 'Second', content: '' }] }
+    case 'guide':
+      return { type: 'guide', title: 'Guide', description: '', steps: [{ title: 'First step', content: '' }, { title: 'Next step', content: '' }] }
+    case 'playground':
+      return { type: 'playground', title: 'AI Playground', prompt: '', answer: '', documentUrl: '', documentLabel: '', previewUrl: '', previewLabel: '' }
     case 'prompt':
       return { type: 'prompt', title: '', content: '' }
     case 'user-message':

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Check, Copy, Paperclip, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, Info, Lightbulb, Paperclip, TriangleAlert, X } from 'lucide-react'
 import { cn } from '@shared/lib'
 import { Button, Textarea } from '@shared/ui'
 import type { LessonBlock } from './lesson-types'
@@ -526,9 +526,27 @@ export function SubmissionBlockView({
 }
 
 const calloutStyles = {
-  tip: 'border-emerald-500/40 bg-emerald-500/[0.07] ring-emerald-500/20',
-  note: 'border-sky-500/40 bg-sky-500/[0.07] ring-sky-500/20',
-  warn: 'border-amber-500/50 bg-amber-500/[0.08] ring-amber-500/25',
+  tip: {
+    frame: 'border-emerald-200/90 bg-linear-to-br from-emerald-50/90 to-card dark:border-emerald-800/70 dark:from-emerald-950/35 dark:to-card',
+    rail: 'bg-emerald-500',
+    icon: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/60 dark:text-emerald-300 dark:ring-emerald-800',
+    Icon: Lightbulb,
+    accessibleLabel: 'Tip',
+  },
+  note: {
+    frame: 'border-orange-200/90 bg-linear-to-br from-orange-50/90 to-card dark:border-orange-800/70 dark:from-orange-950/35 dark:to-card',
+    rail: 'bg-primary',
+    icon: 'bg-orange-100 text-primary ring-orange-200 dark:bg-orange-900/60 dark:text-orange-300 dark:ring-orange-800',
+    Icon: Info,
+    accessibleLabel: 'Note',
+  },
+  warn: {
+    frame: 'border-amber-300/90 bg-linear-to-br from-amber-50 to-card dark:border-amber-800/70 dark:from-amber-950/40 dark:to-card',
+    rail: 'bg-amber-500',
+    icon: 'bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-900/60 dark:text-amber-300 dark:ring-amber-800',
+    Icon: TriangleAlert,
+    accessibleLabel: 'Important',
+  },
 } as const
 
 /**
@@ -583,31 +601,37 @@ export function CalloutBlockView({
 }: {
   block: Extract<LessonBlock, { type: 'callout' }>
 }) {
+  const collapsible = block.variant === 'tip'
+  const [open, setOpen] = useState(collapsible ? (block.defaultOpen ?? false) : true)
+  const style = calloutStyles[block.variant]
+  const Icon = style.Icon
+  const header = (
+    <>
+      <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg ring-1', style.icon)} title={style.accessibleLabel}>
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-foreground">{block.title || style.accessibleLabel}</span>
+    </>
+  )
   return (
     <div
       className={cn(
-        'mt-5 rounded-2xl border p-4 shadow-sm ring-1 sm:p-5',
-        calloutStyles[block.variant]
+        'relative mt-5 overflow-hidden rounded-2xl border shadow-[0_8px_24px_-18px_rgba(0,0,0,0.35)] first:mt-0',
+        style.frame
       )}
     >
-      {block.title ? (
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {block.variant === 'tip' && 'Tip'}
-          {block.variant === 'note' && 'Note'}
-          {block.variant === 'warn' && 'Important'}
-          {' · '}
-          {block.title}
-        </p>
+      <span className={cn('absolute inset-y-0 left-0 w-1', style.rail)} aria-hidden />
+      {collapsible ? (
+        <button type="button" className="group flex w-full items-center gap-2.5 px-4 py-3 text-left outline-none transition-colors hover:bg-background/35 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label={`${style.accessibleLabel}: ${block.title || style.accessibleLabel}`}>
+          {header}
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/70 transition-colors group-hover:text-foreground">
+            <ChevronDown className={cn('size-4 transition-transform duration-200', open && 'rotate-180')} aria-hidden />
+          </span>
+        </button>
       ) : (
-        <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {block.variant === 'tip' && 'Tip'}
-          {block.variant === 'note' && 'Note'}
-          {block.variant === 'warn' && 'Warning'}
-        </p>
+        <div className="flex items-center gap-2.5 px-4 pt-3">{header}</div>
       )}
-      <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-foreground">
-        {renderLinkedText(block.content, 'callout')}
-      </p>
+      {open ? <div className={cn('px-4 pb-4', collapsible ? 'pt-0' : 'pt-2.5')}><p className={cn('whitespace-pre-wrap text-[15px] leading-7 text-foreground/90', collapsible && 'border-t border-current/10 pt-3')}>{renderLinkedText(block.content, 'callout')}</p></div> : null}
     </div>
   )
 }

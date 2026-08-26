@@ -148,6 +148,35 @@ export const lessonBlockSchema = z.union([
     variant: z.enum(['tip', 'note', 'warn']),
     title: z.string().max(120).optional(),
     content: z.string().trim().min(1).max(4000),
+    collapsible: z.boolean().optional(),
+    defaultOpen: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal('table'),
+    title: z.string().max(120).optional(),
+    items: z.array(z.object({
+      label: z.string().trim().min(1).max(120),
+      content: z.string().trim().min(1).max(4000),
+    })).min(2).max(12),
+  }),
+  z.object({
+    type: z.literal('guide'),
+    title: z.string().max(120).optional(),
+    description: z.string().max(1000).optional(),
+    steps: z.array(z.object({
+      title: z.string().trim().min(1).max(120),
+      content: z.string().trim().min(1).max(4000),
+    })).min(2).max(20),
+  }),
+  z.object({
+    type: z.literal('playground'),
+    title: z.string().max(120).optional(),
+    prompt: z.string().trim().min(1).max(12000),
+    answer: z.string().trim().min(1).max(12000),
+    documentUrl: urlOrPath.or(z.literal('')).optional(),
+    documentLabel: z.string().max(120).optional(),
+    previewUrl: urlOrPath.or(z.literal('')).optional(),
+    previewLabel: z.string().max(120).optional(),
   }),
   z.object({
     type: z.literal('prompt'),
@@ -157,6 +186,7 @@ export const lessonBlockSchema = z.union([
   z.object({
     type: z.literal('list'),
     items: cleanedStringArray.pipe(z.array(z.string().min(1)).min(1)),
+    checkable: z.boolean().optional(),
   }),
   z.object({ type: z.literal('user-message'), name: z.string(), text: z.string() }),
   z.object({ type: z.literal('mentor-message'), text: z.string() }),

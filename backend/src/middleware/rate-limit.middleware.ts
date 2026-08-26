@@ -79,6 +79,18 @@ export const lessonImportLimiter = rateLimit({
   },
 })
 
+/** Limits billable AI draft generation in the admin lesson editor. */
+export const playgroundGenerationLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userOrIpKey,
+  message: {
+    error: 'Too many Playground drafts. Please wait a minute before generating again.',
+  },
+})
+
 /**
  * Cheap per-IP gate that runs BEFORE requireAuth on the Lexi stream.
  *

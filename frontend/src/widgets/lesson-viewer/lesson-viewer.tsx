@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
-import { Flag, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, ExternalLink, FileText, Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Paperclip, RotateCcw, Sparkles, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { LessonLinkCard } from './lesson-link-card'
 import { cn } from '@shared/lib'
@@ -280,9 +280,6 @@ export function LessonViewer({
               />
             ))}
           </div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Step <span className="text-primary">{stepIndex + 1}</span> of {totalSteps}
-          </p>
         </div>
         <Button
           variant="ghost"
@@ -317,36 +314,9 @@ export function LessonViewer({
             </p>
           ) : null}
           <div className="flex items-center gap-2">
-            {!isFirst ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 rounded-lg px-4"
-                  onClick={handleBack}
-                >
-                  Back
-                </Button>
-                <div className="flex-1" />
-                <Button
-                  size="sm"
-                  onClick={handleNext}
-                  disabled={hasUnansweredQuiz}
-                  className="h-9 rounded-lg px-6 shadow-sm"
-                >
-                  {isLast ? 'Finish' : 'Continue'}
-                </Button>
-              </>
-            ) : (
-              <Button
-                size="sm"
-                onClick={handleNext}
-                disabled={hasUnansweredQuiz}
-                className="h-9 w-full rounded-lg shadow-sm"
-              >
-                Continue
-              </Button>
-            )}
+            <Button variant="outline" size="sm" className="h-9 rounded-lg px-4" onClick={handleBack} disabled={isFirst}>Back</Button>
+            <div className="flex-1" />
+            <Button size="sm" onClick={handleNext} disabled={hasUnansweredQuiz} className="h-9 rounded-lg px-6 shadow-sm">{isLast ? 'Finish' : 'Continue'}</Button>
           </div>
         </div>
       </div>
@@ -520,11 +490,11 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
           ) : null}
           {pres ? (
             pres.mode === 'iframe' ? (
-              <div className="aspect-video overflow-hidden rounded-2xl bg-muted/40">
+              <div className="aspect-video overflow-hidden rounded-2xl border border-border/80 bg-muted/40 p-1.5 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
                 <iframe
                   title={block.title ?? 'Video'}
                   src={pres.href}
-                  className="h-full w-full border-0"
+                  className="h-full w-full rounded-xl border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                   allowFullScreen
                 />
@@ -532,7 +502,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
             ) : (
               <video
                 controls
-                className="mt-1 max-h-[70vh] w-full rounded-2xl bg-black"
+                className="mt-1 max-h-[70vh] w-full rounded-2xl border border-border/80 bg-black p-1.5 shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                 src={pres.href}
               />
             )
@@ -612,6 +582,24 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
       continue
     }
 
+    if (block.type === 'table') {
+      elements.push(<InteractiveTableBlock key={`table-${i}`} block={block} />)
+      i++
+      continue
+    }
+
+    if (block.type === 'guide') {
+      elements.push(<GuideBlock key={`guide-${i}`} block={block} />)
+      i++
+      continue
+    }
+
+    if (block.type === 'playground') {
+      elements.push(<PlaygroundBlock key={`playground-${i}`} block={block} />)
+      i++
+      continue
+    }
+
     if (block.type === 'prompt') {
       elements.push(<PromptBlockView key={`prompt-${i}`} block={block} />)
       i++
@@ -644,7 +632,9 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
     }
 
     if (block.type === 'list') {
-      elements.push(
+      elements.push(block.checkable ? (
+        <ChecklistBlock key={`list-${i}`} block={block} />
+      ) : (
         <ul
           key={`list-${i}`}
           className="ml-6 mt-4 flex list-disc flex-col gap-1.5"
@@ -655,7 +645,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
             </li>
           ))}
         </ul>
-      )
+      ))
       i++
       continue
     }
@@ -684,4 +674,112 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
   }
 
   return elements
+}
+
+function ChecklistBlock({ block }: { block: Extract<LessonBlock, { type: 'list' }> }) {
+  const [checked, setChecked] = useState<Set<number>>(() => new Set())
+  return (
+    <ul className="mt-4 flex flex-col gap-2" aria-label="Checklist">
+      {block.items.map((item, index) => {
+        const isChecked = checked.has(index)
+        return <li key={index}>
+          <label className="flex cursor-pointer items-start gap-3 py-1.5">
+            <input type="checkbox" checked={isChecked} onChange={() => setChecked((current) => { const next = new Set(current); if (next.has(index)) next.delete(index); else next.add(index); return next })} className="mt-0.5 size-4 shrink-0 accent-primary" />
+            <span className={cn('text-[15px] leading-relaxed', isChecked && 'line-through decoration-foreground/50')}>{renderLinkedText(item, `checklist-${index}`)}</span>
+          </label>
+        </li>
+      })}
+    </ul>
+  )
+}
+
+function InteractiveTableBlock({ block }: { block: Extract<LessonBlock, { type: 'table' }> }) {
+  const [active, setActive] = useState(0)
+  const item = block.items[active]
+  const evenlySpaced = block.items.length >= 2 && block.items.length <= 4
+  return (
+    <section className="mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0">
+      {block.title ? <h3 className="border-b border-border/70 px-4 py-3 font-semibold">{block.title}</h3> : null}
+      <div className={cn('bg-muted/30 px-2 pt-2', evenlySpaced ? 'grid gap-1.5' : 'flex gap-1 overflow-x-auto')} style={evenlySpaced ? { gridTemplateColumns: `repeat(${block.items.length}, minmax(0, 1fr))` } : undefined} role="tablist">
+        {block.items.map((entry, index) => <button key={index} type="button" role="tab" aria-selected={index === active} onClick={() => setActive(index)} className={cn('relative whitespace-nowrap px-3 py-2.5 text-center text-sm font-semibold transition-all', index === active ? 'z-10 -mb-px rounded-t-xl border border-b-0 border-primary/40 bg-card text-primary shadow-[0_-3px_10px_-8px_rgba(0,0,0,0.4)] after:absolute after:-bottom-1 after:inset-x-0 after:h-1 after:bg-card' : 'rounded-t-lg text-muted-foreground hover:bg-background/70 hover:text-foreground')}>{entry.label}</button>)}
+      </div>
+      {item ? <div role="tabpanel" className="min-h-20 border-t border-primary/40 bg-card px-5 py-4 text-center text-[15px] leading-relaxed"><div className="mx-auto max-w-2xl whitespace-pre-wrap">{renderLinkedText(item.content, `table-${active}`)}</div></div> : null}
+    </section>
+  )
+}
+
+function GuideBlock({ block }: { block: Extract<LessonBlock, { type: 'guide' }> }) {
+  const [current, setCurrent] = useState(0)
+  const isFirst = current === 0
+  const isLast = current === block.steps.length - 1
+  return <section className="mt-5 rounded-2xl bg-muted/35 px-5 py-5 first:mt-0 sm:px-6">
+    <p className="text-sm font-semibold text-muted-foreground">{block.title || 'Guide'}</p>
+    {block.description ? <div className="mt-5 whitespace-pre-wrap text-[15px] leading-7 text-foreground">{renderLinkedText(block.description, 'guide-description')}</div> : null}
+    <ol className="mt-5">
+      {block.steps.map((guideStep, index) => {
+        const active = index === current
+        const last = index === block.steps.length - 1
+        return <li key={index} className="relative grid grid-cols-[2rem_1fr] gap-x-2.5 pb-5 last:pb-0">
+          {!last ? <span className="absolute left-[0.9375rem] top-7 h-[calc(100%-1rem)] w-px bg-border" aria-hidden /> : null}
+          <span className={cn('relative z-10 flex size-7 items-center justify-center rounded-full text-sm font-medium transition-colors', active ? 'bg-primary/15 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground')}>{index + 1}</span>
+          <div className="min-w-0 pt-0.5">
+            <p className={cn('text-[15px] font-semibold leading-6', active ? 'text-foreground' : 'text-muted-foreground')}>{guideStep.title}</p>
+            {active ? <div className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">{renderLinkedText(guideStep.content, `guide-${current}`)}</div> : null}
+          </div>
+        </li>
+      })}
+    </ol>
+    <div className="mt-5 flex items-center">
+      <Button type="button" variant="outline" size="sm" disabled={isFirst} onClick={() => setCurrent((value) => Math.max(0, value - 1))}>Back</Button>
+      <div className="flex-1" />
+      <Button type="button" size="sm" disabled={isLast} onClick={() => setCurrent((value) => Math.min(block.steps.length - 1, value + 1))}>Next</Button>
+    </div>
+  </section>
+}
+
+function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playground' }> }) {
+  const [tab, setTab] = useState<'prompt' | 'chat'>('prompt')
+  const [fullscreen, setFullscreen] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(true)
+  const [promptExpanded, setPromptExpanded] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const previewUrl = block.previewUrl || block.documentUrl
+  const previewLabel = block.previewLabel || block.documentLabel || 'File preview'
+  const hasFile = Boolean(previewUrl)
+  async function copyPrompt() {
+    try { await navigator.clipboard.writeText(block.prompt); setCopied(true); window.setTimeout(() => setCopied(false), 1800) } catch { /* clipboard can be unavailable */ }
+  }
+  async function runPlayground() {
+    if (generating) return
+    setTab('chat')
+    setGenerating(true)
+    await new Promise((resolve) => window.setTimeout(resolve, 1100))
+    setGenerating(false)
+  }
+  return <section className={cn('relative mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0', fullscreen && 'fixed inset-4 z-50 m-0 flex flex-col bg-background shadow-2xl')}>
+    <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
+      <span className="flex size-9 items-center justify-center rounded-xl bg-primary/[0.09] text-primary"><Sparkles className="size-[18px]" aria-hidden /></span>
+      <h3 className="min-w-0 flex-1 font-semibold text-foreground">{block.title || 'AI Playground'}</h3>
+      <Button type="button" variant="ghost" size="icon" className="size-9 rounded-full" onClick={() => { setTab('prompt'); setGenerating(false) }} aria-label="Reset playground"><RotateCcw className="size-4" /></Button>
+      <Button type="button" variant="ghost" size="icon" className="size-9 rounded-full" onClick={() => setFullscreen((value) => !value)} aria-label={fullscreen ? 'Exit fullscreen' : 'Open fullscreen'}>{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</Button>
+    </div>
+    <div className={cn('grid lg:h-[34rem]', hasFile && previewOpen && 'lg:grid-cols-2', fullscreen && 'min-h-0 flex-1 overflow-hidden lg:h-auto')}>
+      <div className="flex min-h-0 flex-col border-b border-border/70 lg:border-r lg:border-b-0">
+        <div className="flex border-b border-border/70 bg-muted/20" role="tablist"><button type="button" role="tab" aria-selected={tab === 'prompt'} onClick={() => setTab('prompt')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'prompt' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Prompt</button><button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'chat' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Chat</button></div>
+        <div className={cn('min-h-80 flex-1 overflow-y-auto px-4 py-5', tab === 'chat' && 'bg-muted/25')}>
+          {tab === 'prompt' ? <pre className="mx-auto max-w-2xl whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground">{block.prompt}</pre> : <div className="mx-auto flex max-w-2xl flex-col gap-5">
+            <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div></div>
+            {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="whitespace-pre-wrap text-[15px] leading-7 text-foreground">{renderLinkedText(block.answer, 'playground-chat')}</div>{block.previewUrl ? <a href={block.previewUrl} target="_blank" rel="noopener noreferrer" className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div>}
+          </div>}
+        </div>
+        {tab === 'prompt' && block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="mx-4 mb-4 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"><Paperclip className="size-4 text-primary" aria-hidden /><span className="min-w-0 flex-1 truncate">{block.documentLabel || 'Input document'}</span><span className="text-xs font-semibold text-primary">View</span><ExternalLink className="size-4 text-muted-foreground" aria-hidden /></a> : null}
+        <div className="flex justify-end gap-2 border-t border-border/70 px-4 py-3"><Button type="button" variant="ghost" size="sm" onClick={() => void copyPrompt()} className="gap-2">{copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}{copied ? 'Copied' : 'Copy'}</Button><Button type="button" size="sm" disabled={generating} onClick={() => void runPlayground()} className="gap-2"><Sparkles className={cn('size-4', generating && 'animate-pulse')} />{generating ? 'Working…' : tab === 'chat' ? 'Regenerate' : 'Try it'}</Button></div>
+      </div>
+      {hasFile && previewOpen ? <div className="flex min-h-0 flex-col bg-muted/15">
+        <div className="flex h-11 shrink-0 items-center border-b border-border/70 px-4"><p className="flex-1 text-sm font-semibold">Preview</p>{previewUrl ? <a href={previewUrl} target="_blank" rel="noopener noreferrer" aria-label="Open preview in new tab" className="mr-2 text-muted-foreground transition-colors hover:text-primary"><ExternalLink className="size-4" /></a> : null}<button type="button" onClick={() => setPreviewOpen(false)} aria-label="Collapse preview" className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-primary"><PanelRightClose className="size-4" /></button></div>
+        <div className="min-h-80 flex-1 overflow-hidden">{previewUrl ? (/(?:\.png|\.jpe?g|\.webp|\.gif)(?:\?|$)/i.test(previewUrl) ? <div className="flex size-full items-center justify-center p-4"><img src={previewUrl} alt={previewLabel} className="max-h-full max-w-full object-contain" /></div> : <iframe title={previewLabel} src={previewUrl} className="size-full min-h-80 border-0 bg-white" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads" />) : <div className="flex size-full min-h-80 flex-col items-center justify-center px-6 text-center text-muted-foreground"><Paperclip className="mb-3 size-7 text-primary/50" /><p className="text-sm">A file preview appears here when the exercise uses an input or generated file.</p></div>}</div>
+      </div> : hasFile ? <button type="button" onClick={() => setPreviewOpen(true)} aria-label="Open preview" className="absolute right-5 mt-3 flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:text-primary"><PanelRightOpen className="size-4" /></button> : null}
+    </div>
+  </section>
 }

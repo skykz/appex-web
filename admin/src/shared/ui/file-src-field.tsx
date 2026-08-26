@@ -83,7 +83,7 @@ export function FileSrcField({
               ref={fileInputRef}
               type="file"
               className="sr-only"
-              accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,application/pdf,text/plain,text/markdown,application/json,text/csv"
+              accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.html,.htm,.png,.jpg,.jpeg,.webp,.gif,application/pdf,text/plain,text/markdown,application/json,text/csv,text/html,image/png,image/jpeg,image/webp,image/gif"
               onChange={onPickFile}
             />
             <Button
@@ -113,7 +113,7 @@ export function FileSrcField({
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            PDF, Word, TXT, Markdown, CSV, or JSON — up to 20 MB. Learners download and use in Claude.
+            PDF, Word, TXT, Markdown, CSV, JSON, HTML, or image — up to 20 MB.
           </p>
         )}
       </div>

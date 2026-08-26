@@ -34,6 +34,12 @@ export function renderInlineText(text: string, keyPrefix = 'inline-text'): React
       return
     }
 
+    if (segment.kind === 'highlight') {
+      const colors = { yellow: 'bg-yellow-200', green: 'bg-emerald-200', blue: 'bg-sky-200', pink: 'bg-pink-200', purple: 'bg-violet-200' }
+      nodes.push(<mark key={key} className={`rounded px-1 py-0.5 text-zinc-950 ${colors[segment.color]}`}>{segment.value}</mark>)
+      return
+    }
+
     nodes.push(
       <a
         key={key}

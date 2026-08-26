@@ -21,7 +21,7 @@ export function LessonImageBlock({ src, alt = '' }: LessonImageBlockProps) {
 
   return (
     <>
-      <div className="mt-4 overflow-hidden rounded-2xl bg-muted/40">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-border/80 bg-muted/40 p-1.5 shadow-sm ring-1 ring-black/5 dark:ring-white/10">
         {errored ? (
           <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 text-muted-foreground/60">
             <ImageOff className="size-8" aria-hidden />
@@ -31,7 +31,7 @@ export function LessonImageBlock({ src, alt = '' }: LessonImageBlockProps) {
           <button
             type="button"
             className={cn(
-              'relative block w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+              'relative block w-full overflow-hidden rounded-xl cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
               !loaded && 'min-h-40'
             )}
             onClick={() => setOpen(true)}

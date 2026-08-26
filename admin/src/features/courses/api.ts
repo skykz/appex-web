@@ -81,6 +81,12 @@ export interface ImportedModuleDraft {
   lessons: ImportedLessonDraft[]
 }
 
+export interface GeneratedPlaygroundDraft {
+  answer: string
+  previewUrl?: string
+  previewLabel?: string
+}
+
 export interface CourseDetail extends Course {
   modules: Array<Module & { lessons: Lesson[] }>
 }
@@ -161,6 +167,13 @@ export const coursesApi = {
     contentType: string
     dataBase64: string
   }) => httpClient.post<ImportedModuleDraft>('/admin/lesson-imports/module-generate', data),
+
+  generatePlaygroundDraft: (data: {
+    prompt: string
+    lessonContext?: string
+    documentUrl?: string
+    documentLabel?: string
+  }) => httpClient.post<GeneratedPlaygroundDraft>('/admin/playground/generate', data),
 
   reorderCourses: (orderedIds: number[]) =>
     httpClient.patch<void>('/admin/courses/order', { orderedIds }),
