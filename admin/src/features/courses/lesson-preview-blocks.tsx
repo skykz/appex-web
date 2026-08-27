@@ -144,14 +144,16 @@ function CalloutPreview({
   variant,
   title,
   content,
+  collapsible,
   defaultOpen,
 }: {
   variant: 'tip' | 'note' | 'warn'
   title?: string
   content: string
+  collapsible?: boolean
   defaultOpen?: boolean
 }) {
-  const isExpandable = variant === 'tip'
+  const isExpandable = collapsible ?? variant === 'note'
   const [open, setOpen] = useState(isExpandable ? (defaultOpen ?? false) : true)
   const styles = {
     tip: { frame: 'border-emerald-200 bg-gradient-to-br from-emerald-50 to-white', rail: 'bg-emerald-500', icon: 'bg-emerald-100 text-emerald-700 ring-emerald-200', text: 'Tip', Icon: Lightbulb },
@@ -332,7 +334,7 @@ export function LessonPreviewBlocks({ blocks }: { blocks: LessonBlockLearner[] }
 
     if (block.type === 'callout') {
       elements.push(
-        <CalloutPreview key={`co-${i}`} variant={block.variant} title={block.title} content={block.content} defaultOpen={block.defaultOpen} />
+        <CalloutPreview key={`co-${i}`} variant={block.variant} title={block.title} content={block.content} collapsible={block.collapsible} defaultOpen={block.defaultOpen} />
       )
       i++
       continue

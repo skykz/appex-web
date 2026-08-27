@@ -601,7 +601,7 @@ export function CalloutBlockView({
 }: {
   block: Extract<LessonBlock, { type: 'callout' }>
 }) {
-  const collapsible = block.variant === 'tip'
+  const collapsible = block.collapsible ?? block.variant === 'note'
   const [open, setOpen] = useState(collapsible ? (block.defaultOpen ?? false) : true)
   const style = calloutStyles[block.variant]
   const Icon = style.Icon

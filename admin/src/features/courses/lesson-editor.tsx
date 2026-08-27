@@ -862,7 +862,7 @@ function BlockFields({
           <option value="warn">Warning</option>
         </Select>
         <Input placeholder="Title (optional)" {...form.register(`${base}.title` as const)} />
-        <p className="text-xs text-muted-foreground">Tips are expandable and start closed. Notes and warnings always stay open.</p>
+        <p className="text-xs text-muted-foreground">Notes are expandable and start closed. Tips and warnings always stay open.</p>
         <Controller
           control={form.control}
           name={`${base}.content` as const}
