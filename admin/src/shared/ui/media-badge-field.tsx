@@ -1,4 +1,4 @@
-import { useId, useRef, useState, type ChangeEvent } from 'react'
+import { useId, useRef, useState, type ChangeEvent, type PointerEvent } from 'react'
 import { Crop, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { readImageFileAsDataUrl } from '@shared/lib/read-image-file-as-data-url'
@@ -24,8 +24,41 @@ interface CropPosition {
   zoom: number
 }
 
+interface ImageDimensions {
+  width: number
+  height: number
+}
+
+interface CropLayout {
+  width: number
+  height: number
+  left: number
+  top: number
+}
+
 const defaultCrop: CropPosition = { horizontal: 50, vertical: 50, zoom: 1 }
 const coverAspectRatio = 16 / 10
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function getCropLayout(
+  image: ImageDimensions,
+  targetWidth: number,
+  targetHeight: number,
+  crop: CropPosition
+): CropLayout {
+  const scale = Math.max(targetWidth / image.width, targetHeight / image.height) * crop.zoom
+  const width = image.width * scale
+  const height = image.height * scale
+  return {
+    width,
+    height,
+    left: (targetWidth - width) * (crop.horizontal / 100),
+    top: (targetHeight - height) * (crop.vertical / 100),
+  }
+}
 
 function loadImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -40,11 +73,12 @@ async function createCroppedCover(source: string, crop: CropPosition): Promise<s
   const image = await loadImage(source)
   const width = 1600
   const height = Math.round(width / coverAspectRatio)
-  const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight) * crop.zoom
-  const drawnWidth = image.naturalWidth * scale
-  const drawnHeight = image.naturalHeight * scale
-  const offsetX = (width - drawnWidth) * (crop.horizontal / 100)
-  const offsetY = (height - drawnHeight) * (crop.vertical / 100)
+  const layout = getCropLayout(
+    { width: image.naturalWidth, height: image.naturalHeight },
+    width,
+    height,
+    crop
+  )
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -53,7 +87,7 @@ async function createCroppedCover(source: string, crop: CropPosition): Promise<s
 
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, width, height)
-  context.drawImage(image, offsetX, offsetY, drawnWidth, drawnHeight)
+  context.drawImage(image, layout.left, layout.top, layout.width, layout.height)
   return canvas.toDataURL('image/jpeg', 0.92)
 }
 
@@ -71,9 +105,16 @@ export function MediaBadgeField({
 }: MediaBadgeFieldProps) {
   const id = useId()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cropPreviewRef = useRef<HTMLDivElement>(null)
+  const dragStartRef = useRef<{ x: number; y: number; crop: CropPosition } | null>(null)
   const [cropSource, setCropSource] = useState<string | null>(null)
+  const [cropImage, setCropImage] = useState<ImageDimensions | null>(null)
   const [crop, setCrop] = useState<CropPosition>(defaultCrop)
   const [isCropping, setIsCropping] = useState(false)
+
+  const previewLayout = cropImage
+    ? getCropLayout(cropImage, coverAspectRatio, 1, crop)
+    : null
 
   async function onPickFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
@@ -83,6 +124,7 @@ export function MediaBadgeField({
     try {
       const dataUrl = await readImageFileAsDataUrl(file)
       setCropSource(dataUrl)
+      setCropImage(null)
       setCrop(defaultCrop)
     } catch (uploadError) {
       toast.error(uploadError instanceof Error ? uploadError.message : 'Could not read image')
@@ -100,6 +142,33 @@ export function MediaBadgeField({
     } finally {
       setIsCropping(false)
     }
+  }
+
+  function stopDragging() {
+    dragStartRef.current = null
+  }
+
+  function startDragging(event: PointerEvent<HTMLDivElement>) {
+    if (!previewLayout || !cropPreviewRef.current) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    dragStartRef.current = { x: event.clientX, y: event.clientY, crop }
+  }
+
+  function dragImage(event: PointerEvent<HTMLDivElement>) {
+    const dragStart = dragStartRef.current
+    const preview = cropPreviewRef.current
+    if (!dragStart || !preview || !previewLayout) return
+
+    const rect = preview.getBoundingClientRect()
+    const horizontalOverflow = Math.max(0, (previewLayout.width / coverAspectRatio - 1) * rect.width)
+    const verticalOverflow = Math.max(0, (previewLayout.height - 1) * rect.height)
+    const horizontal = horizontalOverflow
+      ? clamp(dragStart.crop.horizontal - ((event.clientX - dragStart.x) / horizontalOverflow) * 100, 0, 100)
+      : 50
+    const vertical = verticalOverflow
+      ? clamp(dragStart.crop.vertical - ((event.clientY - dragStart.y) / verticalOverflow) * 100, 0, 100)
+      : 50
+    setCrop((current) => ({ ...current, horizontal, vertical }))
   }
 
   return (
@@ -148,21 +217,52 @@ export function MediaBadgeField({
 
           {cropSource ? (
             <>
-              <div className="relative aspect-[16/10] overflow-hidden rounded-xl border border-border/70 bg-muted/30">
+              <div
+                ref={cropPreviewRef}
+                className={cn(
+                  'relative aspect-[16/10] touch-none overflow-hidden rounded-xl border border-border/70 bg-muted/30',
+                  previewLayout ? 'cursor-grab active:cursor-grabbing' : 'cursor-wait'
+                )}
+                onPointerDown={startDragging}
+                onPointerMove={dragImage}
+                onPointerUp={stopDragging}
+                onPointerCancel={stopDragging}
+              >
                 <img
                   src={cropSource}
-                  alt="Crop preview"
-                  className="h-full w-full object-cover transition-transform duration-150"
-                  style={{
-                    objectPosition: `${crop.horizontal}% ${crop.vertical}%`,
-                    transform: `scale(${crop.zoom})`,
-                  }}
+                  alt="Move image to select course cover"
+                  draggable={false}
+                  onLoad={(event) => setCropImage({
+                    width: event.currentTarget.naturalWidth,
+                    height: event.currentTarget.naturalHeight,
+                  })}
+                  className={cn(
+                    'pointer-events-none absolute max-w-none select-none',
+                    previewLayout ? 'cursor-grab' : 'opacity-0'
+                  )}
+                  style={previewLayout ? {
+                    width: `${(previewLayout.width / coverAspectRatio) * 100}%`,
+                    height: `${previewLayout.height * 100}%`,
+                    left: `${(previewLayout.left / coverAspectRatio) * 100}%`,
+                    top: `${previewLayout.top * 100}%`,
+                  } : undefined}
                 />
-                <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/70" />
+                <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">
+                  {Array.from({ length: 9 }, (_, index) => (
+                    <span key={index} className="border border-white/25" />
+                  ))}
+                </div>
+                <div className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-inset ring-white/80" />
+                <p className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-foreground/75 px-3 py-1.5 text-xs font-medium text-background shadow-sm">
+                  Drag image to choose the cover area
+                </p>
               </div>
 
               <div className="space-y-4 rounded-xl border border-border/60 bg-muted/20 p-4">
-                <Crop className="size-4 text-primary" aria-hidden />
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Crop className="size-4 text-primary" aria-hidden />
+                  Fine-tune the selected area
+                </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs">
                     <Label htmlFor={`${id}-zoom`}>Zoom</Label>
