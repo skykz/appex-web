@@ -5,16 +5,17 @@ import {
   SkillCategoryTabs,
   SkillSection,
   SkillsComingSoonSection,
+  SkillsFeaturedPanel,
   SkillsHero,
   SkillsOnboardingDialog,
   skillsApi,
   categorySectionCopy,
-  skillCategories,
   type SkillListItem,
   type SkillNavTab,
 } from '@features/skills'
 import { Skeleton } from '@shared/ui'
 
+const CHALLENGE_CATEGORY_SLUG = 'challenges'
 const CHALLENGE_SECTION_ID = 'challenge'
 
 /**
@@ -44,30 +45,32 @@ export default function SkillsPage() {
     queryKey: ['skills', 'all'],
     queryFn: () => skillsApi.list('all'),
   })
-
-  const featuredSkill = skills[0] ?? null
-  const remainingSkills = featuredSkill ? skills.slice(1) : skills
-
-  const categoriesWithSkills = useMemo(() => {
-    const slugs = new Set(remainingSkills.map((skill) => skill.category))
-    return skillCategories
-      .filter((category) => category.value !== 'all' && slugs.has(category.value))
-      .map((category) => ({ slug: category.value, label: category.label }))
-  }, [remainingSkills])
+  const { data: categories = [] } = useQuery({
+    queryKey: ['skill-categories'],
+    queryFn: () => skillsApi.listCategories(),
+  })
 
   const skillsByCategory = useMemo(() => {
     const grouped = new Map<string, SkillListItem[]>()
-    for (const skill of remainingSkills) {
+    for (const skill of skills) {
       const list = grouped.get(skill.category) ?? []
       list.push(skill)
       grouped.set(skill.category, list)
     }
     return grouped
-  }, [remainingSkills])
+  }, [skills])
+
+  const challengeSkills = skillsByCategory.get(CHALLENGE_CATEGORY_SLUG) ?? []
+
+  const categoriesWithSkills = useMemo(() => {
+    return categories
+      .filter((category) => category.slug !== CHALLENGE_CATEGORY_SLUG && skillsByCategory.has(category.slug))
+      .map((category) => ({ slug: category.slug, label: category.label }))
+  }, [categories, skillsByCategory])
 
   const tabs = useMemo(
-    () => buildSectionTabs(categoriesWithSkills, !!featuredSkill),
-    [categoriesWithSkills, featuredSkill, skills.length]
+    () => buildSectionTabs(categoriesWithSkills, challengeSkills.length > 0),
+    [categoriesWithSkills, challengeSkills.length]
   )
 
   useEffect(() => {
@@ -165,14 +168,19 @@ export default function SkillsPage() {
               <p className="text-sm text-muted-foreground">No courses available yet.</p>
             </div>
           ) : (
-            <div className="space-y-2 pb-10">
-              {featuredSkill ? (
+            <div className="space-y-10 pb-10">
+              <SkillsFeaturedPanel skills={skills} />
+              {challengeSkills.length > 0 ? (
                 <SkillSection
                   id={CHALLENGE_SECTION_ID}
                   title="Challenge"
                   description="Short, focused challenges to build momentum and learn fast."
                 >
-                  <SkillCard skill={featuredSkill} featured />
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {challengeSkills.map((skill) => (
+                      <SkillCard key={skill.id} skill={skill} />
+                    ))}
+                  </div>
                 </SkillSection>
               ) : null}
 
@@ -187,7 +195,7 @@ export default function SkillsPage() {
                     title={category.label}
                     description={categorySectionCopy[category.slug]}
                   >
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                       {items.map((skill) => (
                         <SkillCard key={skill.id} skill={skill} />
                       ))}

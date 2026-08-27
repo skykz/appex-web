@@ -7,6 +7,7 @@ interface EmojiOrImageBadgeProps {
   value: string
   frameClassName?: string
   emojiClassName?: string
+  imageClassName?: string
 }
 
 /**
@@ -18,6 +19,7 @@ export function EmojiOrImageBadge({
   value,
   frameClassName,
   emojiClassName,
+  imageClassName,
 }: EmojiOrImageBadgeProps) {
   const v = (value || '').trim()
   const [loaded, setLoaded] = useState(false)
@@ -47,6 +49,7 @@ export function EmojiOrImageBadge({
             onError={() => setErrored(true)}
             className={cn(
               'h-full w-full object-cover transition-opacity duration-300',
+              imageClassName,
               loaded ? 'opacity-100' : 'opacity-0'
             )}
           />

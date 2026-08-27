@@ -205,6 +205,14 @@ export async function updateCourse(
     const body = courseUpdateSchema.parse(req.body)
     if (body.category) await ensureCategoryExists(body.category)
 
+    const { data: existingCourse, error: existingCourseError } = await supabaseAdmin
+      .from('skills')
+      .select('is_visible')
+      .eq('id', id)
+      .maybeSingle()
+    if (existingCourseError) throw new AppError(500, existingCourseError.message)
+    if (!existingCourse) throw new AppError(404, 'Course not found')
+
     const { data, error } = await supabaseAdmin
       .from('skills')
       .update(body)
@@ -213,6 +221,25 @@ export async function updateCourse(
       .maybeSingle()
     if (error) throw new AppError(500, error.message)
     if (!data) throw new AppError(404, 'Course not found')
+
+    if (body.is_visible === true && !existingCourse.is_visible) {
+      const { data: modules, error: modulesError } = await supabaseAdmin
+        .from('modules')
+        .update({ is_visible: true })
+        .eq('skill_id', id)
+        .select('id')
+      if (modulesError) throw new AppError(500, modulesError.message)
+
+      const moduleIds = (modules ?? []).map((module) => module.id)
+      if (moduleIds.length > 0) {
+        const { error: lessonsError } = await supabaseAdmin
+          .from('lessons')
+          .update({ is_visible: true })
+          .in('module_id', moduleIds)
+        if (lessonsError) throw new AppError(500, lessonsError.message)
+      }
+    }
+
     res.json(data)
   } catch (err) {
     next(err)
@@ -289,6 +316,15 @@ export async function updateModule(
   try {
     const id = intParam('id', req.params.id)
     const body = moduleUpdateSchema.parse(req.body)
+
+    const { data: existingModule, error: existingModuleError } = await supabaseAdmin
+      .from('modules')
+      .select('is_visible')
+      .eq('id', id)
+      .maybeSingle()
+    if (existingModuleError) throw new AppError(500, existingModuleError.message)
+    if (!existingModule) throw new AppError(404, 'Module not found')
+
     const { data, error } = await supabaseAdmin
       .from('modules')
       .update(body)
@@ -297,6 +333,15 @@ export async function updateModule(
       .maybeSingle()
     if (error) throw new AppError(500, error.message)
     if (!data) throw new AppError(404, 'Module not found')
+
+    if (body.is_visible === true && !existingModule.is_visible) {
+      const { error: lessonsError } = await supabaseAdmin
+        .from('lessons')
+        .update({ is_visible: true })
+        .eq('module_id', id)
+      if (lessonsError) throw new AppError(500, lessonsError.message)
+    }
+
     res.json(data)
   } catch (err) {
     next(err)

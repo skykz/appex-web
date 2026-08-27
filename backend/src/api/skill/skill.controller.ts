@@ -6,6 +6,25 @@ import { getFreeSkillId, hasAccess } from '../../services/access.service.js'
 import { getCertificate, mintCertificate } from '../../services/certificate.service.js'
 import { dashboardLog } from '../../lib/logger.js'
 
+/** Lists the visible course categories used by the learner catalog. */
+export async function listSkillCategories(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('categories')
+      .select('slug, label, sort_order')
+      .eq('is_visible', true)
+      .order('sort_order', { ascending: true })
+    if (error) throw new AppError(500, error.message)
+    res.json(data ?? [])
+  } catch (err) {
+    next(err)
+  }
+}
+
 export async function listSkills(
   req: Request,
   res: Response,
