@@ -5,6 +5,33 @@ import { AppError } from '../utils/error-handler.js'
 export const LESSON_ASSETS_BUCKET = 'lesson-assets'
 export const MAX_LESSON_ASSET_BYTES = 20 * 1024 * 1024
 
+const contentTypesByExtension: Record<string, string> = {
+  csv: 'text/csv',
+  gif: 'image/gif',
+  htm: 'text/html',
+  html: 'text/html',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  json: 'application/json',
+  md: 'text/markdown',
+  pdf: 'application/pdf',
+  png: 'image/png',
+  txt: 'text/plain',
+  webp: 'image/webp',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+}
+
+/** Uses the filename as a reliable fallback when browsers omit a file MIME type. */
+export function lessonAssetContentType(fileName: string, submittedContentType: string): string {
+  const extension = fileName.trim().split('.').pop()?.toLowerCase()
+  return (extension && contentTypesByExtension[extension]) || submittedContentType
+}
+
 /**
  * Produces a storage-safe filename while preserving the original extension when possible.
  */
@@ -30,10 +57,11 @@ export async function uploadLessonAssetFile(args: {
   }
 
   const path = `files/${Date.now()}-${randomUUID()}-${safeLessonAssetFileName(args.fileName)}`
+  const contentType = lessonAssetContentType(args.fileName, args.contentType)
   const { error } = await supabaseAdmin.storage
     .from(LESSON_ASSETS_BUCKET)
     .upload(path, args.data, {
-      contentType: args.contentType,
+      contentType,
       upsert: false,
     })
 

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { LessonBlockLearner } from '@appex/lesson-schema'
 import { LessonFileDownloadCard } from '@shared/ui/lesson-file-download-card'
 import { LessonLinkCard } from '@shared/ui/lesson-link-card'
@@ -473,6 +473,46 @@ function GuidePreview({ block }: { block: Extract<LessonBlockLearner, { type: 'g
   </section>
 }
 
+function fileExtension(url: string): string {
+  try {
+    return new URL(url).pathname.split('.').pop()?.toLowerCase() ?? ''
+  } catch {
+    return url.split('?')[0].split('.').pop()?.toLowerCase() ?? ''
+  }
+}
+
+function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
+  const extension = fileExtension(url)
+  const isImage = ['gif', 'jpeg', 'jpg', 'png', 'webp'].includes(extension)
+  const isHtml = extension === 'html' || extension === 'htm'
+  const isOfficeDocument = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(extension)
+  const [html, setHtml] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isHtml) return
+    let active = true
+    void fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error('Could not load HTML preview')
+        return response.text()
+      })
+      .then((source) => active && setHtml(source))
+      .catch(() => active && setHtml(null))
+    return () => {
+      active = false
+    }
+  }, [isHtml, url])
+
+  if (isImage) {
+    return <div className="flex size-full items-center justify-center p-4"><img src={url} alt={label} className="max-h-full max-w-full object-contain" /></div>
+  }
+
+  const source = isOfficeDocument
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+    : url
+  return <iframe title={label} src={isHtml && html ? undefined : source} srcDoc={isHtml && html ? html : undefined} className="size-full min-h-80 border-0 bg-white" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads" />
+}
+
 function PlaygroundPreview({ block }: { block: Extract<LessonBlockLearner, { type: 'playground' }> }) {
   const [tab, setTab] = useState<'prompt' | 'chat'>('prompt')
   const [fullscreen, setFullscreen] = useState(false)
@@ -509,7 +549,7 @@ function PlaygroundPreview({ block }: { block: Extract<LessonBlockLearner, { typ
       </div>
       {hasFile && previewOpen ? <div className="flex min-h-0 flex-col bg-zinc-50/50">
         <div className="flex h-11 shrink-0 items-center border-b border-zinc-200 px-4"><p className="flex-1 text-sm font-semibold">Preview</p>{previewUrl ? <a href={previewUrl} target="_blank" rel="noopener noreferrer" aria-label="Open preview in new tab" className="mr-2 text-zinc-500 hover:text-orange-600"><ExternalLink className="size-4" /></a> : null}<button type="button" onClick={() => setPreviewOpen(false)} aria-label="Collapse preview" className="flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 hover:text-orange-600"><PanelRightClose className="size-4" /></button></div>
-        <div className="min-h-80 flex-1 overflow-hidden">{previewUrl ? (/(?:\.png|\.jpe?g|\.webp|\.gif)(?:\?|$)/i.test(previewUrl) ? <div className="flex size-full items-center justify-center p-4"><img src={previewUrl} alt={previewLabel} className="max-h-full max-w-full object-contain" /></div> : <iframe title={previewLabel} src={previewUrl} className="size-full min-h-80 border-0 bg-white" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads" />) : <div className="flex size-full min-h-80 flex-col items-center justify-center px-6 text-center text-zinc-500"><Paperclip className="mb-3 size-7 text-orange-300" /><p className="max-w-xs text-sm">A file preview appears here when the exercise uses an input or generated file.</p></div>}</div>
+        <div className="min-h-80 flex-1 overflow-hidden">{previewUrl ? <PlaygroundFilePreview url={previewUrl} label={previewLabel} /> : <div className="flex size-full min-h-80 flex-col items-center justify-center px-6 text-center text-zinc-500"><Paperclip className="mb-3 size-7 text-orange-300" /><p className="max-w-xs text-sm">A file preview appears here when the exercise uses an input or generated file.</p></div>}</div>
       </div> : hasFile ? <button type="button" onClick={() => setPreviewOpen(true)} aria-label="Open preview" className="absolute right-5 mt-3 flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm hover:text-orange-600"><PanelRightOpen className="size-4" /></button> : null}
     </div>
   </section>
