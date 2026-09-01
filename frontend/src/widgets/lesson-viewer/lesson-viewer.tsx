@@ -796,8 +796,8 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
   const [promptExpanded, setPromptExpanded] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [hasRun, setHasRun] = useState(false)
-  const previewUrl = hasRun ? (block.previewUrl || block.documentUrl) : ''
-  const previewLabel = block.previewLabel || block.documentLabel || 'File preview'
+  const previewUrl = hasRun ? block.previewUrl : ''
+  const previewLabel = block.previewLabel || 'Generated output'
   const hasFile = Boolean(previewUrl)
   async function copyPrompt() {
     try { await navigator.clipboard.writeText(block.prompt); setCopied(true); window.setTimeout(() => setCopied(false), 1800) } catch { /* clipboard can be unavailable */ }
@@ -810,7 +810,7 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
     await new Promise((resolve) => window.setTimeout(resolve, 1100))
     setGenerating(false)
     setHasRun(true)
-    setPreviewOpen(Boolean(block.previewUrl || block.documentUrl))
+    setPreviewOpen(Boolean(block.previewUrl))
   }
   return <section className={cn('relative mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0', fullscreen && 'fixed inset-4 z-50 m-0 flex flex-col bg-background shadow-2xl')}>
     <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">

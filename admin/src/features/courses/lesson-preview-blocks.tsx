@@ -521,8 +521,8 @@ function PlaygroundPreview({ block }: { block: Extract<LessonBlockLearner, { typ
   const [promptExpanded, setPromptExpanded] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [hasRun, setHasRun] = useState(false)
-  const previewUrl = hasRun ? (block.previewUrl || block.documentUrl) : ''
-  const previewLabel = block.previewLabel || block.documentLabel || 'File preview'
+  const previewUrl = hasRun ? block.previewUrl : ''
+  const previewLabel = block.previewLabel || 'Generated output'
   const hasFile = Boolean(previewUrl)
   async function copyPrompt() {
     try { await navigator.clipboard.writeText(block.prompt); setCopied(true); window.setTimeout(() => setCopied(false), 1800) } catch { /* clipboard can be unavailable */ }
@@ -535,7 +535,7 @@ function PlaygroundPreview({ block }: { block: Extract<LessonBlockLearner, { typ
     await new Promise((resolve) => window.setTimeout(resolve, 1100))
     setGenerating(false)
     setHasRun(true)
-    setPreviewOpen(Boolean(block.previewUrl || block.documentUrl))
+    setPreviewOpen(Boolean(block.previewUrl))
   }
   return <section className={cn('relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm', fullscreen && 'fixed inset-4 z-[100] flex flex-col shadow-2xl')}>
     <div className="flex items-center gap-3 border-b border-zinc-200 px-4 py-3.5"><span className="flex size-9 items-center justify-center rounded-xl bg-orange-50 text-orange-600"><Sparkles className="size-[18px]" aria-hidden /></span><h3 className="min-w-0 flex-1 font-semibold text-zinc-950">{block.title || 'AI Playground'}</h3><button type="button" onClick={() => { setTab('prompt'); setGenerating(false); setHasRun(false); setPreviewOpen(false) }} aria-label="Reset playground" className="flex size-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100"><RotateCcw className="size-4" /></button><button type="button" onClick={() => setFullscreen((value) => !value)} aria-label={fullscreen ? 'Exit fullscreen' : 'Open fullscreen'} className="flex size-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100">{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</button></div>
