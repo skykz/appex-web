@@ -792,10 +792,11 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
   const [tab, setTab] = useState<'prompt' | 'chat'>('prompt')
   const [fullscreen, setFullscreen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [previewOpen, setPreviewOpen] = useState(true)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [promptExpanded, setPromptExpanded] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const previewUrl = block.previewUrl || block.documentUrl
+  const [hasRun, setHasRun] = useState(false)
+  const previewUrl = hasRun ? (block.previewUrl || block.documentUrl) : ''
   const previewLabel = block.previewLabel || block.documentLabel || 'File preview'
   const hasFile = Boolean(previewUrl)
   async function copyPrompt() {
@@ -805,19 +806,22 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
     if (generating) return
     setTab('chat')
     setGenerating(true)
+    setPreviewOpen(false)
     await new Promise((resolve) => window.setTimeout(resolve, 1100))
     setGenerating(false)
+    setHasRun(true)
+    setPreviewOpen(Boolean(block.previewUrl || block.documentUrl))
   }
   return <section className={cn('relative mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0', fullscreen && 'fixed inset-4 z-50 m-0 flex flex-col bg-background shadow-2xl')}>
     <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
       <span className="flex size-9 items-center justify-center rounded-xl bg-primary/[0.09] text-primary"><Sparkles className="size-[18px]" aria-hidden /></span>
       <h3 className="min-w-0 flex-1 font-semibold text-foreground">{block.title || 'AI Playground'}</h3>
-      <Button type="button" variant="ghost" size="icon" className="size-9 rounded-full" onClick={() => { setTab('prompt'); setGenerating(false) }} aria-label="Reset playground"><RotateCcw className="size-4" /></Button>
+      <Button type="button" variant="ghost" size="icon" className="size-9 rounded-full" onClick={() => { setTab('prompt'); setGenerating(false); setHasRun(false); setPreviewOpen(false) }} aria-label="Reset playground"><RotateCcw className="size-4" /></Button>
       <Button type="button" variant="ghost" size="icon" className="size-9 rounded-full" onClick={() => setFullscreen((value) => !value)} aria-label={fullscreen ? 'Exit fullscreen' : 'Open fullscreen'}>{fullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}</Button>
     </div>
     <div className={cn('grid lg:h-[34rem]', hasFile && previewOpen && 'lg:grid-cols-2', fullscreen && 'min-h-0 flex-1 overflow-hidden lg:h-auto')}>
       <div className="flex min-h-0 flex-col border-b border-border/70 lg:border-r lg:border-b-0">
-        <div className="flex border-b border-border/70 bg-muted/20" role="tablist"><button type="button" role="tab" aria-selected={tab === 'prompt'} onClick={() => setTab('prompt')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'prompt' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Prompt</button><button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'chat' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Chat</button></div>
+        <div className="flex border-b border-border/70 bg-muted/20" role="tablist"><button type="button" role="tab" aria-selected={tab === 'prompt'} onClick={() => setTab('prompt')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'prompt' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Prompt</button>{hasRun || generating ? <button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'chat' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Chat</button> : null}</div>
         <div className={cn('min-h-80 flex-1 overflow-y-auto px-4 py-5', tab === 'chat' && 'bg-muted/25')}>
           {tab === 'prompt' ? <pre className="mx-auto max-w-2xl whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground">{block.prompt}</pre> : <div className="mx-auto flex max-w-2xl flex-col gap-5">
             <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div></div>

@@ -83,7 +83,7 @@ export function FileSrcField({
               ref={fileInputRef}
               type="file"
               className="sr-only"
-              accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,.html,.htm,.png,.jpg,.jpeg,.webp,.gif,application/pdf,text/plain,text/markdown,application/json,text/csv,text/html,image/png,image/jpeg,image/webp,image/gif"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.json,.html,.htm,.png,.jpg,.jpeg,.webp,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/markdown,application/json,text/csv,text/html,image/png,image/jpeg,image/webp,image/gif"
               onChange={onPickFile}
             />
             <Button
@@ -113,7 +113,7 @@ export function FileSrcField({
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            PDF, Word, TXT, Markdown, CSV, JSON, HTML, or image — up to 20 MB.
+            PDF, Word, Excel, TXT, Markdown, CSV, JSON, HTML, or image — up to 20 MB.
           </p>
         )}
       </div>
