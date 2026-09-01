@@ -595,7 +595,7 @@ function renderBlocks(blocks: LessonBlock[], ctx: BlockContext) {
     }
 
     if (block.type === 'playground') {
-      elements.push(<PlaygroundBlock key={`playground-${i}`} block={block} />)
+      elements.push(<PlaygroundBlock key={`playground-${ctx.stepIndex}-${i}`} block={block} />)
       i++
       continue
     }
