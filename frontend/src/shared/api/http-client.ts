@@ -182,6 +182,12 @@ export const httpClient = {
     }
 
     if (!response.ok) {
+      // A refresh token can be revoked or expire while the app is open. Clear
+      // the stale session after the final failed request so protected screens
+      // do not keep issuing 401 requests with an unusable access token.
+      if (response.status === 401) {
+        useAuthStore.getState().logout()
+      }
       const raw = await response.text().catch(() => 'Request failed')
       throw new ApiError(response.status, messageFromErrorBody(raw))
     }

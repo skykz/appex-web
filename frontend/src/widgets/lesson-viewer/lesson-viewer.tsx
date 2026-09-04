@@ -750,26 +750,42 @@ function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
   const isImage = ['gif', 'jpeg', 'jpg', 'png', 'webp'].includes(extension)
   const isHtml = extension === 'html' || extension === 'htm'
   const isOfficeDocument = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(extension)
-  const [html, setHtml] = useState<string | null>(null)
-  const [htmlFailed, setHtmlFailed] = useState(false)
+  const isTextFile = ['csv', 'htm', 'html', 'json', 'md', 'markdown', 'txt'].includes(extension)
+  const [textContent, setTextContent] = useState<string | null>(null)
+  const [textFailed, setTextFailed] = useState(false)
 
   useEffect(() => {
-    if (!isHtml) return
+    if (!isTextFile) return
     let active = true
+    setTextContent(null)
+    setTextFailed(false)
     void fetch(url)
       .then((response) => {
-        if (!response.ok) throw new Error('Could not load HTML preview')
+        if (!response.ok) throw new Error('Could not load file preview')
         return response.text()
       })
-      .then((source) => active && setHtml(source))
-      .catch(() => active && setHtmlFailed(true))
+      .then((source) => active && setTextContent(source))
+      .catch(() => active && setTextFailed(true))
     return () => {
       active = false
     }
-  }, [isHtml, url])
+  }, [isTextFile, url])
 
   if (isImage) {
     return <div className="flex size-full items-center justify-center p-4"><img src={url} alt={label} className="max-h-full max-w-full object-contain" /></div>
+  }
+
+  if (isTextFile) {
+    if (textFailed) {
+      return <div className="flex min-h-80 items-center justify-center px-6 text-sm text-muted-foreground">This file could not be previewed.</div>
+    }
+    if (textContent === null) {
+      return <div className="flex min-h-80 items-center justify-center px-6 text-sm text-muted-foreground">Loading file preview…</div>
+    }
+    if (isHtml) {
+      return <iframe title={label} srcDoc={textContent} className="size-full min-h-80 border-0 bg-white" sandbox="allow-scripts allow-forms allow-modals allow-popups" />
+    }
+    return <pre className="size-full min-h-80 overflow-auto whitespace-pre-wrap bg-white p-4 font-mono text-sm leading-6 text-foreground">{textContent}</pre>
   }
 
   const source = isOfficeDocument
@@ -778,12 +794,10 @@ function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
   return (
     <iframe
       title={label}
-      src={isHtml && html ? undefined : source}
-      srcDoc={isHtml && html ? html : undefined}
+      src={source}
       className="size-full min-h-80 border-0 bg-white"
       sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"
     >
-      {isHtml && htmlFailed ? 'Unable to render this HTML file.' : null}
     </iframe>
   )
 }
@@ -825,7 +839,7 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
         <div className={cn('min-h-80 flex-1 overflow-y-auto px-4 py-5', tab === 'chat' && 'bg-muted/25')}>
           {tab === 'prompt' ? <pre className="mx-auto max-w-2xl whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground">{block.prompt}</pre> : <div className="mx-auto flex max-w-2xl flex-col gap-5">
             <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div></div>
-            {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="whitespace-pre-wrap text-[15px] leading-7 text-foreground">{renderLinkedText(block.answer, 'playground-chat')}</div>{block.previewUrl ? <a href={block.previewUrl} target="_blank" rel="noopener noreferrer" className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div>}
+            {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="whitespace-pre-wrap text-[15px] leading-7 text-foreground">{renderLinkedText(block.answer, 'playground-chat')}</div>{block.previewUrl ? <button type="button" onClick={() => setPreviewOpen(true)} className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-left text-foreground shadow-sm transition-colors hover:border-primary/40"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></button> : null}</div>}
           </div>}
         </div>
         {tab === 'prompt' && block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="mx-4 mb-4 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"><Paperclip className="size-4 text-primary" aria-hidden /><span className="min-w-0 flex-1 truncate">{block.documentLabel || 'Input document'}</span><span className="text-xs font-semibold text-primary">View</span><ExternalLink className="size-4 text-muted-foreground" aria-hidden /></a> : null}
