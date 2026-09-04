@@ -1,5 +1,7 @@
 import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { Check, ChevronDown, Copy, ExternalLink, FileText, Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Paperclip, RotateCcw, Sparkles, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { LessonLinkCard } from './lesson-link-card'
@@ -749,6 +751,7 @@ function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
   const extension = fileExtension(url)
   const isImage = ['gif', 'jpeg', 'jpg', 'png', 'webp'].includes(extension)
   const isHtml = extension === 'html' || extension === 'htm'
+  const isMarkdown = extension === 'md' || extension === 'markdown'
   const isOfficeDocument = ['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(extension)
   const isTextFile = ['csv', 'htm', 'html', 'json', 'md', 'markdown', 'txt'].includes(extension)
   const [textContent, setTextContent] = useState<string | null>(null)
@@ -785,6 +788,9 @@ function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
     if (isHtml) {
       return <iframe title={label} srcDoc={textContent} className="size-full min-h-80 border-0 bg-white" sandbox="allow-scripts allow-forms allow-modals allow-popups" />
     }
+    if (isMarkdown) {
+      return <article className="size-full min-h-80 overflow-auto bg-white px-6 py-5 text-[15px] leading-7 text-foreground [&_a]:text-primary [&_a]:underline [&_blockquote]:my-4 [&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-4 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_h1]:mb-4 [&_h1]:text-2xl [&_h1]:font-bold [&_h2]:mb-3 [&_h2]:mt-7 [&_h2]:text-xl [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:text-lg [&_h3]:font-semibold [&_hr]:my-6 [&_li]:ml-5 [&_li]:pl-1 [&_ol]:my-4 [&_ol]:list-decimal [&_p]:my-3 [&_pre]:my-4 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-4 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-4 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_ul]:my-4 [&_ul]:list-disc"><Markdown remarkPlugins={[remarkGfm]}>{textContent}</Markdown></article>
+    }
     return <pre className="size-full min-h-80 overflow-auto whitespace-pre-wrap bg-white p-4 font-mono text-sm leading-6 text-foreground">{textContent}</pre>
   }
 
@@ -800,6 +806,10 @@ function PlaygroundFilePreview({ url, label }: { url: string; label: string }) {
     >
     </iframe>
   )
+}
+
+function PlaygroundChatAnswer({ answer }: { answer: string }) {
+  return <div className="overflow-x-auto text-[15px] leading-7 text-foreground [&_a]:text-primary [&_a]:underline [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_h1]:mb-3 [&_h1]:text-xl [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:ml-5 [&_ol]:my-3 [&_ol]:list-decimal [&_p]:my-2 [&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:bg-muted [&_pre]:p-3 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-2 [&_th]:border [&_th]:border-border [&_th]:bg-muted [&_th]:px-3 [&_th]:py-2 [&_ul]:my-3 [&_ul]:list-disc"><Markdown remarkPlugins={[remarkGfm]}>{answer}</Markdown></div>
 }
 
 function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playground' }> }) {
@@ -839,7 +849,7 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
         <div className={cn('min-h-80 flex-1 overflow-y-auto px-4 py-5', tab === 'chat' && 'bg-muted/25')}>
           {tab === 'prompt' ? <pre className="mx-auto max-w-2xl whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground">{block.prompt}</pre> : <div className="mx-auto flex max-w-2xl flex-col gap-5">
             <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div></div>
-            {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="whitespace-pre-wrap text-[15px] leading-7 text-foreground">{renderLinkedText(block.answer, 'playground-chat')}</div>{block.previewUrl ? <button type="button" onClick={() => setPreviewOpen(true)} className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-left text-foreground shadow-sm transition-colors hover:border-primary/40"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></button> : null}</div>}
+            {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="flex items-start gap-2.5"><span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.1] text-primary"><Sparkles className="size-4" /></span><div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-border/80 bg-card px-4 py-3 shadow-sm"><PlaygroundChatAnswer answer={block.answer} /></div></div>{block.previewUrl ? <button type="button" onClick={() => setPreviewOpen(true)} className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-left text-foreground shadow-sm transition-colors hover:border-primary/40"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></button> : null}</div>}
           </div>}
         </div>
         {tab === 'prompt' && block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="mx-4 mb-4 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"><Paperclip className="size-4 text-primary" aria-hidden /><span className="min-w-0 flex-1 truncate">{block.documentLabel || 'Input document'}</span><span className="text-xs font-semibold text-primary">View</span><ExternalLink className="size-4 text-muted-foreground" aria-hidden /></a> : null}

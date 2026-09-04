@@ -267,10 +267,6 @@ function ModuleSection({
 
             const content = (
               <>
-                <EmojiOrImageBadge
-                  value={lesson.emoji}
-                  frameClassName="size-10 shrink-0 rounded-xl bg-muted/50 text-xl"
-                />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs text-muted-foreground">{lesson.label}</p>
                   <p className="text-sm font-semibold leading-tight">
