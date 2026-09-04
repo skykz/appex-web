@@ -5,6 +5,7 @@ import { ChevronRight, ChevronUp, ChevronDown, Lock, Sparkles, Download } from '
 import { cn } from '@shared/lib'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
 import { PageLoader } from '@shared/ui'
+import { isLikelyImageBadgeUrl } from '@appex/lesson-schema'
 import { skillsApi, type SkillModule } from '@features/skills'
 import { PaywallDialog } from '@features/skills/paywall-dialog'
 import { downloadCertificate, certificateToDownloadData } from '@features/skills/certificate-download'
@@ -64,6 +65,7 @@ export default function SkillDetailPage() {
     (sum, m) => sum + m.lessonCount,
     0
   )
+  const hasCourseCover = isLikelyImageBadgeUrl(skill.emoji)
 
   // The certificate is minted server-side the moment the course completes; the
   // detail response carries it. We only show the credential once it exists.
@@ -90,10 +92,23 @@ export default function SkillDetailPage() {
         </div>
 
         <div className="flex flex-col gap-8 lg:flex-row">
-          <div className="min-w-0 flex-1">
+          <div className="w-full shrink-0 lg:w-[440px] xl:w-[480px]">
             <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-              <div className="flex h-40 items-center justify-center bg-linear-to-br from-muted/60 to-muted/20 sm:h-56">
-                <EmojiOrImageBadge value={skill.emoji} frameClassName="h-24 w-24 text-6xl sm:h-32 sm:w-32 sm:text-8xl" />
+              <div className="relative flex h-52 items-center justify-center overflow-hidden bg-muted/35 sm:h-60">
+                {hasCourseCover ? (
+                  <div className="h-[calc(100%-1.5rem)] aspect-[16/10] max-w-[calc(100%-1.5rem)] rounded-[18px] bg-white p-1.5 shadow-sm sm:h-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)]">
+                    <img
+                      src={skill.emoji}
+                      alt=""
+                      className="h-full w-full rounded-[13px] object-cover"
+                    />
+                  </div>
+                ) : (
+                  <EmojiOrImageBadge
+                    value={skill.emoji}
+                    frameClassName="h-24 w-24 text-6xl sm:h-32 sm:w-32 sm:text-8xl"
+                  />
+                )}
               </div>
 
               <div className="p-5">
@@ -203,7 +218,7 @@ export default function SkillDetailPage() {
             </div>
           </div>
 
-          <div className="w-full shrink-0 lg:w-80 xl:w-96">
+          <div className="min-w-0 flex-1">
             {skill.modules.map((mod) => (
               <ModuleSection key={mod.id} module={mod} skillId={skill.id} />
             ))}

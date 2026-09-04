@@ -34,7 +34,6 @@ import { Label } from '@shared/ui/label'
 import { Select } from '@shared/ui/select'
 import { DialogDescription, DialogHeader, DialogTitle } from '@shared/ui/dialog'
 import { ApiError } from '@shared/api/http-client'
-import { MediaBadgeField } from '@shared/ui/media-badge-field'
 import { ImageSrcField } from '@shared/ui/image-src-field'
 import { FileSrcField } from '@shared/ui/file-src-field'
 import { LessonPreviewDialog } from './lesson-preview-dialog'
@@ -89,7 +88,6 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
     defaultValues: {
       label: initial?.label ?? draft?.label ?? 'Lesson 1',
       title: initial?.title ?? draft?.title ?? '',
-      emoji: initial?.emoji ?? draft?.emoji ?? '📘',
       is_visible: initial?.is_visible ?? draft?.is_visible ?? false,
       order: initial?.order ?? 0,
       steps: initial
@@ -107,7 +105,6 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
 
   const watchedLabel = useWatch({ control: form.control, name: 'label' })
   const watchedTitle = useWatch({ control: form.control, name: 'title' })
-  const watchedEmoji = useWatch({ control: form.control, name: 'emoji' })
   const watchedSteps = useWatch({ control: form.control, name: 'steps' })
 
   const mutation = useMutation({
@@ -115,7 +112,6 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
       const payload = {
         label: values.label,
         title: values.title,
-        emoji: values.emoji,
         is_visible: values.is_visible,
         order: values.order,
         content: values.steps as LessonStep[],
@@ -228,20 +224,6 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
               ) : null}
             </div>
           </div>
-          <Controller
-            name="emoji"
-            control={form.control}
-            render={({ field }) => (
-              <MediaBadgeField
-                label="Lesson badge"
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                error={form.formState.errors.emoji?.message}
-                helperText="Emoji, image URL, path, or upload — shown next to the lesson in the catalog."
-              />
-            )}
-          />
           <p className="text-xs text-muted-foreground">
             Lesson order within the module is set on the course page (move up / down).
           </p>
@@ -315,7 +297,7 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
         onOpenChange={setPreviewOpen}
         label={typeof watchedLabel === 'string' ? watchedLabel : ''}
         title={typeof watchedTitle === 'string' ? watchedTitle : ''}
-        emoji={typeof watchedEmoji === 'string' ? watchedEmoji : '📘'}
+        emoji=""
         steps={watchedSteps ?? form.getValues('steps')}
       />
     </>

@@ -377,6 +377,7 @@ export async function createLesson(
       ...req.body,
       content: migrateLegacyQuizShapes(req.body?.content),
     })
+    body.emoji = ''
 
     const { data: mod, error: mErr } = await supabaseAdmin
       .from('modules')
@@ -415,6 +416,7 @@ export async function updateLesson(
   try {
     const id = intParam('id', req.params.id)
     const raw = { ...req.body }
+    delete raw.emoji
     if (raw.content != null) raw.content = migrateLegacyQuizShapes(raw.content)
     const body = lessonUpdateSchema.parse(raw)
     const { data, error } = await supabaseAdmin

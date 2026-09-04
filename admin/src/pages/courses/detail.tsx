@@ -386,7 +386,6 @@ export function CourseDetailPage() {
                           key={l.id}
                           className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-muted/20 sm:flex-row sm:items-center sm:gap-3 sm:px-6"
                         >
-                          <EmojiOrImageBadge value={l.emoji} frameClassName="h-11 w-11 text-xl shadow-inner" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2 text-sm font-medium leading-snug">
                               <span>

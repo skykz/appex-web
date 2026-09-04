@@ -235,7 +235,7 @@ export const lessonEmoji = z.preprocess((v) => {
 export const lessonCreateSchema = z.object({
   label: z.string().min(1),
   title: z.string().min(1),
-  emoji: lessonEmoji,
+  emoji: z.string().optional().default(''),
   content: z.array(lessonStepSchema).min(1),
   is_visible: z.boolean().default(false),
   order: z.coerce.number().int().min(0).default(0),
@@ -250,7 +250,6 @@ export const lessonUpdateSchema = lessonCreateSchema.partial()
 export const lessonEditorFormSchema = z.object({
   label: z.string().min(1),
   title: z.string().min(1),
-  emoji: lessonEmoji,
   is_visible: z.boolean().default(false),
   order: z.preprocess(
     (v) => {
