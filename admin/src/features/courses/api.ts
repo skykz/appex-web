@@ -62,7 +62,7 @@ export interface Lesson {
 export interface LessonInput {
   label: string
   title: string
-  emoji: string
+  emoji?: string
   content: LessonStep[]
   is_visible?: boolean
   order?: number
