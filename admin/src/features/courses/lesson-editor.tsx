@@ -9,7 +9,7 @@ import {
   type UseFormReturn,
 } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Loader2, Plus, Trash2, ArrowUp, ArrowDown, Eye, Sparkles } from 'lucide-react'
 import {
@@ -75,11 +75,11 @@ interface Props {
   moduleId: number
   initial?: Lesson
   draft?: ImportedLessonDraft
-  onDone: () => void
+  onDone: () => Promise<void>
+  onCancel: () => void
 }
 
-export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
-  const qc = useQueryClient()
+export function LessonEditor({ moduleId, initial, draft, onDone, onCancel }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const form = useForm<LessonEditorFormValues>({
@@ -120,10 +120,9 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
         ? coursesApi.updateLesson(initial.id, payload)
         : coursesApi.createLesson(moduleId, payload)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'course'] })
+    onSuccess: async () => {
+      await onDone()
       toast.success(initial ? 'Lesson saved' : 'Lesson created')
-      onDone()
     },
     onError: (err: unknown) => {
       const msg = err instanceof ApiError ? err.message : 'Failed'
@@ -186,7 +185,7 @@ export function LessonEditor({ moduleId, initial, draft, onDone }: Props) {
                 size="sm"
                 variant="outline"
                 className="h-8 bg-background"
-                onClick={onDone}
+                onClick={onCancel}
               >
                 Cancel
               </Button>

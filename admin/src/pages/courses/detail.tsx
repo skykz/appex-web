@@ -553,7 +553,12 @@ export function CourseDetailPage() {
               moduleId={lessonEditor.moduleId}
               initial={lessonEditor.lesson}
               draft={lessonEditor.draft}
-              onDone={() => setLessonEditor(null)}
+              onDone={async () => {
+                await qc.invalidateQueries({ queryKey: ['admin', 'course', courseId] })
+                await qc.invalidateQueries({ queryKey: ['admin', 'courses'] })
+                setLessonEditor(null)
+              }}
+              onCancel={() => setLessonEditor(null)}
             />
           ) : null}
         </DialogContent>

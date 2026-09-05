@@ -70,3 +70,23 @@ export async function uploadLessonAssetFile(args: {
   const { data } = supabaseAdmin.storage.from(LESSON_ASSETS_BUCKET).getPublicUrl(path)
   return data.publicUrl
 }
+
+export async function createLessonAssetUploadUrl(args: {
+  fileName: string
+  contentType: string
+  size: number
+}): Promise<{ signedUrl: string; url: string }> {
+  if (args.size > MAX_LESSON_ASSET_BYTES) {
+    throw new AppError(400, 'File is too large. Maximum size is 20 MB.')
+  }
+
+  const path = `files/${Date.now()}-${randomUUID()}-${safeLessonAssetFileName(args.fileName)}`
+  const { data: signed, error } = await supabaseAdmin.storage
+    .from(LESSON_ASSETS_BUCKET)
+    .createSignedUploadUrl(path)
+
+  if (error || !signed) throw new AppError(500, error?.message ?? 'Could not prepare file upload.')
+
+  const { data } = supabaseAdmin.storage.from(LESSON_ASSETS_BUCKET).getPublicUrl(path)
+  return { signedUrl: signed.signedUrl, url: data.publicUrl }
+}
