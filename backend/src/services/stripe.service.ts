@@ -30,10 +30,29 @@ export async function getOrCreateCustomer(
     .eq('user_id', userId)
     .maybeSingle()
 
-  if (selectError) throw new AppError(500, selectError.message)
-  if (existing?.stripe_customer_id) return existing.stripe_customer_id
-
   const stripe = getStripe()
+  if (selectError) throw new AppError(500, selectError.message)
+  if (existing?.stripe_customer_id) {
+    try {
+      const customer = await stripe.customers.retrieve(existing.stripe_customer_id)
+      if (!customer.deleted) return existing.stripe_customer_id
+    } catch (err) {
+      if (!isMissingStripeCustomer(err)) throw err
+    }
+
+    const customer = await stripe.customers.create({
+      email,
+      name,
+      metadata: { user_id: userId },
+    })
+    const { error: updateError } = await supabaseAdmin
+      .from('stripe_customers')
+      .update({ stripe_customer_id: customer.id })
+      .eq('user_id', userId)
+    if (updateError) throw new AppError(500, updateError.message)
+    return customer.id
+  }
+
   const customer = await stripe.customers.create({
     email,
     name,
@@ -56,6 +75,15 @@ export async function getOrCreateCustomer(
   }
 
   return customer.id
+}
+
+function isMissingStripeCustomer(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: unknown }).code === 'resource_missing'
+  )
 }
 
 /** Supported subscription billing cadences (maps to Stripe price ids in env). */
