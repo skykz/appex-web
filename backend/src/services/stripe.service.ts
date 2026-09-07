@@ -89,6 +89,32 @@ export function resolvePriceId(interval: BillingInterval): string {
 }
 
 /**
+ * Entry plans ("1 Day", "1 Week") advertise "$X today, then $38.95 every 4
+ * weeks": the subscription is created on the 4-WEEK price and the reduced first
+ * payment comes from a one-off coupon, so Stripe's own checkout page states the
+ * real renewal terms.
+ *
+ * Kept separate from resolvePriceId because that function answers a different
+ * question — "which price represents this plan" — and is also used to read a
+ * plan's own amount. This one answers "which price does a NEW subscription for
+ * this plan get created on".
+ */
+const ENTRY_INTERVALS: BillingInterval[] = ['day_1', 'week_1']
+
+export function resolveCheckoutPriceId(interval: BillingInterval): {
+  priceId: string
+  isEntryOn4WeekPrice: boolean
+} {
+  const priceId = resolvePriceId(interval)
+  // Falls back to the plan's own price when the 4-week price is unset, rather
+  // than failing the checkout outright.
+  if (ENTRY_INTERVALS.includes(interval) && env.STRIPE_PRICE_4WEEK) {
+    return { priceId: env.STRIPE_PRICE_4WEEK, isEntryOn4WeekPrice: true }
+  }
+  return { priceId, isEntryOn4WeekPrice: false }
+}
+
+/**
  * Inverse of resolvePriceId — used when syncing data back from Stripe.
  *
  * Deliberately NOT a perfect inverse: `day_1` (and a `week_1` sold under the
@@ -244,7 +270,11 @@ export async function createCheckoutSession(
     input.userEmail,
     input.userName
   )
-  const priceId = resolvePriceId(input.interval)
+  // Entry plans must be created on the 4-week price — see
+  // resolveCheckoutPriceId. Without this a "1 Week" checkout lands on the
+  // $17.77/week price, where the intro coupon (sized against $38.95) wipes the
+  // first payment to $0.00 and then renews weekly instead of every 4 weeks.
+  const { priceId } = resolveCheckoutPriceId(input.interval)
 
   const discounts: Array<{ coupon: string }> = []
   if (input.applyIntro) {
@@ -352,7 +382,10 @@ export async function createLandingCheckoutSession(
   const email = normalizeEmail(input.email)
   const landingUrl = (env.USA_LANDING_URL ?? env.APP_URL).replace(/\/+$/, '')
   const stripe = getStripe()
-  const priceId = resolvePriceId(input.interval)
+  // Validate the plan is configured before creating a customer or user row —
+  // throws 503 when its price is missing. The price the subscription is
+  // actually created on is resolved below (entry plans use the 4-week price).
+  resolvePriceId(input.interval)
 
   const existingUser = await findUserByEmail(email)
   if (existingUser) {
@@ -426,12 +459,9 @@ export async function createLandingCheckoutSession(
   // checkout page truthful and removes a conversion step that could fail and
   // leave someone renewing weekly forever. day_1 is built the same way from the
   // start, which is also why it has no price of its own.
-  const ENTRY_INTERVALS: BillingInterval[] = ['day_1', 'week_1']
-  const isEntryOn4WeekPrice =
-    ENTRY_INTERVALS.includes(input.interval) && Boolean(env.STRIPE_PRICE_4WEEK)
-  const checkoutPriceId = isEntryOn4WeekPrice
-    ? (env.STRIPE_PRICE_4WEEK as string)
-    : priceId
+  const { priceId: checkoutPriceId, isEntryOn4WeekPrice } = resolveCheckoutPriceId(
+    input.interval
+  )
 
   // The coupon amounts are computed against the price the subscription is
   // created on, so an entry checkout billed on the 4-week price needs the

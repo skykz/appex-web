@@ -8,6 +8,7 @@ import {
   createCheckoutSession as createCheckoutSessionSvc,
   createPortalSession as createPortalSessionSvc,
   introCouponIdForInterval,
+  resolveCheckoutPriceId,
   resolvePriceId,
   syncCreditsForSubscription,
   upsertSubscriptionFromStripe,
@@ -59,7 +60,7 @@ export async function listPlans(_req: Request, res: Response, next: NextFunction
     const plans = await Promise.all(
       configured.map(async (def, i) => {
         const price = prices[i]
-        const introCents = await computeIntroAmountCents(price, def.id)
+        const introCents = await computeIntroAmountCents(def.id)
         return {
           id: def.id,
           stripe_price_id: price.id,
@@ -77,18 +78,32 @@ export async function listPlans(_req: Request, res: Response, next: NextFunction
   }
 }
 
-/** Compute intro price by applying the plan's intro coupon to the renewal price. */
+/**
+ * The first payment this plan actually charges.
+ *
+ * Computed against the price the subscription is CREATED on, not the price
+ * shown as the plan's headline: entry plans ("1 Day", "1 Week") are created on
+ * the 4-week price (see resolveCheckoutPriceId), and their coupons are fixed
+ * amounts sized against that base. Applying the -$32.02 week_1 coupon to the
+ * $17.77 weekly price instead clamps to $0.00, so the settings page advertised
+ * a free first week and Stripe then charged $6.93.
+ */
 async function computeIntroAmountCents(
-  price: import('stripe').Stripe.Price,
   interval: BillingInterval
 ): Promise<number | null> {
   const couponId = introCouponIdForInterval(interval)
-  if (!couponId || !price.unit_amount) return null
+  if (!couponId) return null
   try {
     const stripe = getStripe()
-    const coupon = await stripe.coupons.retrieve(couponId)
-    if (coupon.amount_off) return Math.max(0, price.unit_amount - coupon.amount_off)
-    if (coupon.percent_off) return Math.round(price.unit_amount * (1 - coupon.percent_off / 100))
+    const { priceId } = resolveCheckoutPriceId(interval)
+    const [checkoutPrice, coupon] = await Promise.all([
+      stripe.prices.retrieve(priceId),
+      stripe.coupons.retrieve(couponId),
+    ])
+    const base = checkoutPrice.unit_amount
+    if (!base) return null
+    if (coupon.amount_off) return Math.max(0, base - coupon.amount_off)
+    if (coupon.percent_off) return Math.round(base * (1 - coupon.percent_off / 100))
     return null
   } catch {
     return null
