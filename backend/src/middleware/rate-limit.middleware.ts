@@ -65,6 +65,33 @@ export const lexiStreamLimiter = rateLimit({
 })
 
 /**
+ * Restricts admin document imports: each request sends a document to OpenAI and
+ * can upload extracted images, so a small per-admin limit protects that spend.
+ */
+export const lessonImportLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userOrIpKey,
+  message: {
+    error: 'Too many lesson imports. Please wait a minute before trying again.',
+  },
+})
+
+/** Limits billable AI draft generation in the admin lesson editor. */
+export const playgroundGenerationLimiter = rateLimit({
+  windowMs: 60_000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: userOrIpKey,
+  message: {
+    error: 'Too many Playground drafts. Please wait a minute before generating again.',
+  },
+})
+
+/**
  * Cheap per-IP gate that runs BEFORE requireAuth on the Lexi stream.
  *
  * Needed because requireAuth verifies tokens with a network call to Supabase Auth.

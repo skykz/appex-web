@@ -2,6 +2,8 @@ const URL_PATTERN = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/gi
 const BOLD_ITALIC_PATTERN = /\*""([^"\n]+)""\*/g
 const BOLD_PATTERN = /\*\*([^*\n]+)\*\*/g
 const ITALIC_PATTERN = /""([^"\n]+)""/g
+const NAMED_LINK_PATTERN = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/g
+const HIGHLIGHT_PATTERN = /==(?:(yellow|green|blue|pink|purple):)?([^=\n]+)==/g
 const TRAILING_PUNCTUATION_PATTERN = /[),.!?:;]+$/
 
 export type LessonInlineSegment =
@@ -9,6 +11,7 @@ export type LessonInlineSegment =
   | { kind: 'bold'; value: string }
   | { kind: 'italic'; value: string }
   | { kind: 'link'; href: string; label: string }
+  | { kind: 'highlight'; value: string; color: 'yellow' | 'green' | 'blue' | 'pink' | 'purple' }
 
 /**
  * Strips trailing punctuation from a detected URL so commas stay outside the link.
@@ -56,6 +59,32 @@ function parseUrlSegments(text: string): LessonInlineSegment[] {
   return segments
 }
 
+function parseNamedLinks(text: string): LessonInlineSegment[] {
+  const segments: LessonInlineSegment[] = []
+  let lastIndex = 0
+  for (const match of text.matchAll(NAMED_LINK_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) segments.push(...parseUrlSegments(text.slice(lastIndex, index)))
+    segments.push({ kind: 'link', label: match[1] ?? '', href: match[2] ?? '' })
+    lastIndex = index + match[0].length
+  }
+  if (lastIndex < text.length) segments.push(...parseUrlSegments(text.slice(lastIndex)))
+  return segments.length ? segments : parseUrlSegments(text)
+}
+
+function parseHighlights(text: string): LessonInlineSegment[] {
+  const segments: LessonInlineSegment[] = []
+  let lastIndex = 0
+  for (const match of text.matchAll(HIGHLIGHT_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) segments.push(...parseNamedLinks(text.slice(lastIndex, index)))
+    segments.push({ kind: 'highlight', color: (match[1] as 'yellow' | 'green' | 'blue' | 'pink' | 'purple' | undefined) ?? 'yellow', value: match[2] ?? '' })
+    lastIndex = index + match[0].length
+  }
+  if (lastIndex < text.length) segments.push(...parseNamedLinks(text.slice(lastIndex)))
+  return segments.length ? segments : parseNamedLinks(text)
+}
+
 /**
  * Parses `""italic""` spans inside a plain text chunk.
  */
@@ -69,7 +98,7 @@ function parseItalicSegments(text: string): LessonInlineSegment[] {
     const index = match.index ?? 0
 
     if (index > lastIndex) {
-      segments.push(...parseUrlSegments(text.slice(lastIndex, index)))
+      segments.push(...parseHighlights(text.slice(lastIndex, index)))
     }
 
     segments.push({ kind: 'italic', value: match[1] ?? '' })
@@ -77,11 +106,11 @@ function parseItalicSegments(text: string): LessonInlineSegment[] {
   }
 
   if (lastIndex < text.length) {
-    segments.push(...parseUrlSegments(text.slice(lastIndex)))
+    segments.push(...parseHighlights(text.slice(lastIndex)))
   }
 
   if (segments.length === 0) {
-    return parseUrlSegments(text)
+    return parseHighlights(text)
   }
 
   return segments

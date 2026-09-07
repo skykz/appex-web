@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles } from 'lucide-react'
 import { cn } from '@shared/lib'
-import { buttonVariants } from '@shared/ui/button-variants'
 import { EmojiOrImageBadge } from '@shared/ui/emoji-or-image-badge'
+import { isLikelyImageBadgeUrl } from '@appex/lesson-schema'
 import type { SkillCardModel } from './types'
 import { PaywallDialog } from './paywall-dialog'
 
@@ -11,28 +11,23 @@ interface SkillCardProps {
   skill: SkillCardModel
   /** Featured challenge cards can span a narrower column on large screens. */
   featured?: boolean
-}
-
-/**
- * Returns the primary CTA label based on learner progress on the skill.
- */
-function ctaLabel(skill: SkillCardModel): string {
-  if (skill.status === 'completed') return 'Review course'
-  if (skill.status === 'in_progress' || skill.progress > 0) return 'Continue'
-  return 'Join now'
+  /** Small card used in the featured-skills strip. */
+  compact?: boolean
 }
 
 /**
  * Course card used in the skills catalog sections.
  */
-export function SkillCard({ skill, featured = false }: SkillCardProps) {
+export function SkillCard({ skill, featured = false, compact = false }: SkillCardProps) {
   const [paywallOpen, setPaywallOpen] = useState(false)
   const isPremiumLocked = !!skill.premium_locked
+  const progress = Math.max(0, Math.min(100, Math.round(skill.progress)))
+  const hasCourseImage = isLikelyImageBadgeUrl(skill.emoji)
 
   const sharedClass = cn(
-    'group flex h-full flex-col overflow-hidden rounded-[24px] border border-border/70 bg-card text-left shadow-sm transition-all duration-200',
-    'hover:-translate-y-0.5 hover:border-border hover:shadow-md',
-    featured && 'max-w-sm'
+    'group flex h-full flex-col text-left transition-transform duration-200 hover:-translate-y-0.5',
+    compact ? 'min-w-0' : 'min-w-0',
+    featured && !compact && 'max-w-none'
   )
 
   const body = (
@@ -40,23 +35,35 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
       <div
         className={cn(
           'relative flex aspect-[16/10] items-center justify-center bg-muted/35',
+          compact && 'aspect-[16/9] rounded-[16px] border border-border/50',
           isPremiumLocked && 'bg-linear-to-b from-amber-50/80 via-muted/30 to-muted/20 dark:from-amber-950/20'
         )}
       >
-        <div className="transition-transform duration-200 group-hover:scale-105">
+        <div
+          className={cn(
+            'transition-transform duration-200 group-hover:scale-[1.02]',
+            hasCourseImage
+              ? cn('absolute rounded-[18px] bg-white p-1.5 shadow-sm', compact ? 'inset-2' : 'inset-3')
+              : 'group-hover:scale-105'
+          )}
+        >
           <EmojiOrImageBadge
             value={skill.emoji}
-            frameClassName="h-24 w-24 text-5xl drop-shadow-sm sm:h-28 sm:w-28 sm:text-6xl"
+            frameClassName={
+              hasCourseImage
+                ? 'h-full w-full rounded-[13px] text-base'
+                : cn(
+                    'h-24 w-24 text-5xl drop-shadow-sm sm:h-28 sm:w-28 sm:text-6xl',
+                    compact && 'h-14 w-14 text-2xl sm:h-16 sm:w-16 sm:text-3xl'
+                  )
+            }
+            imageClassName={hasCourseImage ? 'object-cover scale-[0.94]' : undefined}
           />
         </div>
 
-        {skill.status === 'completed' ? (
-          <span className="absolute left-3 top-3 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-600">
-            Completed
-          </span>
-        ) : skill.progress > 0 ? (
-          <span className="absolute left-3 top-3 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            {skill.progress}%
+        {!compact ? (
+          <span className="absolute left-3 top-3 inline-flex size-10 items-center justify-center rounded-full border border-border/60 bg-background text-xs font-bold text-foreground shadow-sm">
+            {skill.status === 'completed' ? '✓' : `${progress}%`}
           </span>
         ) : null}
 
@@ -68,27 +75,21 @@ export function SkillCard({ skill, featured = false }: SkillCardProps) {
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-4 sm:p-5">
+      <div className={cn('flex flex-1 flex-col', compact ? 'gap-2 px-1 pb-1 pt-3' : 'gap-2 pt-3')}>
         <div className="space-y-1.5">
-          <h3 className="text-base font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
-            {skill.title}
-          </h3>
-          {skill.duration ? (
-            <p className="text-xs font-medium text-muted-foreground sm:text-sm">{skill.duration}</p>
+          {!compact ? (
+            <h3 className="text-base font-semibold leading-snug tracking-tight text-foreground sm:text-lg">
+              {skill.title}
+            </h3>
           ) : null}
+          {!compact ? <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{skill.description}</p> : null}
         </div>
-
-        <span
-          className={cn(
-            buttonVariants({
-              size: 'lg',
-              variant: isPremiumLocked ? 'outline' : 'default',
-            }),
-            'mt-auto w-full rounded-xl'
-          )}
-        >
-          {isPremiumLocked ? 'Unlock with Premium' : ctaLabel(skill)}
-        </span>
+        {compact ? (
+          <div className="mt-auto flex items-center justify-between gap-2 pt-1">
+            <span className="line-clamp-1 text-sm font-semibold text-foreground">{skill.title}</span>
+            <ArrowRight className="size-4 shrink-0 text-foreground transition-transform duration-200 group-hover:translate-x-1" />
+          </div>
+        ) : null}
       </div>
     </>
   )

@@ -34,6 +34,18 @@ export function renderLinkedText(text: string, keyPrefix = 'linked-text'): React
       return
     }
 
+    if (segment.kind === 'highlight') {
+      const colors = {
+        yellow: 'bg-yellow-200/80 text-yellow-950 dark:bg-yellow-500/30 dark:text-yellow-50',
+        green: 'bg-emerald-200/80 text-emerald-950 dark:bg-emerald-500/30 dark:text-emerald-50',
+        blue: 'bg-sky-200/80 text-sky-950 dark:bg-sky-500/30 dark:text-sky-50',
+        pink: 'bg-pink-200/80 text-pink-950 dark:bg-pink-500/30 dark:text-pink-50',
+        purple: 'bg-violet-200/80 text-violet-950 dark:bg-violet-500/30 dark:text-violet-50',
+      }
+      nodes.push(<mark key={key} className={`rounded px-1 py-0.5 ${colors[segment.color]}`}>{segment.value}</mark>)
+      return
+    }
+
     nodes.push(
       <a
         key={key}

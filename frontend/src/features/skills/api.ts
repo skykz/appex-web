@@ -6,6 +6,12 @@ import type {
   SkillCategoryFilter,
 } from './types'
 
+export interface SkillCategory {
+  slug: string
+  label: string
+  sort_order: number
+}
+
 /** Public certificate verification result (no auth required). */
 export type VerifyResult =
   | { valid: false }
@@ -29,6 +35,11 @@ export const skillsApi = {
     const params =
       category && category !== 'all' ? `?category=${encodeURIComponent(category)}` : ''
     return httpClient.get(`/skills${params}`)
+  },
+
+  /** Loads categories managed in Admin that are visible to learners. */
+  async listCategories(): Promise<SkillCategory[]> {
+    return httpClient.get('/skills/categories')
   },
 
   /**

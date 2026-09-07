@@ -13,7 +13,6 @@ import { DateRangePicker } from '@shared/ui/date-range-picker'
 import { Card, CardContent } from '@shared/ui/card'
 import { PageHeader } from '@shared/ui/page-header'
 import { QueryErrorPanel } from '@shared/ui/query-error-panel'
-import { Select } from '@shared/ui/select'
 import { Skeleton } from '@shared/ui/skeleton'
 
 const KEY = ['admin', 'pricing-experiment'] as const

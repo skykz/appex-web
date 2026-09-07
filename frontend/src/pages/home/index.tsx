@@ -262,18 +262,7 @@ export default function HomePage() {
                                       : 'border border-transparent bg-muted/40 hover:bg-muted/70'
                                 )}
                               >
-                                <div className="flex min-w-0 items-center gap-4">
-                                  <EmojiOrImageBadge
-                                    value={lesson.emoji}
-                                    frameClassName={cn(
-                                      'size-12 shrink-0 rounded-2xl text-xl',
-                                      active
-                                        ? 'bg-primary text-primary-foreground shadow-inner'
-                                        : done
-                                          ? 'bg-primary/12 text-primary'
-                                          : 'bg-background text-muted-foreground shadow-sm'
-                                    )}
-                                  />
+                                <div className="flex min-w-0 items-center">
                                   <div className="min-w-0 flex flex-col gap-0.5">
                                     <span className="truncate text-xs font-semibold text-primary">
                                       {course.title}

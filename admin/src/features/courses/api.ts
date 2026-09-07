@@ -62,10 +62,29 @@ export interface Lesson {
 export interface LessonInput {
   label: string
   title: string
-  emoji: string
+  emoji?: string
   content: LessonStep[]
   is_visible?: boolean
   order?: number
+}
+
+export interface ImportedLessonDraft {
+  label: string
+  title: string
+  emoji: string
+  is_visible: false
+  steps: LessonStep[]
+}
+
+export interface ImportedModuleDraft {
+  title: string
+  lessons: ImportedLessonDraft[]
+}
+
+export interface GeneratedPlaygroundDraft {
+  answer: string
+  previewUrl?: string
+  previewLabel?: string
 }
 
 export interface CourseDetail extends Course {
@@ -136,6 +155,25 @@ export const coursesApi = {
 
   lessonEngagement: (lessonId: number) =>
     httpClient.get<LessonEngagementResponse>(`/admin/lessons/${lessonId}/engagement`),
+
+  generateLessonFromDocument: (data: {
+    fileName: string
+    contentType: string
+    dataBase64: string
+  }) => httpClient.post<ImportedLessonDraft>('/admin/lesson-imports/generate', data),
+
+  generateModuleFromArchive: (data: {
+    fileName: string
+    contentType: string
+    dataBase64: string
+  }) => httpClient.post<ImportedModuleDraft>('/admin/lesson-imports/module-generate', data),
+
+  generatePlaygroundDraft: (data: {
+    prompt: string
+    lessonContext?: string
+    documentUrl?: string
+    documentLabel?: string
+  }) => httpClient.post<GeneratedPlaygroundDraft>('/admin/playground/generate', data),
 
   reorderCourses: (orderedIds: number[]) =>
     httpClient.patch<void>('/admin/courses/order', { orderedIds }),

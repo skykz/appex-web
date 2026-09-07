@@ -123,7 +123,7 @@ export function LessonIssueReportDialog({
               </DialogDescription>
               <p className="truncate text-xs text-muted-foreground">
                 Lesson <span className="font-mono text-foreground">{lessonId}</span> ·{' '}
-                {lessonLabel} · Step {stepIndex + 1} of {stepCount}
+                {lessonLabel} · Step {stepIndex + 1}
               </p>
             </div>
           </div>

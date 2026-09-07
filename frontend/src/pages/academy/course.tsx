@@ -2,7 +2,6 @@ import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
-  BookOpen,
   Check,
   Clock3,
   Download,
@@ -295,54 +294,13 @@ export default function CoursePage() {
                   </div>
 
                   <ol className="relative grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                    {module.lessons.map((lesson, lessonIndex) => {
+                    {module.lessons.map((lesson) => {
                       const state = getLessonState(lesson, nextLessonId)
                       const isLocked = state === 'locked'
                       const isCompleted = state === 'completed'
                       const isCurrent = state === 'current'
-                      const levelNumber = lessonIndex + 1
-                      const hasEmoji = Boolean((lesson.emoji || '').trim())
                       const content = (
                         <>
-                          {/* Lesson icon tile — state-driven: check when done, book/emoji otherwise, lock when locked. */}
-                          <div
-                            className={cn(
-                              'relative flex size-14 shrink-0 items-center justify-center rounded-2xl border transition-all duration-200',
-                              isCompleted &&
-                                'border-transparent bg-linear-to-br from-emerald-400 to-emerald-600 text-white shadow-md shadow-emerald-500/25',
-                              isCurrent &&
-                                'border-transparent bg-linear-to-br from-primary to-orange-500 text-white shadow-md shadow-primary/25 group-hover:scale-105',
-                              isLocked && 'border-border/60 bg-muted text-muted-foreground/60',
-                              !isCompleted &&
-                                !isCurrent &&
-                                !isLocked &&
-                                'border-border bg-background text-primary group-hover:scale-105 group-hover:border-primary/40'
-                            )}
-                          >
-                            {isCompleted ? (
-                              <Check className="size-7" strokeWidth={2.75} aria-hidden />
-                            ) : isLocked ? (
-                              <Lock className="size-5" aria-hidden />
-                            ) : hasEmoji ? (
-                              <EmojiOrImageBadge
-                                value={lesson.emoji}
-                                frameClassName="flex size-9 items-center justify-center rounded-lg bg-transparent text-2xl shadow-none"
-                              />
-                            ) : (
-                              <BookOpen className="size-6" aria-hidden />
-                            )}
-                            <span
-                              className={cn(
-                                'absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full text-[10px] font-bold shadow-sm',
-                                isCompleted || isCurrent
-                                  ? 'bg-background text-foreground ring-1 ring-black/5'
-                                  : 'border border-border bg-background text-muted-foreground'
-                              )}
-                            >
-                              {levelNumber}
-                            </span>
-                          </div>
-
                           <div className="min-w-0 flex-1">
                             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
                               <span className="text-muted-foreground text-[10px] font-bold uppercase tracking-wide">

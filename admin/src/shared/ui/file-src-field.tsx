@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { FileText, Loader2, Upload } from 'lucide-react'
 import { uploadsApi } from '@features/uploads/api'
-import { readFileAsBase64 } from '@shared/lib/read-file-as-base64'
+import { uploadFileToSignedUrl } from '@shared/lib/upload-file-to-signed-url'
 import { Label } from '@shared/ui/label'
 import { Input } from '@shared/ui/input'
 import { Textarea } from '@shared/ui/textarea'
@@ -46,13 +46,13 @@ export function FileSrcField({
       if (file.size > MAX_BYTES) {
         throw new Error('File is too large. Maximum size is 20 MB.')
       }
-      const dataBase64 = await readFileAsBase64(file)
-      return uploadsApi.uploadLessonFile({
+      const upload = await uploadsApi.createLessonFileUpload({
         fileName: file.name,
         contentType: file.type || 'application/octet-stream',
         size: file.size,
-        dataBase64,
       })
+      await uploadFileToSignedUrl(upload.signedUrl, file)
+      return { url: upload.url, fileName: file.name }
     },
     onSuccess: (data) => {
       onUrlChange(data.url)
@@ -83,7 +83,7 @@ export function FileSrcField({
               ref={fileInputRef}
               type="file"
               className="sr-only"
-              accept=".pdf,.doc,.docx,.txt,.md,.csv,.json,application/pdf,text/plain,text/markdown,application/json,text/csv"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.md,.csv,.json,.html,.htm,.png,.jpg,.jpeg,.webp,.gif,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,text/markdown,application/json,text/csv,text/html,image/png,image/jpeg,image/webp,image/gif"
               onChange={onPickFile}
             />
             <Button
@@ -113,7 +113,7 @@ export function FileSrcField({
           </div>
         ) : (
           <p className="text-xs text-muted-foreground">
-            PDF, Word, TXT, Markdown, CSV, or JSON — up to 20 MB. Learners download and use in Claude.
+            PDF, Word, Excel, TXT, Markdown, CSV, JSON, HTML, or image — up to 20 MB.
           </p>
         )}
       </div>
