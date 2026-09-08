@@ -18,4 +18,3 @@ export type {
   Certificate,
 } from './types'
 export { skillCategories, categorySectionCopy } from './types'
-export { SkillsFeaturedPanel } from './skills-featured-panel'

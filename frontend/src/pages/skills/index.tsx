@@ -5,7 +5,6 @@ import {
   SkillCategoryTabs,
   SkillSection,
   SkillsComingSoonSection,
-  SkillsFeaturedPanel,
   SkillsHero,
   SkillsOnboardingDialog,
   skillsApi,
@@ -72,13 +71,9 @@ export default function SkillsPage() {
     () => buildSectionTabs(categoriesWithSkills, challengeSkills.length > 0),
     [categoriesWithSkills, challengeSkills.length]
   )
-
-  useEffect(() => {
-    if (!tabs.length) return
-    setActiveTab((current) =>
-      current && tabs.some((tab) => tab.id === current) ? current : tabs[0].id
-    )
-  }, [tabs])
+  const visibleActiveTab = tabs.some((tab) => tab.id === activeTab)
+    ? activeTab
+    : tabs[0]?.id ?? ''
 
   /**
    * Smooth-scrolls the selected section into view below the sticky tab bar.
@@ -126,7 +121,7 @@ export default function SkillsPage() {
             <div className="sticky top-0 z-20 -mx-4 mb-8 bg-background/95 px-4 pb-0 pt-2 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
               <SkillCategoryTabs
                 tabs={tabs}
-                activeId={activeTab}
+                activeId={visibleActiveTab}
                 onSelect={scrollToSection}
               />
             </div>
@@ -169,7 +164,6 @@ export default function SkillsPage() {
             </div>
           ) : (
             <div className="space-y-10 pb-10">
-              <SkillsFeaturedPanel skills={skills} />
               {challengeSkills.length > 0 ? (
                 <SkillSection
                   id={CHALLENGE_SECTION_ID}
