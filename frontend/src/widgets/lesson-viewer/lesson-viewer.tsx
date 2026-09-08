@@ -2,7 +2,7 @@ import type React from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Check, ChevronDown, Copy, ExternalLink, FileText, Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Paperclip, RotateCcw, Sparkles, X } from 'lucide-react'
+import { Check, ChevronDown, Copy, FileText, Flag, Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Paperclip, RotateCcw, Sparkles, X } from 'lucide-react'
 import { LessonFileDownloadCard } from './lesson-file-download-card'
 import { LessonLinkCard } from './lesson-link-card'
 import { cn } from '@shared/lib'
@@ -123,6 +123,7 @@ export function LessonViewer({
   const isLast = stepIndex === totalSteps - 1
   const currentStep = content.steps[Math.min(stepIndex, totalSteps - 1)]
   const currentBlocks = currentStep?.blocks ?? []
+  const hasPlayground = currentBlocks.some((block) => block.type === 'playground')
   /** Completed lessons are review/retake mode — do not restore prior quiz results. */
   const quizAttemptMap = buildQuizAttemptMap(lessonCompleted ? [] : quizAttempts)
 
@@ -296,8 +297,8 @@ export function LessonViewer({
 
       {/* Scrollable content — subtle panel so the lesson reads as a distinct surface.
           Extra bottom padding keeps the last lines clear of the floating Lexi bubble. */}
-      <div className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-4 pt-6 pb-24 sm:px-8">
-        <div className="flex flex-col gap-0 rounded-2xl border border-border/50 bg-card/40 px-3 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
+      <div className={cn('mx-auto w-full flex-1 overflow-y-auto px-4 pt-6 pb-24 sm:px-8', hasPlayground ? 'max-w-6xl' : 'max-w-5xl')}>
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-0 rounded-2xl border border-border/50 bg-card/40 px-3 py-6 shadow-sm ring-1 ring-black/[0.03] sm:px-8 sm:py-8 dark:ring-white/[0.06]">
           {renderBlocks(currentBlocks, {
             lessonId: content.lessonId,
             stepIndex,
@@ -309,7 +310,7 @@ export function LessonViewer({
 
       {/* Bottom bar */}
       <div className="sticky bottom-0 z-10 border-t border-border/60 bg-background/85 px-3 py-2.5 shadow-[0_-6px_20px_-16px_rgba(0,0,0,0.2)] backdrop-blur-md supports-[backdrop-filter]:bg-background/75">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-5xl">
           {hasUnansweredQuiz ? (
             <p className="mb-2 text-center text-xs font-medium text-muted-foreground">
               Answer the question above to continue.
@@ -836,7 +837,12 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
     setHasRun(true)
     setPreviewOpen(Boolean(block.previewUrl))
   }
-  return <section className={cn('relative mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0', fullscreen && 'fixed inset-4 z-50 m-0 flex flex-col bg-background shadow-2xl')}>
+  return <section className={cn(
+    'relative mt-5 overflow-hidden rounded-2xl border border-border/80 bg-card shadow-sm first:mt-0',
+    fullscreen
+      ? 'fixed inset-4 z-50 m-0 flex flex-col bg-background shadow-2xl'
+      : 'lg:left-1/2 lg:w-[calc(100%+8rem)] lg:max-w-[calc(100vw-4rem)] lg:-translate-x-1/2'
+  )}>
     <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
       <span className="flex size-9 items-center justify-center rounded-xl bg-primary/[0.09] text-primary"><Sparkles className="size-[18px]" aria-hidden /></span>
       <h3 className="min-w-0 flex-1 font-semibold text-foreground">{block.title || 'AI Playground'}</h3>
@@ -848,15 +854,14 @@ function PlaygroundBlock({ block }: { block: Extract<LessonBlock, { type: 'playg
         <div className="flex border-b border-border/70 bg-muted/20" role="tablist"><button type="button" role="tab" aria-selected={tab === 'prompt'} onClick={() => setTab('prompt')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'prompt' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Prompt</button>{hasRun || generating ? <button type="button" role="tab" aria-selected={tab === 'chat'} onClick={() => setTab('chat')} className={cn('border-b-2 px-5 py-3 text-sm font-semibold', tab === 'chat' ? 'border-primary bg-card text-foreground' : 'border-transparent text-muted-foreground')}>Chat</button> : null}</div>
         <div className={cn('min-h-80 flex-1 overflow-y-auto px-4 py-5', tab === 'chat' && 'bg-muted/25')}>
           {tab === 'prompt' ? <pre className="mx-auto max-w-2xl whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground">{block.prompt}</pre> : <div className="mx-auto flex max-w-2xl flex-col gap-5">
-            <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></a> : null}</div></div>
+            <div className="flex justify-end"><div className="flex max-w-[85%] flex-col items-end gap-2"><div className="w-full rounded-xl rounded-br-sm bg-muted p-3 shadow-sm"><div className="relative"><pre className={cn('whitespace-pre-wrap font-mono text-[14px] leading-7 text-foreground', !promptExpanded && 'line-clamp-6')}>{block.prompt}</pre>{!promptExpanded && block.prompt.length > 220 ? <span className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-b from-transparent to-muted" /> : null}</div>{block.prompt.length > 220 ? <button type="button" onClick={() => setPromptExpanded((value) => !value)} className="mt-2 flex items-center gap-1.5 rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-foreground">{promptExpanded ? 'Show less' : 'Show more'}<ChevronDown className={cn('size-3.5 transition-transform', promptExpanded && 'rotate-180')} /></button> : null}</div>{block.documentUrl ? <div className="flex h-[58px] w-full min-w-64 items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-foreground shadow-sm"><span className="flex size-9 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.documentLabel || 'Input document'}</span></div> : null}</div></div>
             {generating ? <div className="flex items-center gap-3 py-2 text-sm text-muted-foreground" role="status" aria-live="polite"><span className="flex items-center gap-1"><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.3s]" /><span className="size-2 animate-bounce rounded-full bg-primary [animation-delay:-0.15s]" /><span className="size-2 animate-bounce rounded-full bg-primary" /></span><span>Claude is working…</span></div> : <div className="flex flex-col gap-3"><div className="flex items-start gap-2.5"><span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/[0.1] text-primary"><Sparkles className="size-4" /></span><div className="max-w-[85%] rounded-2xl rounded-tl-sm border border-border/80 bg-card px-4 py-3 shadow-sm"><PlaygroundChatAnswer answer={block.answer} /></div></div>{block.previewUrl ? <button type="button" onClick={() => setPreviewOpen(true)} className="flex h-[66px] items-center gap-3 rounded-xl border border-border/80 bg-card p-3 text-left text-foreground shadow-sm transition-colors hover:border-primary/40"><span className="flex size-10 items-center justify-center rounded-lg bg-primary/[0.08] text-primary"><FileText className="size-5" /></span><span className="min-w-0 flex-1 truncate text-sm font-semibold">{block.previewLabel || 'Generated output'}</span><span className="rounded-full bg-muted px-3 py-1.5 text-xs font-semibold">View</span></button> : null}</div>}
           </div>}
         </div>
-        {tab === 'prompt' && block.documentUrl ? <a href={block.documentUrl} target="_blank" rel="noopener noreferrer" className="mx-4 mb-4 flex items-center gap-2 rounded-xl border border-border/70 bg-muted/25 px-3 py-2.5 text-sm font-medium text-foreground hover:border-primary/30"><Paperclip className="size-4 text-primary" aria-hidden /><span className="min-w-0 flex-1 truncate">{block.documentLabel || 'Input document'}</span><span className="text-xs font-semibold text-primary">View</span><ExternalLink className="size-4 text-muted-foreground" aria-hidden /></a> : null}
         <div className="flex justify-end gap-2 border-t border-border/70 px-4 py-3"><Button type="button" variant="ghost" size="sm" onClick={() => void copyPrompt()} className="gap-2">{copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}{copied ? 'Copied' : 'Copy'}</Button><Button type="button" size="sm" disabled={generating} onClick={() => void runPlayground()} className="gap-2"><Sparkles className={cn('size-4', generating && 'animate-pulse')} />{generating ? 'Working…' : tab === 'chat' ? 'Regenerate' : 'Try it'}</Button></div>
       </div>
       {hasFile && previewOpen ? <div className="flex min-h-0 flex-col bg-muted/15">
-        <div className="flex h-11 shrink-0 items-center border-b border-border/70 px-4"><p className="flex-1 text-sm font-semibold">Preview</p>{previewUrl ? <a href={previewUrl} target="_blank" rel="noopener noreferrer" aria-label="Open preview in new tab" className="mr-2 text-muted-foreground transition-colors hover:text-primary"><ExternalLink className="size-4" /></a> : null}<button type="button" onClick={() => setPreviewOpen(false)} aria-label="Collapse preview" className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-primary"><PanelRightClose className="size-4" /></button></div>
+        <div className="flex h-11 shrink-0 items-center border-b border-border/70 px-4"><p className="flex-1 text-sm font-semibold">Preview</p><button type="button" onClick={() => setPreviewOpen(false)} aria-label="Collapse preview" className="flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground hover:text-primary"><PanelRightClose className="size-4" /></button></div>
         <div className="min-h-80 flex-1 overflow-hidden">{previewUrl ? <PlaygroundFilePreview url={previewUrl} label={previewLabel} /> : <div className="flex size-full min-h-80 flex-col items-center justify-center px-6 text-center text-muted-foreground"><Paperclip className="mb-3 size-7 text-primary/50" /><p className="text-sm">A file preview appears here when the exercise uses an input or generated file.</p></div>}</div>
       </div> : hasFile ? <button type="button" onClick={() => setPreviewOpen(true)} aria-label="Open preview" className="absolute right-5 mt-3 flex size-8 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm hover:text-primary"><PanelRightOpen className="size-4" /></button> : null}
     </div>
