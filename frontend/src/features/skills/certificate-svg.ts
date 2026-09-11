@@ -20,9 +20,9 @@ const CERT_MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/** High-res raster size for PDF export — 2.5× the 800×450 designer template. */
+/** High-res raster size for PDF export — 2.5× the 800×520 designer template. */
 export const CERT_WIDTH = 2000
-export const CERT_HEIGHT = 1125
+export const CERT_HEIGHT = 1300
 
 /** Formats an ISO timestamp as e.g. "21 June 2026". */
 export function formatIssuedDate(iso: string): string {
@@ -41,15 +41,30 @@ function escapeXml(value: string) {
 }
 
 /**
- * Splits multiline admin text into up to two trimmed lines for the template.
+ * Wraps multiline admin text to the available certificate space.
  */
-function splitLines(value: string, maxLines = 2): string[] {
-  const lines = value
-    .split('\n')
-    .map((line) => line.trim())
+function wrapLines(value: string, maxCharacters: number, maxLines: number): string[] {
+  const words = value
+    .split(/\s+/)
+    .map((word) => word.trim())
     .filter(Boolean)
+  const lines: string[] = []
+  let line = ''
+
+  for (const word of words) {
+    const nextLine = line ? `${line} ${word}` : word
+    if (line && nextLine.length > maxCharacters) {
+      lines.push(line)
+      line = word
+      if (lines.length === maxLines) break
+      continue
+    }
+    line = nextLine
+  }
+
+  if (line && lines.length < maxLines) lines.push(line)
   while (lines.length < maxLines) lines.push('')
-  return lines.slice(0, maxLines)
+  return lines
 }
 
 /**
@@ -59,7 +74,7 @@ function buildTagsSvg(tags: string[]): string {
   if (!tags.length) return ''
 
   const startX = 52
-  const y = 326
+  const y = 385
   const height = 25
   const gap = 10
   const charWidth = 7
@@ -79,7 +94,7 @@ function buildTagsSvg(tags: string[]): string {
     const cx = x + width / 2
     parts.push(
       `<rect x="${x.toFixed(1)}" y="${y}" width="${width.toFixed(1)}" height="${height}" rx="12.5" fill="none" stroke="#FF6A00" stroke-width="1"/>`,
-      `<text x="${cx.toFixed(1)}" y="338.5" font-family="Inter, Arial, sans-serif" font-size="12" fill="#0A0A0A" text-anchor="middle" dominant-baseline="central">${escapeXml(label)}</text>`
+      `<text x="${cx.toFixed(1)}" y="397.5" font-family="Inter, Arial, sans-serif" font-size="12" fill="#0A0A0A" text-anchor="middle" dominant-baseline="central">${escapeXml(label)}</text>`
     )
     x += width + gap
   }
@@ -98,8 +113,8 @@ export function buildCertificateSvg({
   issuedAt,
   tags,
 }: CertificateData): string {
-  const [titleLine1, titleLine2] = splitLines(courseTitle)
-  const [descriptionLine1, descriptionLine2] = splitLines(description)
+  const [titleLine1, titleLine2, titleLine3] = wrapLines(courseTitle, 20, 3)
+  const [descriptionLine1, descriptionLine2, descriptionLine3] = wrapLines(description, 88, 3)
 
   return certificateTemplate
     .replaceAll('{{full_name}}', escapeXml(recipientName))
@@ -107,8 +122,10 @@ export function buildCertificateSvg({
     .replaceAll('{{certificate_id}}', escapeXml(certCode))
     .replaceAll('{{cert_title_line1}}', escapeXml(titleLine1))
     .replaceAll('{{cert_title_line2}}', escapeXml(titleLine2))
+    .replaceAll('{{cert_title_line3}}', escapeXml(titleLine3))
     .replaceAll('{{cert_description_line1}}', escapeXml(descriptionLine1))
     .replaceAll('{{cert_description_line2}}', escapeXml(descriptionLine2))
+    .replaceAll('{{cert_description_line3}}', escapeXml(descriptionLine3))
     .replaceAll('{{cert_tags}}', buildTagsSvg(tags))
 }
 

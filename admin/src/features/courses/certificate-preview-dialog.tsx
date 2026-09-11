@@ -33,7 +33,7 @@ export function CertificatePreviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Certificate preview</DialogTitle>
           <DialogDescription>
@@ -43,7 +43,7 @@ export function CertificatePreviewDialog({
           </DialogDescription>
         </DialogHeader>
         <div
-          className="relative aspect-[16/9] w-full overflow-hidden rounded-xl bg-white ring-1 ring-border [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+          className="relative aspect-[20/13] w-full overflow-hidden rounded-xl bg-white ring-1 ring-border [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
           role="img"
           aria-label={`Certificate preview for ${data.courseTitle}`}
           dangerouslySetInnerHTML={{ __html: svgMarkup }}
