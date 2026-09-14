@@ -6,6 +6,13 @@ type RawLessonBlock = { type: string; [key: string]: unknown }
  * Maps one raw API/database block into the editor model (legacy quiz + defaults).
  */
 export function normalizeLessonBlockForEditor(b: RawLessonBlock): LessonBlock {
+  if (b.type === 'guide') {
+    const guide = b as Extract<LessonBlock, { type: 'guide' }>
+    return { ...guide, steps: guide.steps.map(({ content, ...step }) => ({
+      ...step,
+      blocks: step.blocks ?? [{ type: 'text' as const, content: content ?? '' }],
+    })) }
+  }
   if (b.type === 'quiz-single') {
     return {
       type: 'quiz',

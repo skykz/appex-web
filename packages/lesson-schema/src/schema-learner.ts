@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { imageSrcFlexible, urlOrPath } from './schema.js'
+import { guideStepSchema, imageSrcFlexible, urlOrPath } from './schema.js'
 
 /**
  * Quiz block as delivered to learners after answer keys are stripped (GET lesson).
@@ -77,7 +77,7 @@ export const lessonBlockLearnerSchema = z.union([
     type: z.literal('guide'),
     title: z.string().optional(),
     description: z.string().optional(),
-    steps: z.array(z.object({ title: z.string(), content: z.string() })),
+    steps: z.array(guideStepSchema),
   }),
   z.object({
     type: z.literal('playground'),

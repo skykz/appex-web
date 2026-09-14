@@ -462,7 +462,11 @@ function GuidePreview({ block }: { block: Extract<LessonBlockLearner, { type: 'g
           <span className={cn('relative z-10 flex size-7 items-center justify-center rounded-full text-sm font-medium', active ? 'bg-orange-100 text-orange-600 ring-1 ring-orange-200' : 'bg-zinc-200 text-zinc-500')}>{index + 1}</span>
           <div className="min-w-0 pt-0.5">
             <p className={cn('text-[15px] font-semibold leading-6', active ? 'text-zinc-950' : 'text-zinc-500')}>{guideStep.title}</p>
-            {active ? <div className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">{renderInlineText(guideStep.content, `guide-preview-${current}`)}</div> : null}
+            {active ? <div className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-zinc-800">{(guideStep.blocks ?? [{ type: 'text' as const, content: guideStep.content ?? '' }]).map((part, partIndex) =>
+                part.type === 'image'
+                  ? <img key={partIndex} src={part.src} alt={part.alt ?? ''} className="my-4 h-auto max-w-full rounded-xl" loading="lazy" />
+                  : <div key={partIndex} className="whitespace-pre-wrap [&+div]:mt-3">{renderInlineText(part.content, `guide-${current}-${partIndex}`)}</div>
+              )}</div> : null}
           </div>
         </li>
       })}

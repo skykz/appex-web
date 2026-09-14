@@ -727,7 +727,11 @@ function GuideBlock({ block }: { block: Extract<LessonBlock, { type: 'guide' }> 
           <span className={cn('relative z-10 flex size-7 items-center justify-center rounded-full text-sm font-medium transition-colors', active ? 'bg-primary/15 text-primary ring-1 ring-primary/20' : 'bg-muted text-muted-foreground')}>{index + 1}</span>
           <div className="min-w-0 pt-0.5">
             <p className={cn('text-[15px] font-semibold leading-6', active ? 'text-foreground' : 'text-muted-foreground')}>{guideStep.title}</p>
-            {active ? <div className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">{renderLinkedText(guideStep.content, `guide-${current}`)}</div> : null}
+            {active ? <div className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-foreground/90">{(guideStep.blocks ?? [{ type: 'text' as const, content: guideStep.content ?? '' }]).map((part, partIndex) =>
+                part.type === 'image'
+                  ? <LessonImageBlock key={`${current}-${partIndex}`} src={part.src} alt={part.alt} />
+                  : <div key={partIndex} className="whitespace-pre-wrap [&+div]:mt-3">{renderLinkedText(part.content, `guide-${current}-${partIndex}`)}</div>
+              )}</div> : null}
           </div>
         </li>
       })}

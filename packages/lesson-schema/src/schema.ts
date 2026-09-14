@@ -113,6 +113,22 @@ export const quizBlockSchema = z.union([
   }),
 ])
 
+/** Ordered text and images within an interactive guide step. */
+export const guideContentBlockSchema = z.union([
+  z.object({ type: z.literal('text'), content: z.string().trim().min(1).max(4000) }),
+  z.object({ type: z.literal('image'), src: imageSrcFlexible, alt: z.string().optional() }),
+])
+
+export const guideStepSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  /** Legacy text-only guides remain readable without a database migration. */
+  content: z.string().max(4000).optional(),
+  blocks: z.array(guideContentBlockSchema).min(1).optional(),
+}).refine((step) => step.blocks !== undefined || Boolean(step.content?.trim()), {
+  message: 'Add text or an image to each guide step.',
+  path: ['blocks'],
+})
+
 /** One rendered block inside a lesson step (stored JSON contract). */
 export const lessonBlockSchema = z.union([
   z.object({ type: z.literal('text'), content: z.string() }),
@@ -163,10 +179,7 @@ export const lessonBlockSchema = z.union([
     type: z.literal('guide'),
     title: z.string().max(120).optional(),
     description: z.string().max(1000).optional(),
-    steps: z.array(z.object({
-      title: z.string().trim().min(1).max(120),
-      content: z.string().trim().min(1).max(4000),
-    })).min(2).max(20),
+    steps: z.array(guideStepSchema).min(2).max(20),
   }),
   z.object({
     type: z.literal('playground'),

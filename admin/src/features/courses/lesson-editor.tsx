@@ -37,6 +37,7 @@ import { ApiError } from '@shared/api/http-client'
 import { ImageSrcField } from '@shared/ui/image-src-field'
 import { FileSrcField } from '@shared/ui/file-src-field'
 import { LessonPreviewDialog } from './lesson-preview-dialog'
+import { GuideFields } from './guide-fields'
 
 /**
  * Builds form steps from API lesson content using shared normalization (`@appex/lesson-schema`).
@@ -92,7 +93,9 @@ export function LessonEditor({ moduleId, initial, draft, onDone, onCancel }: Pro
       order: initial?.order ?? 0,
       steps: initial
         ? normalizeLessonStepsFromApi(initial.content)
-        : draft?.steps ?? [{ blocks: [{ type: 'heading', content: '' }] }],
+        : draft
+          ? normalizeLessonStepsFromApi(draft.steps)
+          : [{ blocks: [{ type: 'heading', content: '' }] }],
     },
   })
 
@@ -873,16 +876,7 @@ function BlockFields({
     </div>
   }
   if (type === 'guide') {
-    const value = form.watch(`${base}.steps` as const) as Array<{ title: string; content: string }> | undefined
-    return <div className="grid gap-2">
-      <Input placeholder="Guide title" {...form.register(`${base}.title` as const)} />
-      <Textarea rows={2} placeholder="Short introduction (optional)" {...form.register(`${base}.description` as const)} />
-      <Controller control={form.control} name={`${base}.steps` as const} render={({ field }) => (
-        <Textarea rows={7} placeholder={'Step name | Content for this guide step\nNext step | What the learner does next'} value={(value ?? []).map((step) => `${step.title} | ${step.content}`).join('\n')} onChange={(event) => field.onChange(event.target.value.split('\n').filter(Boolean).map((line) => { const split = line.indexOf('|'); return { title: (split >= 0 ? line.slice(0, split) : line).trim(), content: (split >= 0 ? line.slice(split + 1) : '').trim() } }))} />
-      )} />
-      <p className="text-xs text-muted-foreground">One internal guide step per line: step name | content. Add at least two.</p>
-      {value && value.length < 2 ? <p className="text-xs text-destructive">Add at least two guide steps.</p> : null}
-    </div>
+    return <GuideFields form={form} base={base} />
   }
   if (type === 'playground') {
     return <PlaygroundFields form={form} stepIdx={stepIdx} blockIdx={blockIdx} />
@@ -1044,7 +1038,7 @@ function defaultBlock(type: LessonBlock['type']): LessonBlock {
     case 'table':
       return { type: 'table', title: '', items: [{ label: 'First', content: '' }, { label: 'Second', content: '' }] }
     case 'guide':
-      return { type: 'guide', title: 'Guide', description: '', steps: [{ title: 'First step', content: '' }, { title: 'Next step', content: '' }] }
+      return { type: 'guide', title: 'Guide', description: '', steps: [{ title: 'First step', blocks: [{ type: 'text', content: '' }] }, { title: 'Next step', blocks: [{ type: 'text', content: '' }] }] }
     case 'playground':
       return { type: 'playground', title: 'AI Playground', prompt: '', answer: '', documentUrl: '', documentLabel: '', previewUrl: '', previewLabel: '' }
     case 'prompt':
